@@ -1,0 +1,4 @@
+project_id = "dwosjtbyjraciitaajtz"
+
+[functions.parse-schedule]
+verify_jwt = true
