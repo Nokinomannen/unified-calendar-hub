@@ -14,7 +14,101 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      calendars: {
+        Row: {
+          color: string
+          created_at: string
+          ics_url: string | null
+          id: string
+          name: string
+          source: string
+          updated_at: string
+          user_id: string
+          visible: boolean
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          ics_url?: string | null
+          id?: string
+          name: string
+          source?: string
+          updated_at?: string
+          user_id: string
+          visible?: boolean
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          ics_url?: string | null
+          id?: string
+          name?: string
+          source?: string
+          updated_at?: string
+          user_id?: string
+          visible?: boolean
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          all_day: boolean
+          calendar_id: string
+          created_at: string
+          description: string | null
+          end_at: string
+          external_id: string | null
+          id: string
+          location: string | null
+          reminder_minutes: number | null
+          rrule: string | null
+          start_at: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          all_day?: boolean
+          calendar_id: string
+          created_at?: string
+          description?: string | null
+          end_at: string
+          external_id?: string | null
+          id?: string
+          location?: string | null
+          reminder_minutes?: number | null
+          rrule?: string | null
+          start_at: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          all_day?: boolean
+          calendar_id?: string
+          created_at?: string
+          description?: string | null
+          end_at?: string
+          external_id?: string | null
+          id?: string
+          location?: string | null
+          reminder_minutes?: number | null
+          rrule?: string | null
+          start_at?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
