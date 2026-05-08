@@ -55,14 +55,31 @@ function SourcesPage() {
     }
   }
 
-  async function handleImage(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const base64 = result.split(",")[1];
-      parseSchedule({ imageBase64: base64, imageMime: file.type });
-    };
-    reader.readAsDataURL(file);
+  async function handleImages(files: FileList) {
+    setParsing(true); setParsed([]);
+    const all: ParsedEvent[] = [];
+    try {
+      for (const file of Array.from(files)) {
+        const b64: string = await new Promise((res) => {
+          const r = new FileReader();
+          r.onload = () => res((r.result as string).split(",")[1]);
+          r.readAsDataURL(file);
+        });
+        const { data, error } = await supabase.functions.invoke("parse-schedule", {
+          body: { imageBase64: b64, imageMime: file.type, referenceDate: new Date().toISOString() },
+        });
+        if (error) throw error;
+        if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+        const evs = (data as { events: ParsedEvent[] }).events ?? [];
+        all.push(...evs);
+        toast.success(`${file.name}: ${evs.length} events`);
+      }
+      setParsed(all.map((e) => ({ ...e, _picked: true })));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Parse failed");
+    } finally {
+      setParsing(false);
+    }
   }
 
   async function importPicked() {
@@ -156,10 +173,11 @@ function SourcesPage() {
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImage(f); e.target.value = ""; }}
+                  onChange={(e) => { const fs = e.target.files; if (fs && fs.length) handleImages(fs); e.target.value = ""; }}
                 />
-                📷 Upload screenshot
+                📷 Upload screenshot(s)
               </label>
             </div>
           </div>
