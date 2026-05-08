@@ -1,58 +1,64 @@
-## Goal
+## Audit findings
 
-Let you paste a weekly Teams screenshot directly into the chatbot and have it match titles + dates against existing events and update their times — no more going through the Sources page or asking me to do it manually.
+**1. Model in use (vision)**
+- `supabase/functions/parse-schedule/index.ts` line ~46: `model: "google/gemini-2.5-pro"` when an image is attached, otherwise `gemini-2.5-flash` for text-only.
+- Provider: **Google Gemini 2.5 Pro**, called via the Lovable AI Gateway (`https://ai.gateway.lovable.dev/v1/chat/completions`). This is already the strongest Gemini in that family and is multimodal.
+- Note: we are not on OpenAI, so the OpenAI `detail: "high"` flag does not apply. The Gateway accepts the OpenAI-style `image_url` format and forwards full-resolution data URLs to Gemini, which has no equivalent "low/auto" downsampling toggle — it always processes full input.
 
-## How it will work (your view)
+**2. Resize / compression on the client**
+- `assistant-panel.tsx` `addFiles()` uses `FileReader.readAsDataURL(file)` and strips the data-URL prefix. **No resizing, no re-encoding, no quality knob.** Original bytes are sent as base64.
+- `assistant-chat` forwards `imageBase64` straight into `parse-schedule`, which embeds it as `data:${mime};base64,${b64}` in the `image_url`. **No mutation anywhere in our pipeline.** Good.
 
-1. In the chat panel, a small 📎 button appears next to the send box.
-2. You attach one (or several) weekly screenshots, optionally type "update my school events from this", and hit send.
-3. The assistant replies with a preview: *"I found 12 events in this screenshot. 10 match existing school events (times will change), 2 are new. Confirm?"*
-4. You reply "yes" → it updates and reports back. Per the existing risk policy, anything touching >3 events always asks first.
+**3. OpenAI `detail` parameter**
+- N/A — we don't use OpenAI for vision. If we switch (option below), we'll set `detail: "high"`.
 
-## What I'll build
+**4. Debug visibility**
+- Currently zero logging of payload. We can't tell from logs how big the image was, what mime came through, or whether the gateway truncated.
 
-### 1. Chat input accepts images (`src/components/assistant-panel.tsx`)
-- Add paperclip button + hidden file input (accept `image/*`, multi).
-- Show small thumbnails of attached images above the textarea with an X to remove.
-- On send, convert each to base64 and include them in the request body as `images: [{ base64, mime }]`.
+**5. Likely real cause of hallucinated dates (separate from model quality)**
+The `assistant-chat` system prompt dumps the user's recent + upcoming events (titles + ISO dates) into context before the screenshot tool ever runs. When the model later parses an image, it has a strong prior toward dates it already saw in the prompt, and the `parse-schedule` prompt does not explicitly forbid using `referenceDate` to fabricate dates that aren't visible in the image. That matches the "completely wrong dates" symptom better than image quality does — Gemini 2.5 Pro reads small text in screenshots fine.
 
-### 2. Edge function accepts images (`supabase/functions/assistant-chat/index.ts`)
-- Accept `images` array in the request payload.
-- When images are present, inject a system note: *"User attached N screenshot(s). Use the `reimport_from_screenshot` tool to parse + match against existing events. Default viewHint = 'weekly'."*
-- Pass image data through to the new tool.
+## Plan
 
-### 3. New tool: `reimport_from_screenshot`
-Registered in the assistant's tool list. Args:
-- `image_index` (which attached image to use)
-- `calendar_id` (which source to match against — defaults to school if title looks like school content)
-- `view_hint` ("weekly" | "monthly", default "weekly")
-- `dry_run` (boolean, default true → returns preview, doesn't write)
+### A. Logging (so you can verify nothing is being mangled)
 
-Handler steps:
-1. Calls `parse-schedule` with the image + view hint.
-2. Filters out all-day "Host:" banners.
-3. For each parsed event, looks up existing events in the chosen calendar by `lower(trim(title))` + same date in Europe/Stockholm. Levenshtein ≤ 2 for typo tolerance.
-4. Returns a structured preview: `{ to_update: [...], to_insert: [...], skipped: [...] }`.
-5. If `dry_run=false` and counts are within risk policy (or user confirmed), runs the updates/inserts and returns a summary.
+In `parse-schedule/index.ts`, before the gateway call:
+- Log: `imageMime`, `base64.length`, approximate byte size (`base64.length * 3/4`), first 16 hex bytes (magic-number sniff), and `viewHint`.
+- Decode width/height for PNG/JPEG/WEBP from the header bytes (no library needed — read IHDR for PNG, SOF0 marker for JPEG, VP8 chunk for WEBP). Log `Wx H`.
+- Log gateway response status + `usage` if returned.
 
-### 4. Shared matcher helper (`supabase/functions/_shared/match-events.ts`)
-Pulled out so both the one-time fix logic and the new tool use the exact same matching rules. Pure function: takes parsed events + DB events + calendar_id, returns `{ updates, inserts, skips }`.
+In `assistant-chat/index.ts` `reimport_from_screenshot`:
+- Log `image_index`, `images.length`, attached image byte size, mime.
 
-## Technical notes
+### B. Stop the hallucination at the prompt level
 
-- Image payloads in chat are kept in component state only (not persisted to `chat_messages`) — base64 in DB would bloat it. The text message is saved as `"[attached 2 screenshots] update school times"`.
-- Tool result preview is rendered as markdown in the assistant message (already supported via `react-markdown`).
-- Risk policy reused: `to_update.length + to_insert.length > 3` → must confirm before write.
-- No DB migration. No new env vars. `parse-schedule` already supports `viewHint`.
+In `parse-schedule/index.ts`:
+- Tighten SYSTEM: *"Dates MUST come from text visible in the image (column headers, day labels, date stamps). The reference date is ONLY for resolving relative weekdays when the image itself shows a weekday but no full date. NEVER invent a date that is not directly readable in the image. If a date is unreadable, skip the event."*
+- Add an `evidence` field to each tool-call event (`{ date_source: "image" | "inferred_from_weekday", visible_text: "..." }`) so we can see in logs what the model claimed to read.
+
+In `assistant-chat/index.ts`:
+- When `images.length > 0`, do NOT include the recent+upcoming events list in the system prompt for that turn. Instead tell the model "events list omitted to avoid biasing screenshot parsing — use `find_events` if you need ids." This removes the date-prior bias.
+
+### C. Model choice
+
+- Keep `google/gemini-2.5-pro` as the default (strong, already in use, no extra cost vs. switching).
+- Add a `model` override knob: if env `PARSE_SCHEDULE_MODEL` is set, use it. Easy A/B against `openai/gpt-5` or `google/gemini-3.1-pro-preview` without code edits. When the model is OpenAI, also send `image_url: { url, detail: "high" }`.
+
+### D. Resolution preservation (defensive)
+
+Already preserved end-to-end. Add one safety net: if `base64.length * 3/4 > 18 MB`, log a warning. Don't downscale — surface to the user instead, since the gateway/model has its own input ceiling (~20 MB).
+
+### E. Test loop
+
+After deploy:
+1. You upload the Notion screenshot through chat.
+2. Check `parse-schedule` logs — confirm dimensions ≥ original, mime correct, byte size matches what your OS reports for the file.
+3. Check the parsed `evidence` field — every event's `date_source` and `visible_text` should match what's actually in the image.
+4. If dates are still wrong with `evidence` showing real visible text, that's a genuine model failure — flip `PARSE_SCHEDULE_MODEL=openai/gpt-5` and re-test.
 
 ## Files touched
 
-- `src/components/assistant-panel.tsx` — image attachment UI + send payload.
-- `supabase/functions/assistant-chat/index.ts` — accept images, register `reimport_from_screenshot` tool, wire to matcher.
-- `supabase/functions/_shared/match-events.ts` — new shared matcher.
+- `supabase/functions/parse-schedule/index.ts` — logging, header-based dimension parsing, tightened system prompt, `evidence` field, model override.
+- `supabase/functions/assistant-chat/index.ts` — drop event list from system prompt when images attached, log image byte size on `reimport_from_screenshot`.
 
-## What you'll be able to say after this
-
-- *"Here's this week's school screenshot, fix the times"* (with image attached)
-- *"Same for next week"* (with another image)
-- *"Use monthly view hint"* (overrides default)
+No DB migration. No client changes. No new secrets unless you choose to set `PARSE_SCHEDULE_MODEL`.
