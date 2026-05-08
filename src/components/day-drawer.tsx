@@ -62,12 +62,12 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit }: Props) {
                     style={{ borderLeftColor: e.calendar?.color ?? "#6366f1" }}
                   >
                     <button
-                      onClick={() => toggle.mutate({ eventId: e.id, date: dk, skip: !isSkip })}
+                      onClick={(ev) => { ev.stopPropagation(); toggle.mutate({ eventId: e.id, date: dk, skip: !isSkip }); }}
                       title={isSkip ? "Mark as attending" : "Skip this occurrence"}
                     >
                       {isSkip ? <Circle className="h-4 w-4 text-muted-foreground" /> : <CheckCircle2 className="h-4 w-4 text-primary" />}
                     </button>
-                    <span className="font-medium">{e.title}</span>
+                    <button onClick={() => onEdit?.(e)} className="flex-1 truncate text-left font-medium hover:underline">{e.title}</button>
                     <span className="ml-auto text-[11px] uppercase tracking-wide text-muted-foreground">all-day</span>
                   </div>
                 );
@@ -105,8 +105,9 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit }: Props) {
                 return (
                   <div
                     key={`${event.id}-${col}`}
+                    onClick={() => onEdit?.(event)}
                     className={cn(
-                      "absolute overflow-hidden rounded-md border-l-[3px] bg-card/90 p-1.5 text-[11px] shadow-sm transition-opacity",
+                      "absolute cursor-pointer overflow-hidden rounded-md border-l-[3px] bg-card/90 p-1.5 text-[11px] shadow-sm transition-opacity hover:bg-accent",
                       isSkip && "opacity-40",
                     )}
                     style={{
@@ -119,7 +120,7 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit }: Props) {
                   >
                     <div className="flex items-start justify-between gap-1">
                       <button
-                        onClick={() => toggle.mutate({ eventId: event.id, date: dk, skip: !isSkip })}
+                        onClick={(ev) => { ev.stopPropagation(); toggle.mutate({ eventId: event.id, date: dk, skip: !isSkip }); }}
                         className="shrink-0"
                         title={isSkip ? "Attending" : "Skip this"}
                       >
