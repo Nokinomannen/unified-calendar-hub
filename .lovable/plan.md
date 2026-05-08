@@ -1,43 +1,58 @@
 ## Goal
 
-Your school events were imported from monthly Teams screenshots, so end times are wrong (everything looks like a 1-hour block starting ~9:30). You've now uploaded 6 weekly-view screenshots covering May 11 – Jun 21. Let's use them to fix the times — and make this repeatable so the chatbot can do it next time.
+Let you paste a weekly Teams screenshot directly into the chatbot and have it match titles + dates against existing events and update their times — no more going through the Sources page or asking me to do it manually.
 
-## Plan
+## How it will work (your view)
 
-### 1. One-time fix (run now, in this turn)
-- Parse all 6 uploaded weekly screenshots through the existing `parse-schedule` edge function with `viewHint: "weekly"` so visible block heights are trusted.
-- For each parsed event, match it against your existing DB events by **title + date** (school calendar source only).
-  - Match found → update `start_at` / `end_at` to the weekly-view times.
-  - No match → insert as a new event (covers things like "Hugs and farewell w. Lærke" which only show in weekly view).
-- Skip the all-day "Host: …" banner rows (they're hosting metadata, not bookable time).
-- Show you a summary in chat: "Updated X events, added Y, skipped Z" with the title list so you can spot-check.
+1. In the chat panel, a small 📎 button appears next to the send box.
+2. You attach one (or several) weekly screenshots, optionally type "update my school events from this", and hit send.
+3. The assistant replies with a preview: *"I found 12 events in this screenshot. 10 match existing school events (times will change), 2 are new. Confirm?"*
+4. You reply "yes" → it updates and reports back. Per the existing risk policy, anything touching >3 events always asks first.
 
-### 2. Make the chatbot able to do this itself
-Add one new tool to the assistant so next time you can just upload screenshots into chat:
+## What I'll build
 
-- **`reimport_from_screenshot`** — takes an image + calendar source + view hint ("weekly" / "monthly"), calls `parse-schedule`, then runs the same title+date match-and-update logic. Returns a preview ("I'll update 12 events and add 2 new ones — confirm?") before writing, per the existing risk policy (>3 events → confirm first).
+### 1. Chat input accepts images (`src/components/assistant-panel.tsx`)
+- Add paperclip button + hidden file input (accept `image/*`, multi).
+- Show small thumbnails of attached images above the textarea with an X to remove.
+- On send, convert each to base64 and include them in the request body as `images: [{ base64, mime }]`.
 
-This means in the future you can paste a screenshot in the chat panel and say "update my school events from this" and it works in one shot.
+### 2. Edge function accepts images (`supabase/functions/assistant-chat/index.ts`)
+- Accept `images` array in the request payload.
+- When images are present, inject a system note: *"User attached N screenshot(s). Use the `reimport_from_screenshot` tool to parse + match against existing events. Default viewHint = 'weekly'."*
+- Pass image data through to the new tool.
 
-### 3. Small UX touch on Sources page
-Add a "Re-import & replace times" button next to each connected source that opens the existing screenshot uploader pre-set to "weekly view" — so you don't have to go through the chatbot if you'd rather do it visually.
+### 3. New tool: `reimport_from_screenshot`
+Registered in the assistant's tool list. Args:
+- `image_index` (which attached image to use)
+- `calendar_id` (which source to match against — defaults to school if title looks like school content)
+- `view_hint` ("weekly" | "monthly", default "weekly")
+- `dry_run` (boolean, default true → returns preview, doesn't write)
+
+Handler steps:
+1. Calls `parse-schedule` with the image + view hint.
+2. Filters out all-day "Host:" banners.
+3. For each parsed event, looks up existing events in the chosen calendar by `lower(trim(title))` + same date in Europe/Stockholm. Levenshtein ≤ 2 for typo tolerance.
+4. Returns a structured preview: `{ to_update: [...], to_insert: [...], skipped: [...] }`.
+5. If `dry_run=false` and counts are within risk policy (or user confirmed), runs the updates/inserts and returns a summary.
+
+### 4. Shared matcher helper (`supabase/functions/_shared/match-events.ts`)
+Pulled out so both the one-time fix logic and the new tool use the exact same matching rules. Pure function: takes parsed events + DB events + calendar_id, returns `{ updates, inserts, skips }`.
 
 ## Technical notes
 
-- **Matching key**: `lower(trim(title))` + `date(start_at AT TIME ZONE 'Europe/Stockholm')` scoped to one calendar. Fuzzy fallback (Levenshtein ≤ 2) for typos like "Holdiay" vs "Holiday" so we don't double-insert.
-- **Recurring events**: school events are stored as individual occurrences (no `rrule`), so each weekly screenshot updates that week's row directly — no rrule surgery needed.
-- **All-day banners**: parser already returns these; we filter rows where `all_day=true` AND title starts with `Host:` / contains `Public Holiday` already in DB → skip update.
-- **Files touched**:
-  - `supabase/functions/assistant-chat/index.ts` — register `reimport_from_screenshot` tool, reuse the match-update helper.
-  - `supabase/functions/parse-schedule/index.ts` — already supports `viewHint`, no change.
-  - New helper `supabase/functions/_shared/match-events.ts` — title+date matcher used by both the one-time fix and the new tool.
-  - `src/routes/sources.tsx` — "Re-import & replace times" button.
-  - `src/components/assistant-panel.tsx` — accept image attachments in chat (small upload button next to send).
+- Image payloads in chat are kept in component state only (not persisted to `chat_messages`) — base64 in DB would bloat it. The text message is saved as `"[attached 2 screenshots] update school times"`.
+- Tool result preview is rendered as markdown in the assistant message (already supported via `react-markdown`).
+- Risk policy reused: `to_update.length + to_insert.length > 3` → must confirm before write.
+- No DB migration. No new env vars. `parse-schedule` already supports `viewHint`.
 
-## What I'll do this turn after approval
+## Files touched
 
-1. Build the matcher + new edge function tool.
-2. Run the one-time fix against your 6 uploaded screenshots and report what changed.
-3. Add the Sources button and chat image upload.
+- `src/components/assistant-panel.tsx` — image attachment UI + send payload.
+- `supabase/functions/assistant-chat/index.ts` — accept images, register `reimport_from_screenshot` tool, wire to matcher.
+- `supabase/functions/_shared/match-events.ts` — new shared matcher.
 
-No DB migration needed.
+## What you'll be able to say after this
+
+- *"Here's this week's school screenshot, fix the times"* (with image attached)
+- *"Same for next week"* (with another image)
+- *"Use monthly view hint"* (overrides default)
