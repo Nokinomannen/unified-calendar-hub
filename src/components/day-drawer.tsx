@@ -44,6 +44,7 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit }: Props) {
               {totalHours.toFixed(1)}h booked · {events.length} events
             </span>
           </SheetTitle>
+          <p className="text-[11px] text-muted-foreground">Tip: click any event to edit · or ask the assistant to bulk-fix times.</p>
         </SheetHeader>
 
         <div className="px-5 pb-12">
