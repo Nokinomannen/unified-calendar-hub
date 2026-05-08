@@ -3,36 +3,59 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, X, Send, Sparkles, Loader2 } from "lucide-react";
+import { MessageSquare, X, Send, Sparkles, Loader2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 
 type Msg = { role: "user" | "assistant"; content: string };
+type Attachment = { name: string; mime: string; base64: string; url: string };
 
 export function AssistantPanel() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "Hi! Tell me what's booked and I'll add it. Try: *\"Dentist next Thursday at 14:30 for an hour\"* or *\"What do I have tomorrow?\"*" },
+    { role: "assistant", content: "Hi! Tell me what's booked and I'll add it. Try: *\"Dentist next Thursday at 14:30 for an hour\"* or attach a weekly screenshot and say *\"fix my school times from this\"*." },
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const qc = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
 
+  async function addFiles(files: FileList) {
+    const next: Attachment[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue;
+      const b64: string = await new Promise((res) => {
+        const r = new FileReader();
+        r.onload = () => res((r.result as string).split(",")[1]);
+        r.readAsDataURL(file);
+      });
+      next.push({ name: file.name, mime: file.type, base64: b64, url: URL.createObjectURL(file) });
+    }
+    setAttachments((a) => [...a, ...next]);
+  }
+
   async function send() {
     const text = input.trim();
-    if (!text || busy) return;
-    const next = [...messages, { role: "user" as const, content: text }];
+    if ((!text && !attachments.length) || busy) return;
+    const display = text || (attachments.length ? `[${attachments.length} screenshot(s) attached]` : "");
+    const next = [...messages, { role: "user" as const, content: display }];
     setMessages(next);
     setInput("");
+    const sentAttachments = attachments;
+    setAttachments([]);
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("assistant-chat", {
-        body: { messages: next.map((m) => ({ role: m.role, content: m.content })) },
+        body: {
+          messages: next.map((m) => ({ role: m.role, content: m.content })),
+          images: sentAttachments.map((a) => ({ base64: a.base64, mime: a.mime, name: a.name })),
+        },
       });
       if (error) throw error;
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
@@ -90,21 +113,55 @@ export function AssistantPanel() {
             </div>
 
             <div className="border-t border-border p-3">
+              {attachments.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {attachments.map((a, i) => (
+                    <div key={i} className="relative">
+                      <img src={a.url} alt={a.name} className="h-14 w-14 rounded border border-border object-cover" />
+                      <button
+                        onClick={() => setAttachments((arr) => arr.filter((_, j) => j !== i))}
+                        className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-destructive text-destructive-foreground"
+                        aria-label="Remove"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex items-end gap-2">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => { const fs = e.target.files; if (fs && fs.length) addFiles(fs); e.target.value = ""; }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={busy}
+                  aria-label="Attach screenshot"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
                 <Textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                  placeholder="Tell me what's booked, or ask a question…"
+                  placeholder="Tell me what's booked, attach a screenshot, or ask a question…"
                   rows={2}
                   className="resize-none"
                   disabled={busy}
                 />
-                <Button onClick={send} disabled={busy || !input.trim()} size="icon">
+                <Button onClick={send} disabled={busy || (!input.trim() && !attachments.length)} size="icon">
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Press Enter to send · Shift+Enter for newline</p>
+              <p className="mt-2 text-xs text-muted-foreground">Press Enter to send · Shift+Enter for newline · 📎 attach weekly screenshots to fix times</p>
             </div>
           </div>
         </div>
