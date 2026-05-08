@@ -18,26 +18,76 @@ export function AssistantPanel() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [dragOver, setDragOver] = useState(false);
   const qc = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
 
-  async function addFiles(files: FileList) {
+  const ACCEPTED = /^image\/(png|jpe?g|webp|heic|heif)$/i;
+  const isAcceptedImage = (f: File) =>
+    ACCEPTED.test(f.type) || /\.(png|jpe?g|webp|heic|heif)$/i.test(f.name);
+
+  async function addFiles(files: FileList | File[]) {
+    const arr = Array.from(files);
+    const accepted = arr.filter(isAcceptedImage);
+    const rejected = arr.length - accepted.length;
+    if (rejected > 0) {
+      toast.error(`${rejected} file${rejected > 1 ? "s" : ""} skipped — only PNG, JPG, WEBP, HEIC images are accepted`);
+    }
     const next: Attachment[] = [];
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
+    for (const file of accepted) {
       const b64: string = await new Promise((res) => {
         const r = new FileReader();
         r.onload = () => res((r.result as string).split(",")[1]);
         r.readAsDataURL(file);
       });
-      next.push({ name: file.name, mime: file.type, base64: b64, url: URL.createObjectURL(file) });
+      next.push({ name: file.name || "pasted-image", mime: file.type || "image/png", base64: b64, url: URL.createObjectURL(file) });
     }
-    setAttachments((a) => [...a, ...next]);
+    if (next.length) setAttachments((a) => [...a, ...next]);
+  }
+
+  function onPaste(e: React.ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (const it of Array.from(items)) {
+      if (it.kind === "file") {
+        const f = it.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length) {
+      e.preventDefault();
+      addFiles(files);
+    }
+  }
+
+  function onDragEnter(e: React.DragEvent) {
+    if (!e.dataTransfer?.types?.includes("Files")) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragOver(true);
+  }
+  function onDragOver(e: React.DragEvent) {
+    if (!e.dataTransfer?.types?.includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+  function onDragLeave(e: React.DragEvent) {
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragOver(false);
+  }
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragOver(false);
+    const files = e.dataTransfer?.files;
+    if (files && files.length) addFiles(files);
   }
 
   async function send() {
@@ -112,7 +162,18 @@ export function AssistantPanel() {
               )}
             </div>
 
-            <div className="border-t border-border p-3">
+            <div
+              className={`relative border-t border-border p-3 ${dragOver ? "bg-primary/5" : ""}`}
+              onDragEnter={onDragEnter}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+            >
+              {dragOver && (
+                <div className="pointer-events-none absolute inset-1 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10 text-sm font-medium text-primary">
+                  Drop image to attach
+                </div>
+              )}
               {attachments.length > 0 && (
                 <div className="mb-2 flex flex-wrap gap-2">
                   {attachments.map((a, i) => (
@@ -133,7 +194,7 @@ export function AssistantPanel() {
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
                   multiple
                   className="hidden"
                   onChange={(e) => { const fs = e.target.files; if (fs && fs.length) addFiles(fs); e.target.value = ""; }}
@@ -152,7 +213,8 @@ export function AssistantPanel() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                  placeholder="Tell me what's booked, attach a screenshot, or ask a question…"
+                  onPaste={onPaste}
+                  placeholder="Tell me what's booked, drop/paste a screenshot, or ask a question…"
                   rows={2}
                   className="resize-none"
                   disabled={busy}
@@ -161,7 +223,7 @@ export function AssistantPanel() {
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Press Enter to send · Shift+Enter for newline · 📎 attach weekly screenshots to fix times</p>
+              <p className="mt-2 text-xs text-muted-foreground">Enter to send · Shift+Enter newline · 📎 drag, drop, or paste (⌘V) screenshots</p>
             </div>
           </div>
         </div>
