@@ -1,85 +1,74 @@
-# Import everything + AI calendar assistant
 
-Two things to build on top of what's already there:
+## Goal
 
-1. A real **bulk import** flow so you can dump everything you have right now in one go.
-2. A **chat + voice assistant** that knows your full calendar and can add, move, delete, and answer questions about events.
-
----
-
-## Part 1 — Bulk import everything
-
-You already have a "paste schedule → AI parses" flow on `/sources`. We'll upgrade it so it actually handles a full year of stuff in one sitting.
-
-**Upgrades to the existing import:**
-- **Multi-paste / multi-source**: pick a target calendar per paste (School, Tiger of Sweden, A-hub, Personal) and queue several pastes before importing.
-- **Screenshot / image upload**: drop a screenshot of your Outlook week or a shift schedule image. We send it to Gemini (vision) and get events back. Same review-then-import UX.
-- **Strawberry browser dump helper**: a short on-screen instruction ("ask Strawberry to dump the visible Outlook week as text, paste below") + a "Dump next week" reminder so re-imports are a 10-second weekly habit.
-- **Duplicate guard**: when re-importing School, you can tick "replace school events between [date] and [date]" so you don't end up with 3 copies of the same lecture.
-- **Bigger AI context**: raise the model to `google/gemini-2.5-pro` for big pastes (better at long, messy timetables), keep flash for quick ones.
-- **Review screen improvements**: edit title/time/location inline before importing, group by day, select-all / deselect-all.
-
-**For the two jobs (Tiger, A-hub):**
-- Quick "recurring shift" template (e.g. every Tue+Thu 16–22 until June 30) — already partially supported, surface it in the UI.
-- Paste a shift email → AI extracts → confirm.
+1. Bulk-import the events from your 4 screenshots (Tiger of Sweden shifts via SameSystem + Teams school calendar) into the right calendars.
+2. Redesign the month view so overlapping events, conflicts, and free days are immediately readable — so you can see at a glance where there's room for the second job (a-hub).
 
 ---
 
-## Part 2 — AI assistant ("just tell it what's booked")
+## Part 1 — Import the screenshots
 
-A chat panel that lives in the app. You either type or hold-to-talk. It reads your whole calendar, can change it, and answers questions.
+I'll feed each screenshot through the existing `parse-schedule` edge function (already supports image input via Gemini 2.5 Pro) and route them to the correct calendar:
 
-**What it can do:**
-- **Add**: "I have a dentist appointment next Thursday at 14:30 for an hour" → creates the event in Personal.
-- **Add recurring**: "Tiger shifts every Saturday 10–18 in May and June" → creates a recurring event.
-- **Move / reschedule**: "Move my Friday physics lecture to Monday same time."
-- **Delete / cancel**: "Cancel everything on May 17, it's a holiday."
-- **Answer questions**: "What do I have tomorrow?", "When's my next A-hub shift?", "Do I have anything on the 22nd?", "How many hours am I working at Tiger this month?"
-- **Bulk dump**: "Here's my whole exam schedule: [paste]" → it parses and adds.
-- **Conflict warnings**: if you add something that overlaps an existing event it tells you.
+- **Screenshot 1 + 2** (SameSystem "Acceptera schema" tables) → **Tiger of Sweden** calendar. Each row = one shift, e.g. `11-05-2026 09:45–16:00 (30 min break)`. I'll subtract the break from the end time and title them "Tiger of Sweden – shift".
+- **Screenshot 3** (school month view: Theme Week, HakkertDukker, Retreat, Public Holiday, Hosts) → **School** calendar. Multi-day banners (Host:…, Theme Week, Retreat) become all-day spanning events; timed ones (9:30, 13:00 etc.) become normal events.
+- **Screenshot 4** (Teams June 2026: Adaptive Lead, Indy Johar Lecture, Prep Translocation, Hugs and farewell, Future Days Festival, etc.) → **School** calendar.
 
-**How it knows your calendar:**
-The assistant gets your events for a relevant window (default: 60 days back, 180 days forward) injected into context on each turn. For very large calendars it gets a compact summary + can call a `search_events` tool to pull specifics. It always sees: today's date, your timezone (Europe/Stockholm), and your list of calendars with their colors.
+After parsing each screenshot you'll get a review screen on `/sources` to fix titles/times before saving. I'll add a "target calendar" dropdown so you set it once per batch instead of per event.
 
-**Voice:**
-- Hold-to-talk button uses the browser MediaRecorder, sends audio to a `transcribe` edge function that calls **ElevenLabs Scribe** (batch). Transcript drops into the chat input → you can edit then send, or auto-send.
-- Optional later: realtime streaming transcription for live captions while you speak.
-- TTS replies (assistant speaks back) optional — off by default to save credits.
-
-**Where it lives:**
-- A floating chat button in the bottom-right of every page (Today, Calendar, Sources).
-- Full-screen chat route at `/assistant` for longer sessions.
-- After every assistant action, the affected day(s) refresh in the background so you see the change immediately.
+If a parsed event already exists (same title + start within ±15 min), it's marked as duplicate and skipped by default.
 
 ---
 
-## Tech / data model changes
+## Part 2 — Redesign the month view for conflicts & density
 
-- New table `chat_messages` (id, user_id, role, content, tool_calls jsonb, created_at) so the assistant has memory across sessions.
-- Edge function `assistant-chat` — streams from Lovable AI Gateway (`google/gemini-3-flash-preview` default, `gemini-2.5-pro` for heavy planning). Tool-calling enabled with these tools:
-  - `create_event`, `update_event`, `delete_event`, `create_recurring_event`
-  - `search_events(date_range, query?)`
-  - `list_calendars`
-  - `bulk_create_events` (for paste-style dumps inside chat)
-  All tools execute server-side with the user's RLS-scoped Supabase client.
-- Edge function `transcribe-audio` — accepts an audio blob, calls ElevenLabs Scribe, returns text. Needs the **ELEVENLABS_API_KEY** secret (we'll request it when we build this part).
-- Edge function `parse-schedule` upgraded to accept either text or an image (base64) and to take a `targetCalendarId` hint.
-- Frontend: `<AssistantPanel>` floating widget + `/assistant` route, react-markdown for rendering replies, MediaRecorder hook for voice.
+The current grid shows max 3 events stacked as flat pills. With school + 2 jobs that's unreadable. New design:
+
+### Day cell layout
+
+```text
+┌─────────────────────┐
+│ 14   ●●●  6h booked │  ← date, calendar dots, total busy hours
+├─────────────────────┤
+│ 09:00 ▌School       │  ← left bar = calendar color
+│ 13:00 ▌Tiger shift  │  ← if overlaps another → red left border
+│ ⚠ 2 conflicts       │  ← shown only when events overlap
+│ +3 more             │
+└─────────────────────┘
+```
+
+- **Calendar dots** in the header give a 1-glance summary of which calendars have events that day (school + tiger + personal).
+- **Busy-hours badge** shows total committed time (e.g. "6h"). Days with `0h` get a subtle "Free" label — those are your candidates for a-hub shifts.
+- **Conflict highlighting**: when two events' time ranges overlap, both get a red left border + a small ⚠ icon. Hover shows "Conflicts with: Tiger shift 13:00–17:00".
+- **Calendar color stays as a 3px left bar** instead of a full pill background → easier to read titles, less visual noise when there are 4+ events.
+- **Free-day shading**: empty weekdays get a very faint green tint so empty space pops visually.
+
+### Day detail drawer
+
+Click any day → side drawer opens with a vertical timeline (08:00–22:00). Overlapping events render side-by-side as columns (Google-Calendar-style), so a school lecture 13:00–15:00 and a Tiger shift 13:30–17:00 are both fully visible. Each event has a "Skip this" toggle (e.g. "I'm working, won't attend school") — this doesn't delete the event, just marks it dimmed/struck-through and excludes it from the busy-hours total.
+
+### New "Week density" strip (top of calendar page)
+
+A horizontal bar above the month showing each day of the current week with a stacked-bar of hours per calendar. Instantly shows: "Wed has 9h Tiger + 2h school = full. Thu has 0h = open."
+
+---
+
+## Technical bits (skip if you don't care)
+
+- New table `event_overrides` (event_id, occurrence_date, status: 'skipped' | 'attending') to track per-occurrence skips without deleting recurring events.
+- `useEvents` hook returns overlap groups computed client-side (interval tree on occurrence_start/end).
+- New `<DayCell>` component replaces the inline rendering in `calendar.tsx`. New `<DayDrawer>` for the detail view. New `<WeekDensity>` strip.
+- Sources page gets: target-calendar selector, batch image upload (drop all 4 screenshots at once), and a per-batch "title prefix" (e.g. "Tiger of Sweden – ").
+- Conflict detection is pure UI — no DB changes needed for that part.
 
 ---
 
 ## Build order
 
-1. Upgrade `/sources`: multi-paste queue, screenshot upload, duplicate guard, inline edit on review, switch to gemini-2.5-pro for big pastes.
-2. Add `chat_messages` table + `assistant-chat` edge function with tool-calling for create/update/delete/search.
-3. Build floating chat panel + `/assistant` page (text only first).
-4. Add voice: `transcribe-audio` edge function + hold-to-talk button (needs ElevenLabs key).
-5. Polish: conflict warnings, "today brief" command, optional TTS replies.
+1. Sources: multi-image upload + target-calendar selector + batch parse.
+2. Parse your 4 screenshots, you review and save.
+3. New day cell + conflict styling + busy-hours badge.
+4. Day drawer with side-by-side overlap timeline + skip toggle.
+5. Week density strip.
 
----
-
-## Honest caveats
-
-- The assistant is only as good as what it sees. For school stuff you'll still re-import weekly (or use the chat to dump the week's text — same result, less clicking).
-- Voice transcription needs an ElevenLabs API key (free tier exists, I'll walk you through it when we get to step 4). If you'd rather use browser-native speech recognition (free, lower quality, Chrome-only) we can do that instead — just say.
-- AI tool-calls are not undoable in one click yet — we can add an "undo last assistant action" button in step 5 if you want it.
+Want me to proceed with all 5, or trim (e.g. skip the week-density strip for v1)?
