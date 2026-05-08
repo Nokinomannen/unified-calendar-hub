@@ -10,13 +10,14 @@ type Props = {
   events: ExpandedEvent[];
   overrides: Override[];
   onClose: () => void;
+  onEdit?: (e: ExpandedEvent) => void;
 };
 
 const HOUR_PX = 44;
 const START_HOUR = 7;
 const END_HOUR = 23;
 
-export function DayDrawer({ date, events, overrides, onClose }: Props) {
+export function DayDrawer({ date, events, overrides, onClose, onEdit }: Props) {
   const toggle = useToggleSkip();
   if (!date) return null;
   const dk = dateKey(date);
