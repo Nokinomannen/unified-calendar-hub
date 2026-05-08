@@ -197,7 +197,8 @@ Deno.serve(async (req) => {
     if (!u.user) return json({ error: "unauthorized" }, 401);
     const userId = u.user.id;
 
-    const { messages } = await req.json();
+    const { messages, images } = await req.json();
+    const attachedImages: { base64: string; mime: string; name?: string }[] = Array.isArray(images) ? images : [];
     const KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!KEY) throw new Error("LOVABLE_API_KEY missing");
 
