@@ -234,6 +234,7 @@ How to act:
 - Always use ISO 8601 with timezone offset for explicit datetimes. Default to Europe/Stockholm.
 - Match calendar_name fuzzily (School, Tiger of Sweden, A-hub, Personal). Default Personal if unsure.
 - If a tool returns an error, tell the user the actual error message in plain language and suggest a fix. Don't say "tool error".
+${attachedImages.length ? `- The user attached ${attachedImages.length} screenshot(s) (indices 0..${attachedImages.length - 1}). Use the reimport_from_screenshot tool — default view_hint='weekly'. ALWAYS dry_run=true first, present the preview (counts + a few sample title changes), then re-call with dry_run=false after the user confirms. Set insert_unmatched=true only if the user wants new events added too.` : ""}
 - Be concise.`;
 
     const convo: any[] = [{ role: "system", content: sys }, ...messages];
