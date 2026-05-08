@@ -410,6 +410,123 @@ async function runTool(supabase: any, userId: string, cals: any[], name: string,
         }
         return { updated_count: updated, errors: errs };
       }
+
+      case "reimport_from_screenshot": {
+        const idx = Number(args.image_index);
+        if (!Number.isInteger(idx) || idx < 0 || idx >= images.length) {
+          return { error: `image_index ${args.image_index} out of range (have ${images.length})` };
+        }
+        const cal = calByName(args.calendar_name);
+        if (!cal) return { error: `Unknown calendar '${args.calendar_name}'.` };
+        const viewHint = args.view_hint || "weekly";
+        const dryRun = args.dry_run !== false; // default true
+        const insertUnmatched = !!args.insert_unmatched;
+        const img = images[idx];
+
+        // Call parse-schedule
+        const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/parse-schedule`;
+        const psResp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: auth, apikey: Deno.env.get("SUPABASE_ANON_KEY")! },
+          body: JSON.stringify({
+            imageBase64: img.base64,
+            imageMime: img.mime,
+            referenceDate: new Date().toISOString(),
+            viewHint,
+          }),
+        });
+        if (!psResp.ok) return { error: `parse-schedule failed: ${psResp.status}` };
+        const psData = await psResp.json();
+        const parsedAll: any[] = psData.events || [];
+        // Filter "Host:" all-day banners
+        const parsed = parsedAll.filter((e) => !(e.all_day && /^host[: ]/i.test(e.title || "")));
+
+        // Pull DB events for this calendar in a window covering parsed dates
+        const dates = parsed.map((p) => stockholmDate(p.start)).filter(Boolean);
+        if (!dates.length) return { error: "No events found in screenshot." };
+        const minDate = dates.sort()[0];
+        const maxDate = dates.sort()[dates.length - 1];
+        const winStart = `${minDate}T00:00:00Z`;
+        const winEndDate = new Date(`${maxDate}T00:00:00Z`); winEndDate.setUTCDate(winEndDate.getUTCDate() + 2);
+        const winEnd = winEndDate.toISOString();
+        const { data: dbEvs, error: dbErr } = await supabase
+          .from("events")
+          .select("id,title,start_at,end_at,calendar_id")
+          .eq("calendar_id", cal.id)
+          .gte("start_at", winStart)
+          .lte("start_at", winEnd);
+        if (dbErr) return { error: dbErr.message };
+
+        // Match by normalized title + Stockholm date
+        const norm = (s: string) => (s || "").toLowerCase().trim().replace(/\s+/g, " ");
+        const dbByKey = new Map<string, any>();
+        for (const e of dbEvs || []) {
+          dbByKey.set(`${norm(e.title)}|${stockholmDate(e.start_at)}`, e);
+        }
+        const updates: any[] = [];
+        const inserts: any[] = [];
+        const skipped: any[] = [];
+        for (const p of parsed) {
+          const key = `${norm(p.title)}|${stockholmDate(p.start)}`;
+          let match = dbByKey.get(key);
+          if (!match) {
+            // fuzzy: same date, levenshtein ≤ 2 on title
+            const date = stockholmDate(p.start);
+            const candidates = (dbEvs || []).filter((e: any) => stockholmDate(e.start_at) === date);
+            for (const c of candidates) {
+              if (lev(norm(c.title), norm(p.title)) <= 2) { match = c; break; }
+            }
+          }
+          if (match) {
+            const sameStart = new Date(match.start_at).getTime() === new Date(p.start).getTime();
+            const sameEnd = new Date(match.end_at).getTime() === new Date(p.end).getTime();
+            if (sameStart && sameEnd) {
+              skipped.push({ title: p.title, reason: "already correct" });
+            } else {
+              updates.push({
+                id: match.id,
+                title: match.title,
+                from: `${match.start_at} → ${match.end_at}`,
+                to: `${p.start} → ${p.end}`,
+                _patch: { start_at: p.start, end_at: p.end },
+              });
+            }
+          } else {
+            inserts.push({ title: p.title, start: p.start, end: p.end, location: p.location || null, all_day: !!p.all_day });
+          }
+        }
+
+        if (dryRun) {
+          return {
+            dry_run: true,
+            calendar: cal.name,
+            view_hint: viewHint,
+            would_update: updates.length,
+            would_insert: insertUnmatched ? inserts.length : 0,
+            unmatched_not_inserted: insertUnmatched ? 0 : inserts.length,
+            skipped_already_correct: skipped.length,
+            sample_updates: updates.slice(0, 8).map((u) => ({ title: u.title, from: u.from, to: u.to })),
+            sample_inserts: inserts.slice(0, 8),
+            sample_unmatched: insertUnmatched ? [] : inserts.slice(0, 8).map((i) => i.title),
+          };
+        }
+
+        let updated = 0, inserted = 0;
+        const errs: string[] = [];
+        for (const u of updates) {
+          const { error } = await supabase.from("events").update(u._patch).eq("id", u.id);
+          if (error) errs.push(`update ${u.id}: ${error.message}`); else updated++;
+        }
+        if (insertUnmatched && inserts.length) {
+          const rows = inserts.map((i) => ({
+            user_id: userId, calendar_id: cal.id, title: i.title,
+            start_at: i.start, end_at: i.end, location: i.location, all_day: !!i.all_day,
+          }));
+          const { data, error } = await supabase.from("events").insert(rows).select("id");
+          if (error) errs.push(`insert: ${error.message}`); else inserted = data?.length || 0;
+        }
+        return { applied: true, updated, inserted, skipped: skipped.length, errors: errs };
+      }
     }
     return { error: `unknown tool ${name}` };
   } catch (e) {
