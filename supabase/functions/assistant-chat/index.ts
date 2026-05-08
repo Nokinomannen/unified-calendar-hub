@@ -561,6 +561,31 @@ function applyTimeOfDay(iso: string, hhmm: string): string {
   return new Date(target.getTime() - offsetHours * 3600_000).toISOString();
 }
 
+function stockholmDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Stockholm", year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(d);
+    const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
+    return `${get("year")}-${get("month")}-${get("day")}`;
+  } catch { return ""; }
+}
+
+function lev(a: string, b: string): number {
+  if (a === b) return 0;
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 1; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) {
+    dp[i][j] = a[i - 1] === b[j - 1]
+      ? dp[i - 1][j - 1]
+      : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+  }
+  return dp[m][n];
+}
+
 function json(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
     status,
