@@ -162,7 +162,18 @@ export function AssistantPanel() {
               )}
             </div>
 
-            <div className="border-t border-border p-3">
+            <div
+              className={`relative border-t border-border p-3 ${dragOver ? "bg-primary/5" : ""}`}
+              onDragEnter={onDragEnter}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+            >
+              {dragOver && (
+                <div className="pointer-events-none absolute inset-1 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10 text-sm font-medium text-primary">
+                  Drop image to attach
+                </div>
+              )}
               {attachments.length > 0 && (
                 <div className="mb-2 flex flex-wrap gap-2">
                   {attachments.map((a, i) => (
@@ -183,7 +194,7 @@ export function AssistantPanel() {
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
                   multiple
                   className="hidden"
                   onChange={(e) => { const fs = e.target.files; if (fs && fs.length) addFiles(fs); e.target.value = ""; }}
@@ -202,7 +213,8 @@ export function AssistantPanel() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                  placeholder="Tell me what's booked, attach a screenshot, or ask a question…"
+                  onPaste={onPaste}
+                  placeholder="Tell me what's booked, drop/paste a screenshot, or ask a question…"
                   rows={2}
                   className="resize-none"
                   disabled={busy}
@@ -211,7 +223,7 @@ export function AssistantPanel() {
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Press Enter to send · Shift+Enter for newline · 📎 attach weekly screenshots to fix times</p>
+              <p className="mt-2 text-xs text-muted-foreground">Enter to send · Shift+Enter newline · 📎 drag, drop, or paste (⌘V) screenshots</p>
             </div>
           </div>
         </div>
