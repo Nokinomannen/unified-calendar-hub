@@ -3,6 +3,7 @@ import { CalendarDays, Home, Layers, LogOut, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AssistantPanel } from "@/components/assistant-panel";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
@@ -64,6 +65,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </div>
       </nav>
+
+      <AssistantPanel />
     </div>
   );
 }

@@ -2,3 +2,6 @@ project_id = "dwosjtbyjraciitaajtz"
 
 [functions.parse-schedule]
 verify_jwt = true
+
+[functions.assistant-chat]
+verify_jwt = true

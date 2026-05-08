@@ -1,4 +1,4 @@
-// Parses pasted/freeform schedule text into structured events using Lovable AI.
+// Parses pasted text OR an image into structured calendar events using Lovable AI.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const corsHeaders = {
@@ -6,29 +6,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM = `You extract calendar events from messy text (timetables, shift schedules, screenshots transcribed to text, Outlook copy-paste, etc).
-Resolve all dates absolutely. If the user gives a reference week, anchor relative weekdays to it.
-Return events with ISO 8601 datetimes including timezone offset. If no timezone is given, assume Europe/Stockholm.
-Only return events you are confident about.`;
+const SYSTEM = `You extract calendar events from messy input (timetables, shift schedules, screenshots, Outlook copy-paste, emails).
+Resolve all dates absolutely. Anchor relative weekdays to the reference date.
+Return ISO 8601 datetimes WITH timezone offset. If no timezone is given, assume Europe/Stockholm (+01:00 winter, +02:00 summer).
+Only return events you are confident about. Skip headers, navigation, and noise.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { text, referenceDate } = await req.json();
-    if (!text || typeof text !== "string") {
-      return new Response(JSON.stringify({ error: "text required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const { text, imageBase64, imageMime, referenceDate } = await req.json();
+    if (!text && !imageBase64) {
+      return json({ error: "text or imageBase64 required" }, 400);
     }
     const KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!KEY) throw new Error("LOVABLE_API_KEY missing");
+
+    const userContent: unknown[] = [
+      { type: "text", text: `Reference date: ${referenceDate || new Date().toISOString()}\n\n${text ? `Schedule:\n${text}` : "Extract events from the attached image."}` },
+    ];
+    if (imageBase64) {
+      userContent.push({
+        type: "image_url",
+        image_url: { url: `data:${imageMime || "image/png"};base64,${imageBase64}` },
+      });
+    }
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: imageBase64 ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM },
-          { role: "user", content: `Reference date: ${referenceDate || new Date().toISOString()}\n\nSchedule:\n${text}` },
+          { role: "user", content: userContent },
         ],
         tools: [{
           type: "function",
@@ -62,20 +72,27 @@ Deno.serve(async (req) => {
       }),
     });
 
-    if (resp.status === 429) return new Response(JSON.stringify({ error: "Rate limit, try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    if (resp.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted. Add credits in Settings." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (resp.status === 429) return json({ error: "Rate limit, try again shortly." }, 429);
+    if (resp.status === 402) return json({ error: "AI credits exhausted. Add credits in Settings." }, 402);
     if (!resp.ok) {
       const t = await resp.text();
       console.error("AI gateway error", resp.status, t);
-      return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return json({ error: "AI gateway error" }, 500);
     }
 
     const data = await resp.json();
     const call = data.choices?.[0]?.message?.tool_calls?.[0];
     const args = call ? JSON.parse(call.function.arguments) : { events: [] };
-    return new Response(JSON.stringify(args), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return json(args, 200);
   } catch (e) {
     console.error(e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "unknown" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return json({ error: e instanceof Error ? e.message : "unknown" }, 500);
   }
 });
+
+function json(body: unknown, status: number) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
