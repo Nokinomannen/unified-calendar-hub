@@ -271,7 +271,7 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
         const name = tc.function?.name;
         let args: any = {};
         try { args = JSON.parse(tc.function?.arguments || "{}"); } catch {}
-        const result = await runTool(supabase, userId, cals || [], name, args);
+        const result = await runTool(supabase, userId, cals || [], name, args, attachedImages, auth);
         convo.push({
           role: "tool",
           tool_call_id: tc.id,
