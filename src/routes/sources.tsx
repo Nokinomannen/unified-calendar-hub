@@ -148,9 +148,20 @@ function SourcesPage() {
               rows={8}
               placeholder={`Examples:\n\nMon May 11 09:00-10:30 Math (room A201)\nTue May 12 13:00-15:00 Physics lab\n\n— or paste a Tiger of Sweden shift email —`}
             />
-            <Button onClick={parseSchedule} disabled={parsing || !text.trim()}>
-              {parsing ? "Parsing…" : "Parse with AI"}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={() => parseSchedule({ text })} disabled={parsing || !text.trim()}>
+                {parsing ? "Parsing…" : "Parse text with AI"}
+              </Button>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-accent">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImage(f); e.target.value = ""; }}
+                />
+                📷 Upload screenshot
+              </label>
+            </div>
           </div>
 
           {parsed.length > 0 && (
