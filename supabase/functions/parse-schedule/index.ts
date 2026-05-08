@@ -9,20 +9,28 @@ const corsHeaders = {
 const SYSTEM = `You extract calendar events from messy input (timetables, shift schedules, screenshots, Outlook copy-paste, emails).
 Resolve all dates absolutely. Anchor relative weekdays to the reference date.
 Return ISO 8601 datetimes WITH timezone offset. If no timezone is given, assume Europe/Stockholm (+01:00 winter, +02:00 summer).
+If the source is a MONTHLY view screenshot, end times are usually NOT visible — set "uncertain_duration": true and use a placeholder 1h duration.
+If the source is a WEEKLY or DAILY view, trust the visible block heights for duration.
 Only return events you are confident about. Skip headers, navigation, and noise.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { text, imageBase64, imageMime, referenceDate } = await req.json();
+    const { text, imageBase64, imageMime, referenceDate, viewHint } = await req.json();
     if (!text && !imageBase64) {
       return json({ error: "text or imageBase64 required" }, 400);
     }
     const KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!KEY) throw new Error("LOVABLE_API_KEY missing");
 
+    const hintLine = viewHint === "monthly"
+      ? "IMPORTANT: This screenshot is a MONTHLY view. Mark every event with uncertain_duration=true."
+      : viewHint === "weekly"
+        ? "IMPORTANT: This screenshot is a WEEKLY/DAILY view. Trust visible block heights for end times."
+        : "";
+
     const userContent: unknown[] = [
-      { type: "text", text: `Reference date: ${referenceDate || new Date().toISOString()}\n\n${text ? `Schedule:\n${text}` : "Extract events from the attached image."}` },
+      { type: "text", text: `Reference date: ${referenceDate || new Date().toISOString()}\n${hintLine}\n\n${text ? `Schedule:\n${text}` : "Extract events from the attached image."}` },
     ];
     if (imageBase64) {
       userContent.push({
@@ -59,6 +67,7 @@ Deno.serve(async (req) => {
                       location: { type: "string" },
                       description: { type: "string" },
                       all_day: { type: "boolean" },
+                      uncertain_duration: { type: "boolean" },
                     },
                     required: ["title", "start", "end"],
                   },
