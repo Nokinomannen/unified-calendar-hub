@@ -289,7 +289,7 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
 
 const WD = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 
-async function runTool(supabase: any, userId: string, cals: any[], name: string, args: any) {
+async function runTool(supabase: any, userId: string, cals: any[], name: string, args: any, images: { base64: string; mime: string; name?: string }[] = [], auth: string = "") {
   try {
     const calByName = (n?: string) => {
       if (!n) return cals[0];
