@@ -1,63 +1,43 @@
-## What's wrong today
+## Goal
 
-I tested the chatbot and traced the bug. The system prompt sends each event to the AI like `[ca4bd8e4] Host: Caro...` — only the first 8 characters of the real UUID. So when you said "delete Host: Caro", the AI confidently called `delete_event` with `id: "ca4bd8e4"` and Postgres rejected it as `invalid_id`. That single line is why every edit/delete attempt fails. Same thing will happen for `update_event`.
+Your school events were imported from monthly Teams screenshots, so end times are wrong (everything looks like a 1-hour block starting ~9:30). You've now uploaded 6 weekly-view screenshots covering May 11 – Jun 21. Let's use them to fix the times — and make this repeatable so the chatbot can do it next time.
 
-Other issues I confirmed:
-- No way to switch between Month / Week / Day in the calendar.
-- No way to edit an existing event (only add new ones and "skip" an occurrence).
-- School events were imported from a Teams **monthly** screenshot where blocks just show start time, so the AI guessed 1-hour durations.
+## Plan
 
-## The plan
+### 1. One-time fix (run now, in this turn)
+- Parse all 6 uploaded weekly screenshots through the existing `parse-schedule` edge function with `viewHint: "weekly"` so visible block heights are trusted.
+- For each parsed event, match it against your existing DB events by **title + date** (school calendar source only).
+  - Match found → update `start_at` / `end_at` to the weekly-view times.
+  - No match → insert as a new event (covers things like "Hugs and farewell w. Lærke" which only show in weekly view).
+- Skip the all-day "Host: …" banner rows (they're hosting metadata, not bookable time).
+- Show you a summary in chat: "Updated X events, added Y, skipped Z" with the title list so you can spot-check.
 
-### 1. Fix the chatbot (the priority)
+### 2. Make the chatbot able to do this itself
+Add one new tool to the assistant so next time you can just upload screenshots into chat:
 
-- Send **full UUIDs** to the AI, not 8-char prefixes. Add a "How to reference events" rule to the system prompt so it always uses the exact id.
-- Add a `find_events` tool that searches by title fragment + optional date and returns full ids — so when you say "delete Host Caro" the AI looks it up first, then deletes.
-- Improve the system prompt so it:
-  - Treats clear edits as direct actions, but **confirms before delete or any change touching >3 events** (your "Both depending on risk" choice).
-  - Knows it can do bulk pattern fixes (e.g. "all my school events on Mondays end at 15:00, not 10:30") via a new `bulk_update_events` tool.
-- Add a `bulk_update_events` tool that takes a filter (calendar + title pattern + date range + weekday) and a patch (new start time, end time, duration, location, etc.) so you can just say _"all Theme Week and HakkertDukke events end at 15:00 not 08:30"_ and it fixes them all in one shot.
-- Surface the actual error to you in chat instead of "tool error" — show what the AI tried and what the DB said, so debugging future hiccups is obvious.
-- Stream replies token-by-token so it feels fast.
+- **`reimport_from_screenshot`** — takes an image + calendar source + view hint ("weekly" / "monthly"), calls `parse-schedule`, then runs the same title+date match-and-update logic. Returns a preview ("I'll update 12 events and add 2 new ones — confirm?") before writing, per the existing risk policy (>3 events → confirm first).
 
-### 2. Editing events directly in the calendar (your "Both" choice)
+This means in the future you can paste a screenshot in the chat panel and say "update my school events from this" and it works in one shot.
 
-- **Quick inline edit** in the day drawer: click an event → popover with title, start, end, calendar dropdown, location, all-day toggle, "Edit fully" button, and Delete.
-- **Full edit modal**: reuse the existing AddEventDialog, pre-filled with the event. Add fields you mentioned: time / all-day, source calendar, location, notes, recurrence rule, reminder.
-- Both call a new `useUpdateEvent` hook (PATCH to `events`).
+### 3. Small UX touch on Sources page
+Add a "Re-import & replace times" button next to each connected source that opens the existing screenshot uploader pre-set to "weekly view" — so you don't have to go through the chatbot if you'd rather do it visually.
 
-### 3. Month / Week / Day view switcher
+## Technical notes
 
-- Add a segmented control in the calendar header: `Month · Week · Day`. Default Month (current behavior).
-- **Week view**: 7-column timeline, hours 7–23 down the side, events laid out with the same overlap algorithm the day drawer already uses. Conflicts highlighted in red. Click event → same edit popover.
-- **Day view**: single-day timeline, basically the day drawer rendered inline as a full page.
-- Selected view persisted in localStorage.
+- **Matching key**: `lower(trim(title))` + `date(start_at AT TIME ZONE 'Europe/Stockholm')` scoped to one calendar. Fuzzy fallback (Levenshtein ≤ 2) for typos like "Holdiay" vs "Holiday" so we don't double-insert.
+- **Recurring events**: school events are stored as individual occurrences (no `rrule`), so each weekly screenshot updates that week's row directly — no rrule surgery needed.
+- **All-day banners**: parser already returns these; we filter rows where `all_day=true` AND title starts with `Host:` / contains `Public Holiday` already in DB → skip update.
+- **Files touched**:
+  - `supabase/functions/assistant-chat/index.ts` — register `reimport_from_screenshot` tool, reuse the match-update helper.
+  - `supabase/functions/parse-schedule/index.ts` — already supports `viewHint`, no change.
+  - New helper `supabase/functions/_shared/match-events.ts` — title+date matcher used by both the one-time fix and the new tool.
+  - `src/routes/sources.tsx` — "Re-import & replace times" button.
+  - `src/components/assistant-panel.tsx` — accept image attachments in chat (small upload button next to send).
 
-### 4. Better school import + chatbot bulk-fix
+## What I'll do this turn after approval
 
-For your Teams screenshot problem, both fixes:
-- **Re-import**: on the Sources page, add an "Image type" hint: `Monthly view (times unclear)` vs `Weekly/Daily view (times accurate)`. The parse-schedule prompt uses this to either trust times or flag events as "duration unknown — needs review". Show flagged events with a yellow warning so you don't blindly import bad times.
-- **Bulk-fix in chat**: with `find_events` + `bulk_update_events`, you can say _"For all my school events on Tuesdays in May, the end time is 15:00"_ and the chatbot fixes them. It will list which events it'll change and ask "Apply to these 6 events?" before writing (your risk-aware preference).
+1. Build the matcher + new edge function tool.
+2. Run the one-time fix against your 6 uploaded screenshots and report what changed.
+3. Add the Sources button and chat image upload.
 
-### 5. Smaller polish
-
-- Keep the assistant button visible above the mobile bottom nav.
-- Show event count + a subtle "fix wrong times via chat" hint in the day drawer.
-
-## Technical bits
-
-**Files to change**
-- `supabase/functions/assistant-chat/index.ts` — full ids in prompt, new tools (`find_events`, `bulk_update_events`), better error surfacing, optional streaming.
-- `src/components/assistant-panel.tsx` — show tool errors clearly; minor UX.
-- `src/components/day-drawer.tsx` — click event → edit popover.
-- `src/components/edit-event-popover.tsx` (new) — inline edit.
-- `src/components/add-event-dialog.tsx` — accept an existing event for "edit mode".
-- `src/hooks/use-calendar-data.ts` — add `useUpdateEvent`.
-- `src/routes/calendar.tsx` — view switcher; import new Week/Day components.
-- `src/components/week-view.tsx` (new), `src/components/day-view.tsx` (new).
-- `src/routes/sources.tsx` — image-type hint + flagged-events UI.
-- `supabase/functions/parse-schedule/index.ts` — accept `viewHint`, output `confidence` per event.
-
-**No DB migrations needed** — everything is on existing `events` and `calendars` tables.
-
-**Out of scope for this round**: real two-way sync to Outlook/Google (still on the roadmap), voice input (the chatbot supports text only).
+No DB migration needed.
