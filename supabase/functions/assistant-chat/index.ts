@@ -216,13 +216,16 @@ Deno.serve(async (req) => {
 
     const calNameById = new Map((cals || []).map((c) => [c.id, c.name]));
 
+    const hasImages = attachedImages.length > 0;
     const sys = `You are the user's calendar assistant. Today is ${now.toISOString()}. Timezone: Europe/Stockholm.
 
 User's calendars:
 ${(cals || []).map((c) => `- ${c.name} (source: ${c.source}, id: ${c.id})`).join("\n")}
 
-Recent + upcoming events (FULL ids — use these exactly when you call update_event / delete_event):
-${(evs || []).map((e) => `- id=${e.id} | "${e.title}" | ${e.start_at} → ${e.end_at} | calendar=${calNameById.get(e.calendar_id) || "?"}${e.location ? ` | @${e.location}` : ""}${e.rrule ? ` | recurring=${e.rrule}` : ""}`).join("\n") || "(none)"}
+${hasImages
+  ? `Recent + upcoming events list OMITTED this turn to avoid biasing screenshot date parsing. Call find_events when you need ids.`
+  : `Recent + upcoming events (FULL ids — use these exactly when you call update_event / delete_event):
+${(evs || []).map((e) => `- id=${e.id} | "${e.title}" | ${e.start_at} → ${e.end_at} | calendar=${calNameById.get(e.calendar_id) || "?"}${e.location ? ` | @${e.location}` : ""}${e.rrule ? ` | recurring=${e.rrule}` : ""}`).join("\n") || "(none)"}`}
 
 How to act:
 - For new bookings: call create_event or bulk_create_events directly.
@@ -422,6 +425,14 @@ async function runTool(supabase: any, userId: string, cals: any[], name: string,
         const dryRun = args.dry_run !== false; // default true
         const insertUnmatched = !!args.insert_unmatched;
         const img = images[idx];
+        console.log("[reimport] image", JSON.stringify({
+          image_index: idx,
+          images_total: images.length,
+          mime: img.mime,
+          name: img.name,
+          base64_len: img.base64?.length || 0,
+          approx_bytes: Math.floor((img.base64?.length || 0) * 3 / 4),
+        }));
 
         // Call parse-schedule
         const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/parse-schedule`;
