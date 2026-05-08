@@ -19,13 +19,35 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "find_events",
+      description:
+        "Find events by fuzzy title/location match and optional date range. Returns full event ids you can then pass to update_event, delete_event, or bulk_update_events. ALWAYS call this before updating or deleting if you don't already have the exact full UUID.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Substring match on title or location (case-insensitive)." },
+          calendar_name: { type: "string" },
+          start: { type: "string", description: "ISO datetime, optional lower bound." },
+          end: { type: "string", description: "ISO datetime, optional upper bound." },
+          weekday: {
+            type: "string",
+            enum: ["MO", "TU", "WE", "TH", "FR", "SA", "SU"],
+            description: "Filter to a specific weekday.",
+          },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "search_events",
       description: "Get events between two ISO dates. Optional text filter on title/location.",
       parameters: {
         type: "object",
         properties: {
-          start: { type: "string", description: "ISO datetime (inclusive)" },
-          end: { type: "string", description: "ISO datetime (inclusive)" },
+          start: { type: "string" },
+          end: { type: "string" },
           query: { type: "string" },
         },
         required: ["start", "end"],
@@ -36,11 +58,11 @@ const TOOLS = [
     type: "function",
     function: {
       name: "create_event",
-      description: "Create one event. Use ISO 8601 datetimes with timezone offset (Europe/Stockholm if unspecified). Set rrule for recurring events (e.g. 'FREQ=WEEKLY;BYDAY=TU,TH;UNTIL=20260630T000000Z').",
+      description: "Create one event. Use ISO 8601 with offset (Europe/Stockholm if unspecified).",
       parameters: {
         type: "object",
         properties: {
-          calendar_name: { type: "string", description: "Name of target calendar (School, Tiger of Sweden, A-hub, Personal)" },
+          calendar_name: { type: "string" },
           title: { type: "string" },
           start: { type: "string" },
           end: { type: "string" },
@@ -57,16 +79,17 @@ const TOOLS = [
     type: "function",
     function: {
       name: "update_event",
-      description: "Update an existing event by id.",
+      description: "Update one event by its FULL UUID id.",
       parameters: {
         type: "object",
         properties: {
-          id: { type: "string" },
+          id: { type: "string", description: "Full UUID, not a prefix." },
           title: { type: "string" },
           start: { type: "string" },
           end: { type: "string" },
           location: { type: "string" },
           description: { type: "string" },
+          all_day: { type: "boolean" },
           rrule: { type: "string" },
         },
         required: ["id"],
@@ -77,15 +100,19 @@ const TOOLS = [
     type: "function",
     function: {
       name: "delete_event",
-      description: "Delete an event by id.",
-      parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+      description: "Delete an event by its FULL UUID id.",
+      parameters: {
+        type: "object",
+        properties: { id: { type: "string", description: "Full UUID, not a prefix." } },
+        required: ["id"],
+      },
     },
   },
   {
     type: "function",
     function: {
       name: "bulk_create_events",
-      description: "Create many events at once (e.g. from a pasted schedule).",
+      description: "Create many events at once.",
       parameters: {
         type: "object",
         properties: {
@@ -106,6 +133,31 @@ const TOOLS = [
           },
         },
         required: ["calendar_name", "events"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "bulk_update_events",
+      description:
+        "Update many events at once by an explicit list of FULL UUIDs (call find_events first to get them). Use this for pattern fixes like 'change all my Tuesday school events to end at 15:00'. The patch can set new start/end TIME-OF-DAY (HH:MM) which will be applied per-event preserving each event's date.",
+      parameters: {
+        type: "object",
+        properties: {
+          ids: { type: "array", items: { type: "string" } },
+          patch: {
+            type: "object",
+            properties: {
+              start_time: { type: "string", description: "New start time of day, HH:MM (Europe/Stockholm)." },
+              end_time: { type: "string", description: "New end time of day, HH:MM (Europe/Stockholm)." },
+              location: { type: "string" },
+              calendar_name: { type: "string" },
+              all_day: { type: "boolean" },
+            },
+          },
+        },
+        required: ["ids", "patch"],
       },
     },
   },
@@ -130,7 +182,6 @@ Deno.serve(async (req) => {
     const KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!KEY) throw new Error("LOVABLE_API_KEY missing");
 
-    // Build context: calendars + upcoming events summary
     const { data: cals } = await supabase.from("calendars").select("id,name,source,color");
     const now = new Date();
     const horizonStart = new Date(now.getTime() - 30 * 86400000).toISOString();
@@ -141,28 +192,33 @@ Deno.serve(async (req) => {
       .lte("start_at", horizonEnd)
       .gte("end_at", horizonStart)
       .order("start_at")
-      .limit(200);
+      .limit(300);
+
+    const calNameById = new Map((cals || []).map((c) => [c.id, c.name]));
 
     const sys = `You are the user's calendar assistant. Today is ${now.toISOString()}. Timezone: Europe/Stockholm.
 
 User's calendars:
-${(cals || []).map((c) => `- ${c.name} (source: ${c.source})`).join("\n")}
+${(cals || []).map((c) => `- ${c.name} (source: ${c.source}, id: ${c.id})`).join("\n")}
 
-Recent + upcoming events (sample, up to 200):
-${(evs || []).map((e) => `- [${e.id.slice(0, 8)}] ${e.title} | ${e.start_at} → ${e.end_at}${e.location ? ` @ ${e.location}` : ""}${e.rrule ? ` (recurring: ${e.rrule})` : ""}`).join("\n") || "(none)"}
+Recent + upcoming events (FULL ids — use these exactly when you call update_event / delete_event):
+${(evs || []).map((e) => `- id=${e.id} | "${e.title}" | ${e.start_at} → ${e.end_at} | calendar=${calNameById.get(e.calendar_id) || "?"}${e.location ? ` | @${e.location}` : ""}${e.rrule ? ` | recurring=${e.rrule}` : ""}`).join("\n") || "(none)"}
 
-Rules:
-- When the user describes a new booking, immediately call create_event (or bulk_create_events). Don't ask for confirmation unless ambiguous.
-- Always use ISO 8601 with timezone offset. Default to Europe/Stockholm.
-- For recurring events use create_event with an RRULE string.
-- If the user asks "what's on X", call search_events for that date.
-- Match calendar_name fuzzily to the user's calendar list. Default to "Personal" for personal stuff, "School" for classes, the job name for shifts.
-- Be concise. After acting, briefly summarize what you did.`;
+How to act:
+- For new bookings: call create_event or bulk_create_events directly.
+- To change or delete events: ALWAYS use the FULL UUID (the value after id=). Never invent or shorten ids. If you only have a vague reference ("the host caro event"), call find_events first to get the full id, then update_event / delete_event.
+- For pattern fixes ("all my Tuesday school events end at 15:00 not 10:30"): call find_events to gather ids, then call bulk_update_events with patch.start_time/patch.end_time as HH:MM. The system will preserve each event's date and shift only the time of day.
+- Risk policy:
+  - Direct action for clear single creates / single edits / non-destructive moves.
+  - Before any DELETE, or any change touching MORE THAN 3 events, briefly list what you'll do and ask "Apply?" — only proceed after the user confirms.
+- Always use ISO 8601 with timezone offset for explicit datetimes. Default to Europe/Stockholm.
+- Match calendar_name fuzzily (School, Tiger of Sweden, A-hub, Personal). Default Personal if unsure.
+- If a tool returns an error, tell the user the actual error message in plain language and suggest a fix. Don't say "tool error".
+- Be concise.`;
 
     const convo: any[] = [{ role: "system", content: sys }, ...messages];
 
-    // Loop with tool-calls (max 6 iterations)
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
@@ -175,7 +231,8 @@ Rules:
       if (resp.status === 429) return json({ error: "Rate limited, try again shortly." }, 429);
       if (resp.status === 402) return json({ error: "AI credits exhausted." }, 402);
       if (!resp.ok) {
-        console.error("gateway error", resp.status, await resp.text());
+        const t = await resp.text();
+        console.error("gateway error", resp.status, t);
         return json({ error: "AI gateway error" }, 500);
       }
       const data = await resp.json();
@@ -209,6 +266,8 @@ Rules:
   }
 });
 
+const WD = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+
 async function runTool(supabase: any, userId: string, cals: any[], name: string, args: any) {
   try {
     const calByName = (n?: string) => {
@@ -224,11 +283,33 @@ async function runTool(supabase: any, userId: string, cals: any[], name: string,
       case "list_calendars":
         return { calendars: cals };
 
+      case "find_events": {
+        let q = supabase.from("events").select("id,title,start_at,end_at,location,calendar_id,rrule,all_day");
+        if (args.start) q = q.gte("end_at", args.start);
+        if (args.end) q = q.lte("start_at", args.end);
+        if (args.calendar_name) {
+          const cal = calByName(args.calendar_name);
+          if (cal) q = q.eq("calendar_id", cal.id);
+        }
+        const { data, error } = await q.order("start_at").limit(500);
+        if (error) return { error: error.message };
+        let rows = data || [];
+        if (args.query) {
+          const ql = args.query.toLowerCase();
+          rows = rows.filter((e: any) => `${e.title} ${e.location || ""}`.toLowerCase().includes(ql));
+        }
+        if (args.weekday) {
+          const target = WD.indexOf(args.weekday);
+          rows = rows.filter((e: any) => new Date(e.start_at).getUTCDay() === target);
+        }
+        return { count: rows.length, events: rows };
+      }
+
       case "search_events": {
-        let q = supabase.from("events").select("id,title,start_at,end_at,location,calendar_id,rrule")
+        const { data, error } = await supabase.from("events")
+          .select("id,title,start_at,end_at,location,calendar_id,rrule")
           .lte("start_at", args.end).gte("end_at", args.start).order("start_at");
-        const { data, error } = await q;
-        if (error) throw error;
+        if (error) return { error: error.message };
         const filtered = args.query
           ? (data || []).filter((e: any) => `${e.title} ${e.location || ""}`.toLowerCase().includes(args.query.toLowerCase()))
           : data;
@@ -249,23 +330,26 @@ async function runTool(supabase: any, userId: string, cals: any[], name: string,
           all_day: !!args.all_day,
           rrule: args.rrule || null,
         }).select().single();
-        if (error) throw error;
+        if (error) return { error: error.message };
         return { created: data };
       }
 
       case "update_event": {
+        if (!isUuid(args.id)) return { error: `'${args.id}' is not a valid full UUID. Call find_events to get the real id.` };
         const patch: any = {};
-        for (const k of ["title", "location", "description", "rrule"]) if (args[k] !== undefined) patch[k] = args[k];
+        for (const k of ["title", "location", "description", "rrule", "all_day"]) if (args[k] !== undefined) patch[k] = args[k];
         if (args.start) patch.start_at = args.start;
         if (args.end) patch.end_at = args.end;
         const { data, error } = await supabase.from("events").update(patch).eq("id", args.id).select().single();
-        if (error) throw error;
+        if (error) return { error: error.message };
         return { updated: data };
       }
 
       case "delete_event": {
-        const { error } = await supabase.from("events").delete().eq("id", args.id);
-        if (error) throw error;
+        if (!isUuid(args.id)) return { error: `'${args.id}' is not a valid full UUID. Call find_events to get the real id.` };
+        const { error, count } = await supabase.from("events").delete({ count: "exact" }).eq("id", args.id);
+        if (error) return { error: error.message };
+        if (!count) return { error: `No event found with id ${args.id}` };
         return { deleted: args.id };
       }
 
@@ -273,23 +357,70 @@ async function runTool(supabase: any, userId: string, cals: any[], name: string,
         const cal = calByName(args.calendar_name);
         if (!cal) return { error: "no calendar" };
         const rows = (args.events || []).map((e: any) => ({
-          user_id: userId,
-          calendar_id: cal.id,
-          title: e.title,
-          start_at: e.start,
-          end_at: e.end,
-          location: e.location || null,
-          all_day: !!e.all_day,
+          user_id: userId, calendar_id: cal.id, title: e.title,
+          start_at: e.start, end_at: e.end, location: e.location || null, all_day: !!e.all_day,
         }));
         const { data, error } = await supabase.from("events").insert(rows).select();
-        if (error) throw error;
+        if (error) return { error: error.message };
         return { created_count: data?.length ?? 0 };
+      }
+
+      case "bulk_update_events": {
+        const ids: string[] = (args.ids || []).filter(isUuid);
+        if (!ids.length) return { error: "No valid UUIDs supplied. Call find_events first." };
+        const patch = args.patch || {};
+        const { data: rows, error: e1 } = await supabase
+          .from("events").select("id,start_at,end_at").in("id", ids);
+        if (e1) return { error: e1.message };
+
+        const calId = patch.calendar_name ? calByName(patch.calendar_name)?.id : undefined;
+        let updated = 0;
+        const errs: string[] = [];
+        for (const r of rows || []) {
+          const upd: any = {};
+          if (patch.start_time) upd.start_at = applyTimeOfDay(r.start_at, patch.start_time);
+          if (patch.end_time) upd.end_at = applyTimeOfDay(r.end_at, patch.end_time);
+          if (patch.location !== undefined) upd.location = patch.location || null;
+          if (patch.all_day !== undefined) upd.all_day = !!patch.all_day;
+          if (calId) upd.calendar_id = calId;
+          if (!Object.keys(upd).length) continue;
+          const { error } = await supabase.from("events").update(upd).eq("id", r.id);
+          if (error) errs.push(`${r.id}: ${error.message}`); else updated++;
+        }
+        return { updated_count: updated, errors: errs };
       }
     }
     return { error: `unknown tool ${name}` };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "tool error" };
   }
+}
+
+function isUuid(s: unknown): s is string {
+  return typeof s === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
+
+// Replace the time-of-day in a UTC ISO string while preserving the date as observed in Europe/Stockholm.
+function applyTimeOfDay(iso: string, hhmm: string): string {
+  const [hh, mm] = hhmm.split(":").map((x) => parseInt(x, 10));
+  const d = new Date(iso);
+  // Determine Stockholm date components for d
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Stockholm",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(d);
+  const get = (t: string) => fmt.find((p) => p.type === t)?.value || "00";
+  const y = get("year"), m = get("month"), day = get("day");
+  // Build a target wall-clock in Stockholm; figure out offset by probing
+  const target = new Date(`${y}-${m}-${day}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00Z`);
+  // Compute Stockholm offset at that instant
+  const probeFmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Stockholm", hour: "2-digit", hour12: false,
+  }).format(target);
+  const probeHour = parseInt(probeFmt, 10);
+  const offsetHours = (probeHour - hh + 24) % 24;
+  // Adjust: the wall-clock time we built was UTC; subtract offset to get true UTC
+  return new Date(target.getTime() - offsetHours * 3600_000).toISOString();
 }
 
 function json(body: unknown, status: number) {
