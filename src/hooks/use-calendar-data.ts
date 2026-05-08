@@ -89,6 +89,18 @@ export function useCreateEvent() {
   });
 }
 
+export function useUpdateEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...patch }: Partial<EventRow> & { id: string }) => {
+      const { data, error } = await supabase.from("events").update(patch).eq("id", id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
+  });
+}
+
 export function useDeleteEvent() {
   const qc = useQueryClient();
   return useMutation({
