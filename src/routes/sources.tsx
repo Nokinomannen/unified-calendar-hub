@@ -37,12 +37,11 @@ function SourcesPage() {
 
   const targetCal = calId || calendars[0]?.id || "";
 
-  async function parseSchedule() {
-    if (!text.trim()) return;
+  async function parseSchedule(payload: { text?: string; imageBase64?: string; imageMime?: string }) {
     setParsing(true); setParsed([]);
     try {
       const { data, error } = await supabase.functions.invoke("parse-schedule", {
-        body: { text, referenceDate: new Date().toISOString() },
+        body: { ...payload, referenceDate: new Date().toISOString() },
       });
       if (error) throw error;
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
@@ -54,6 +53,16 @@ function SourcesPage() {
     } finally {
       setParsing(false);
     }
+  }
+
+  async function handleImage(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1];
+      parseSchedule({ imageBase64: base64, imageMime: file.type });
+    };
+    reader.readAsDataURL(file);
   }
 
   async function importPicked() {
