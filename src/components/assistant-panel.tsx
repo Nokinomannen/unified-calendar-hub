@@ -18,26 +18,76 @@ export function AssistantPanel() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [dragOver, setDragOver] = useState(false);
   const qc = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
 
-  async function addFiles(files: FileList) {
+  const ACCEPTED = /^image\/(png|jpe?g|webp|heic|heif)$/i;
+  const isAcceptedImage = (f: File) =>
+    ACCEPTED.test(f.type) || /\.(png|jpe?g|webp|heic|heif)$/i.test(f.name);
+
+  async function addFiles(files: FileList | File[]) {
+    const arr = Array.from(files);
+    const accepted = arr.filter(isAcceptedImage);
+    const rejected = arr.length - accepted.length;
+    if (rejected > 0) {
+      toast.error(`${rejected} file${rejected > 1 ? "s" : ""} skipped — only PNG, JPG, WEBP, HEIC images are accepted`);
+    }
     const next: Attachment[] = [];
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
+    for (const file of accepted) {
       const b64: string = await new Promise((res) => {
         const r = new FileReader();
         r.onload = () => res((r.result as string).split(",")[1]);
         r.readAsDataURL(file);
       });
-      next.push({ name: file.name, mime: file.type, base64: b64, url: URL.createObjectURL(file) });
+      next.push({ name: file.name || "pasted-image", mime: file.type || "image/png", base64: b64, url: URL.createObjectURL(file) });
     }
-    setAttachments((a) => [...a, ...next]);
+    if (next.length) setAttachments((a) => [...a, ...next]);
+  }
+
+  function onPaste(e: React.ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (const it of Array.from(items)) {
+      if (it.kind === "file") {
+        const f = it.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length) {
+      e.preventDefault();
+      addFiles(files);
+    }
+  }
+
+  function onDragEnter(e: React.DragEvent) {
+    if (!e.dataTransfer?.types?.includes("Files")) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragOver(true);
+  }
+  function onDragOver(e: React.DragEvent) {
+    if (!e.dataTransfer?.types?.includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+  function onDragLeave(e: React.DragEvent) {
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragOver(false);
+  }
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragOver(false);
+    const files = e.dataTransfer?.files;
+    if (files && files.length) addFiles(files);
   }
 
   async function send() {
