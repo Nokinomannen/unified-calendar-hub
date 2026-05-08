@@ -161,6 +161,25 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "reimport_from_screenshot",
+      description:
+        "Parse an attached screenshot (use the index from the system prompt) and match its events against existing calendar events by title + date (Europe/Stockholm). Updates start/end times for matches and reports unmatched events. Default view_hint is 'weekly'. ALWAYS run with dry_run=true first to preview, then call again with dry_run=false ONLY after the user confirms.",
+      parameters: {
+        type: "object",
+        properties: {
+          image_index: { type: "number", description: "0-based index of the attached image." },
+          calendar_name: { type: "string", description: "Which calendar to match against (e.g. 'School'). Required." },
+          view_hint: { type: "string", enum: ["weekly", "monthly"], description: "Defaults to 'weekly'." },
+          dry_run: { type: "boolean", description: "If true, returns preview without writing. Default true." },
+          insert_unmatched: { type: "boolean", description: "If true, parsed events with no DB match are inserted as new events. Default false." },
+        },
+        required: ["image_index", "calendar_name"],
+      },
+    },
+  },
 ];
 
 Deno.serve(async (req) => {
