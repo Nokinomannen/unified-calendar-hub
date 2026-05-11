@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, X, Send, Sparkles, Loader2, Paperclip } from "lucide-react";
+import { MessageSquare, X, Send, Sparkles, Loader2, Paperclip, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 
