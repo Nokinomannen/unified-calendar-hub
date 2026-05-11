@@ -15,6 +15,7 @@ export function AssistantPanel() {
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Hi! Tell me what's booked and I'll add it. Try: *\"Dentist next Thursday at 14:30 for an hour\"* or attach a weekly screenshot and say *\"fix my school times from this\"*." },
   ]);
+  const [convo, setConvo] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
