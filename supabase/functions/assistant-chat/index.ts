@@ -393,7 +393,8 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
     return json({ reply: "(stopped: too many tool iterations)", convo });
   } catch (e) {
     console.error(e);
-    return json({ error: e instanceof Error ? e.message : "unknown" }, 500);
+    const msg = e instanceof Error ? e.message : "unknown";
+    return json({ error: msg, reply: `Something went wrong: ${msg}. Try again or reset the chat.` }, 200);
   }
 });
 
