@@ -292,7 +292,7 @@ How to act:
 ${attachedImages.length ? `- The user attached ${attachedImages.length} screenshot(s) (indices 0..${attachedImages.length - 1}). Call reimport_from_screenshot (default view_hint='weekly') to get a preview + token, then confirm_reimport after the user approves. If the user says "rensa dubbletter", "fix duplicates", "remove duplicates" or similar, pass mode='dedupe_only' — that mode only touches dates where the calendar has 2+ events and ignores everything else. Default mode is 'reconcile'.` : ""}
 - Be concise.`;
 
-    const convo: any[] = [{ role: "system", content: sys }, ...messages];
+    const convo: any[] = [{ role: "system", content: sys }, ...sanitizeHistory(messages)];
 
     const tokensIssuedThisRequest = new Set<string>();
 
