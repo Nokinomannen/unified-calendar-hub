@@ -10,6 +10,8 @@ import {
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
+import { ThemeProvider } from "@/hooks/use-theme";
+import { UiZoomProvider } from "@/hooks/use-ui-zoom";
 import { Toaster } from "sonner";
 
 function NotFoundComponent() {
@@ -113,10 +115,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <Toaster richColors position="top-right" />
-      </AuthProvider>
+      <ThemeProvider>
+        <UiZoomProvider>
+          <AuthProvider>
+            <Outlet />
+            <Toaster richColors position="top-right" />
+          </AuthProvider>
+        </UiZoomProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
