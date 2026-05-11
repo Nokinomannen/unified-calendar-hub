@@ -110,9 +110,14 @@ export function AssistantPanel() {
         },
       });
       if (error) throw error;
-      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
-      const reply = (data as { reply: string }).reply || "(no reply)";
-      setConvo((((data as any).convo) || []).filter((m: any) => m.role !== "system"));
+      const d = data as { error?: string; reply?: string; convo?: any[] };
+      if (d?.error) {
+        toast.error(d.error);
+        setMessages((m) => [...m, { role: "assistant", content: d.reply || d.error || "Sorry, that failed." }]);
+        return;
+      }
+      const reply = d.reply || "(no reply)";
+      setConvo((d.convo || []).filter((m: any) => m.role !== "system"));
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
       qc.invalidateQueries({ queryKey: ["events"] });
     } catch (e) {

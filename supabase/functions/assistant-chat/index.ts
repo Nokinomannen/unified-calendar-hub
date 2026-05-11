@@ -343,12 +343,12 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
         headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({ model: "google/gemini-2.5-pro", messages: convo, tools: TOOLS }),
       });
-      if (resp.status === 429) return json({ error: "Rate limited, try again shortly." }, 429);
-      if (resp.status === 402) return json({ error: "AI credits exhausted." }, 402);
+      if (resp.status === 429) return json({ error: "Rate limited, try again shortly.", reply: "Rate limited — please retry in a moment." }, 200);
+      if (resp.status === 402) return json({ error: "AI credits exhausted.", reply: "AI credits are exhausted. Add more in Settings → Workspace → Usage to continue." }, 200);
       if (!resp.ok) {
         const t = await resp.text();
         console.error("gateway error", resp.status, t);
-        return json({ error: "AI gateway error" }, 500);
+        return json({ error: "AI gateway error", reply: "The AI service is temporarily unavailable. Please try again." }, 200);
       }
       const data = await resp.json();
       console.log("[chat] turn", i, JSON.stringify({ ms: Date.now() - t0, usage: data.usage }));
