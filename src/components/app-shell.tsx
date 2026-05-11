@@ -93,3 +93,49 @@ export function FAB({ onClick }: { onClick: () => void }) {
     </button>
   );
 }
+
+function ThemeToggle() {
+  const { theme, resolved, setTheme } = useTheme();
+  const Icon = resolved === "dark" ? Moon : Sun;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="ghost" aria-label="Toggle theme">
+          <Icon className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setTheme("light")} className={theme === "light" ? "bg-accent" : ""}>
+          <Sun className="mr-2 h-4 w-4" /> Light
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("dark")} className={theme === "dark" ? "bg-accent" : ""}>
+          <Moon className="mr-2 h-4 w-4" /> Dark
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("system")} className={theme === "system" ? "bg-accent" : ""}>
+          <Monitor className="mr-2 h-4 w-4" /> System
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ZoomControls() {
+  const { zoom, zoomIn, zoomOut, reset } = useUiZoom();
+  return (
+    <div className="hidden items-center gap-0.5 rounded-md border border-border/60 px-0.5 md:flex">
+      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={zoomOut} aria-label="Zoom out">
+        <Minus className="h-3.5 w-3.5" />
+      </Button>
+      <button
+        onClick={reset}
+        className="min-w-[3ch] px-1 text-xs tabular-nums text-muted-foreground hover:text-foreground"
+        title="Reset zoom (Ctrl/Cmd+0)"
+      >
+        {Math.round(zoom * 100)}%
+      </button>
+      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={zoomIn} aria-label="Zoom in">
+        <Plus className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
