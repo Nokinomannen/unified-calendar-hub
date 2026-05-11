@@ -281,7 +281,7 @@ How to act:
 - Always use ISO 8601 with timezone offset. Default Europe/Stockholm.
 - Match calendar_name fuzzily (School, Tiger of Sweden, A-hub, Personal). Default Personal if unsure.
 - If a tool returns an error, relay the message in plain language.
-${attachedImages.length ? `- The user attached ${attachedImages.length} screenshot(s) (indices 0..${attachedImages.length - 1}). Call reimport_from_screenshot (default view_hint='weekly') to get a preview + token, then confirm_reimport after the user approves.` : ""}
+${attachedImages.length ? `- The user attached ${attachedImages.length} screenshot(s) (indices 0..${attachedImages.length - 1}). Call reimport_from_screenshot (default view_hint='weekly') to get a preview + token, then confirm_reimport after the user approves. If the user says "rensa dubbletter", "fix duplicates", "remove duplicates" or similar, pass mode='dedupe_only' — that mode only touches dates where the calendar has 2+ events and ignores everything else. Default mode is 'reconcile'.` : ""}
 - Be concise.`;
 
     const convo: any[] = [{ role: "system", content: sys }, ...messages];
