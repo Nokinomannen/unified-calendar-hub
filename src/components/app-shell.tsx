@@ -1,5 +1,5 @@
 import { Link, useRouter } from "@tanstack/react-router";
-import { CalendarDays, Home, Layers, LogOut, Plus } from "lucide-react";
+import { CalendarDays, Layers, LogOut, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
