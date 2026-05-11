@@ -1,31 +1,78 @@
-## Fix
+# Fix assistant-chat crash on full convo replay
 
-In `src/components/assistant-panel.tsx`, persist the server's full `convo` (with `tool_calls` and `tool` results) and use it as the source of truth for the next request.
+The client now sends back the server's full `convo` (incl. `assistant.tool_calls` and `tool` messages). The function crashes when (a) the client re-sends a stale `system` message and (b) tool-call/tool-result chains are broken (e.g. an assistant message with `tool_calls` whose matching `tool` reply is missing).
 
-### Changes
+## Edits — all in `supabase/functions/assistant-chat/index.ts`
 
-1. Add a new state alongside `messages`:
-   ```ts
-   const [convo, setConvo] = useState<any[]>([]);
-   ```
+### 1. Debug log at handler entry
+Right after parsing `{ messages, images }` (after line 249), add:
+```ts
+console.error("incoming messages structure:", JSON.stringify(
+  (messages || []).map((m: any) => ({
+    role: m.role,
+    has_tool_calls: Array.isArray(m.tool_calls) && m.tool_calls.length > 0,
+    tool_call_id: m.tool_call_id,
+  }))
+));
+```
 
-2. In `send()`, build the request body from `convo` + the new user turn instead of the visible `messages`:
-   ```ts
-   const userTurn = { role: "user", content: display };
-   const outgoing = [...convo.filter((m) => m.role !== "system"), userTurn];
-   // ...
-   body: { messages: outgoing, images: ... }
-   ```
-   Stripping the leading system message keeps the server free to prepend its fresh one each turn.
+### 2. Sanitize the incoming history
+Add a helper before line 287 that:
+- drops every `system` message (we prepend a fresh one)
+- walks the array; for each `assistant` message with `tool_calls`, peeks ahead to confirm every `tool_calls[i].id` is matched by a subsequent `tool` message with that `tool_call_id` *before the next assistant/user turn*. If any id is unmatched, drop that assistant message **and** any partial `tool` replies that referenced its ids.
+- drops orphan `tool` messages (no preceding assistant `tool_calls` with that id).
 
-3. After a successful response, store the returned convo:
-   ```ts
-   setConvo(((data as any).convo || []).filter((m: any) => m.role !== "system"));
-   ```
-   `messages` continues to hold only what's rendered.
+```ts
+function sanitizeHistory(raw: any[]): any[] {
+  const msgs = (raw || []).filter((m: any) => m && m.role !== "system");
+  const out: any[] = [];
+  const knownToolCallIds = new Set<string>();
+  for (let i = 0; i < msgs.length; i++) {
+    const m = msgs[i];
+    if (m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length) {
+      const ids: string[] = m.tool_calls.map((tc: any) => tc.id).filter(Boolean);
+      // collect tool replies that immediately follow (until next assistant/user)
+      const replies: any[] = [];
+      let j = i + 1;
+      while (j < msgs.length && msgs[j].role === "tool") {
+        replies.push(msgs[j]);
+        j++;
+      }
+      const replyIds = new Set(replies.map((r) => r.tool_call_id));
+      const allMatched = ids.every((id) => replyIds.has(id));
+      if (!allMatched) {
+        console.error("dropping orphan assistant tool_calls", { ids, replyIds: [...replyIds] });
+        i = j - 1; // skip the partial replies too
+        continue;
+      }
+      ids.forEach((id) => knownToolCallIds.add(id));
+      out.push(m);
+      for (const r of replies) out.push(r);
+      i = j - 1;
+    } else if (m.role === "tool") {
+      if (m.tool_call_id && knownToolCallIds.has(m.tool_call_id)) {
+        out.push(m); // shouldn't normally hit (consumed above) but safe
+      } else {
+        console.error("dropping orphan tool message", { tool_call_id: m.tool_call_id });
+      }
+    } else {
+      out.push(m);
+    }
+  }
+  return out;
+}
+```
 
-4. No server changes — `assistant-chat/index.ts` already returns `convo` on the success path (line 313 `return json({ reply: msg.content || "", convo });`).
+### 3. Use sanitized history when building convo
+Replace line 287:
+```ts
+const convo: any[] = [{ role: "system", content: sys }, ...sanitizeHistory(messages)];
+```
 
-### Why this fixes the loop
+## Why this works
+- Stale client `system` messages no longer collide with the freshly-built `sys`.
+- The Lovable AI gateway (OpenAI-compatible) rejects requests where an assistant `tool_calls` id has no matching `tool` reply — sanitizer drops those instead of forwarding malformed history.
+- The debug log captures exactly what the client sent so future regressions are diagnosable from edge function logs.
 
-When the user replies "yes apply", the model needs to see its own previous `assistant` message with `tool_calls: [preview_delete_event(...)]` and the matching `tool` result containing `confirmation_token`. The current client only sends `{role, content}` pairs, so those tool turns are erased and the model re-runs the preview every time. Sending back the server's `convo` restores the full history, so the model calls `confirm_delete_event` with the real token.
+## Out of scope
+No client changes. No schema/DB changes. Existing token/preview/confirm flow untouched.

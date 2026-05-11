@@ -230,6 +230,46 @@ const TOOLS = [
   },
 ];
 
+function sanitizeHistory(raw: any[]): any[] {
+  const msgs = (raw || []).filter((m: any) => m && m.role !== "system");
+  const out: any[] = [];
+  const knownToolCallIds = new Set<string>();
+  for (let i = 0; i < msgs.length; i++) {
+    const m = msgs[i];
+    if (m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length) {
+      const ids: string[] = m.tool_calls.map((tc: any) => tc.id).filter(Boolean);
+      const replies: any[] = [];
+      let j = i + 1;
+      while (j < msgs.length && msgs[j].role === "tool") {
+        replies.push(msgs[j]);
+        j++;
+      }
+      const replyIds = new Set(replies.map((r) => r.tool_call_id));
+      const allMatched = ids.length > 0 && ids.every((id) => replyIds.has(id));
+      if (!allMatched) {
+        console.error("dropping orphan assistant tool_calls", { ids, replyIds: [...replyIds] });
+        i = j - 1;
+        continue;
+      }
+      ids.forEach((id) => knownToolCallIds.add(id));
+      out.push(m);
+      for (const r of replies) {
+        if (ids.includes(r.tool_call_id)) out.push(r);
+      }
+      i = j - 1;
+    } else if (m.role === "tool") {
+      if (m.tool_call_id && knownToolCallIds.has(m.tool_call_id)) {
+        out.push(m);
+      } else {
+        console.error("dropping orphan tool message", { tool_call_id: m.tool_call_id });
+      }
+    } else {
+      out.push(m);
+    }
+  }
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -247,6 +287,14 @@ Deno.serve(async (req) => {
 
     const { messages, images } = await req.json();
     const attachedImages: { base64: string; mime: string; name?: string }[] = Array.isArray(images) ? images : [];
+
+    console.error("incoming messages structure:", JSON.stringify(
+      (messages || []).map((m: any) => ({
+        role: m.role,
+        has_tool_calls: Array.isArray(m.tool_calls) && m.tool_calls.length > 0,
+        tool_call_id: m.tool_call_id,
+      }))
+    ));
     const KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!KEY) throw new Error("LOVABLE_API_KEY missing");
 
@@ -284,7 +332,7 @@ How to act:
 ${attachedImages.length ? `- The user attached ${attachedImages.length} screenshot(s) (indices 0..${attachedImages.length - 1}). Call reimport_from_screenshot (default view_hint='weekly') to get a preview + token, then confirm_reimport after the user approves. If the user says "rensa dubbletter", "fix duplicates", "remove duplicates" or similar, pass mode='dedupe_only' — that mode only touches dates where the calendar has 2+ events and ignores everything else. Default mode is 'reconcile'.` : ""}
 - Be concise.`;
 
-    const convo: any[] = [{ role: "system", content: sys }, ...messages];
+    const convo: any[] = [{ role: "system", content: sys }, ...sanitizeHistory(messages)];
 
     const tokensIssuedThisRequest = new Set<string>();
 
