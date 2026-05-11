@@ -316,7 +316,10 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
         let args: any = {};
         try { args = JSON.parse(tc.function?.arguments || "{}"); } catch {}
         const tt = Date.now();
-        const result = await runTool(supabase, userId, cals || [], name, args, attachedImages, auth);
+        const result = await runTool(supabase, userId, cals || [], name, args, attachedImages, auth, tokensIssuedThisRequest);
+        if ((name?.startsWith("preview_") || name === "reimport_from_screenshot") && typeof result?.confirmation_token === "string") {
+          tokensIssuedThisRequest.add(result.confirmation_token);
+        }
         console.log("[tool]", name, JSON.stringify({
           ms: Date.now() - tt,
           args_summary: summarize(args),
