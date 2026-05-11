@@ -194,14 +194,15 @@ const TOOLS = [
     type: "function",
     function: {
       name: "reimport_from_screenshot",
-      description: `Parse an attached screenshot and match against existing events by title + Stockholm date. ALWAYS dry-run only — returns confirmation_token + preview. Then call confirm_reimport. Cap ${MAX_BULK} mutations per call.`,
+      description: `Parse an attached screenshot and reconcile against existing events. mode='reconcile' (default): match by title+date, propose time updates and optional inserts. mode='dedupe_only': for dates with 2+ existing events in the calendar, keep the one closest to the screenshot's shift and soft-delete the rest. ALWAYS dry-run — returns confirmation_token + preview. Then call confirm_reimport. Cap ${MAX_BULK} mutations.`,
       parameters: {
         type: "object",
         properties: {
           image_index: { type: "number" },
           calendar_name: { type: "string" },
           view_hint: { type: "string", enum: ["weekly", "monthly"] },
-          insert_unmatched: { type: "boolean", description: "If true, include unmatched parsed events as inserts in the apply step." },
+          insert_unmatched: { type: "boolean", description: "Reconcile mode only: include unmatched parsed events as inserts." },
+          mode: { type: "string", enum: ["reconcile", "dedupe_only"], description: "Default 'reconcile'. Use 'dedupe_only' to clean up duplicates without touching dates that have only one event." },
         },
         required: ["image_index", "calendar_name"],
       },
