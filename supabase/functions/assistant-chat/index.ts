@@ -692,8 +692,9 @@ function newToken(): string {
   return Array.from(buf, (b) => a[b % a.length]).join("");
 }
 
-async function consumeToken(supabase: any, userId: string, token: string, expectedType: string) {
+async function consumeToken(supabase: any, userId: string, token: string, expectedType: string, tokensIssuedThisRequest: Set<string> = new Set()) {
   if (!token || typeof token !== "string") return { error: "missing confirmation_token" };
+  if (tokensIssuedThisRequest.has(token)) return { error: "This token was just created in the same turn. Show the preview to the user and wait for their explicit confirmation in a new message before calling confirm_*." };
   const { data, error } = await supabase.from("pending_actions")
     .select("*").eq("user_id", userId).eq("confirmation_token", token).maybeSingle();
   if (error) return { error: error.message };
