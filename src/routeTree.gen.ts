@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as BackendAccessRouteImport } from './routes/backend-access'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -22,6 +23,11 @@ const SourcesRoute = SourcesRouteImport.update({
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BackendAccessRoute = BackendAccessRouteImport.update({
+  id: '/backend-access',
+  path: '/backend-access',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -38,12 +44,14 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
   '/sources': typeof SourcesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
   '/sources': typeof SourcesRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
   '/sources': typeof SourcesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/calendar' | '/sources'
+  fullPaths: '/' | '/auth' | '/backend-access' | '/calendar' | '/sources'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/calendar' | '/sources'
-  id: '__root__' | '/' | '/auth' | '/calendar' | '/sources'
+  to: '/' | '/auth' | '/backend-access' | '/calendar' | '/sources'
+  id: '__root__' | '/' | '/auth' | '/backend-access' | '/calendar' | '/sources'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
+  BackendAccessRoute: typeof BackendAccessRoute
   CalendarRoute: typeof CalendarRoute
   SourcesRoute: typeof SourcesRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/calendar'
       fullPath: '/calendar'
       preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backend-access': {
+      id: '/backend-access'
+      path: '/backend-access'
+      fullPath: '/backend-access'
+      preLoaderRoute: typeof BackendAccessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
+  BackendAccessRoute: BackendAccessRoute,
   CalendarRoute: CalendarRoute,
   SourcesRoute: SourcesRoute,
 }
