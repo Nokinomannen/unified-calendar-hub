@@ -556,9 +556,10 @@ async function runTool(
         if (!cal) return { error: `Unknown calendar '${args.calendar_name}'.` };
         const viewHint = args.view_hint || "weekly";
         const insertUnmatched = !!args.insert_unmatched;
+        const mode = args.mode === "dedupe_only" ? "dedupe_only" : "reconcile";
         const img = images[idx];
         console.log("[reimport] image", JSON.stringify({
-          image_index: idx, images_total: images.length, mime: img.mime, name: img.name,
+          image_index: idx, images_total: images.length, mime: img.mime, name: img.name, mode,
           base64_len: img.base64?.length || 0, approx_bytes: Math.floor((img.base64?.length || 0) * 3 / 4),
         }));
 
@@ -587,6 +588,91 @@ async function runTool(
         if (dbErr) return { error: dbErr.message };
 
         const norm = (s: string) => (s || "").toLowerCase().trim().replace(/\s+/g, " ");
+
+        // ── dedupe_only mode ──
+        if (mode === "dedupe_only") {
+          // Group parsed by date — pick the first parsed event per date as the "correct" reference.
+          const parsedByDate = new Map<string, any>();
+          for (const p of parsed) {
+            const d = stockholmDate(p.start);
+            if (d && !parsedByDate.has(d)) parsedByDate.set(d, p);
+          }
+          // Group DB events by date.
+          const dbByDate = new Map<string, any[]>();
+          for (const e of dbEvs || []) {
+            const d = stockholmDate(e.start_at);
+            if (!d) continue;
+            const arr = dbByDate.get(d) || [];
+            arr.push(e);
+            dbByDate.set(d, arr);
+          }
+
+          const updates: any[] = [];
+          const deletes: any[] = [];
+          const dedupReport: any[] = [];
+
+          for (const [date, evs] of dbByDate.entries()) {
+            if (evs.length < 2) continue; // only act on actual duplicates
+            const ref = parsedByDate.get(date);
+            let keeper: any;
+            if (ref) {
+              // Pick the DB event with the smallest combined start+end time delta to the parsed one.
+              const refStart = new Date(ref.start).getTime();
+              const refEnd = new Date(ref.end).getTime();
+              keeper = evs.slice().sort((a, b) => {
+                const da = Math.abs(new Date(a.start_at).getTime() - refStart) + Math.abs(new Date(a.end_at).getTime() - refEnd);
+                const db2 = Math.abs(new Date(b.start_at).getTime() - refStart) + Math.abs(new Date(b.end_at).getTime() - refEnd);
+                return da - db2;
+              })[0];
+              const sameStart = new Date(keeper.start_at).getTime() === refStart;
+              const sameEnd = new Date(keeper.end_at).getTime() === refEnd;
+              if (!sameStart || !sameEnd) {
+                updates.push({
+                  id: keeper.id, title: keeper.title, before: keeper,
+                  after_patch: { start_at: ref.start, end_at: ref.end },
+                  from: `${keeper.start_at}→${keeper.end_at}`, to: `${ref.start}→${ref.end}`,
+                });
+              }
+            } else {
+              // No screenshot reference — keep the earliest, drop the rest.
+              keeper = evs.slice().sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())[0];
+            }
+            const removed = evs.filter((e: any) => e.id !== keeper.id);
+            for (const r of removed) deletes.push({ id: r.id, before: r, title: r.title, start_at: r.start_at, end_at: r.end_at });
+            dedupReport.push({
+              date,
+              kept: { id: keeper.id, title: keeper.title, from: `${keeper.start_at}→${keeper.end_at}` },
+              removed: removed.map((r: any) => ({ id: r.id, title: r.title, from: `${r.start_at}→${r.end_at}` })),
+              had_screenshot_reference: !!ref,
+            });
+          }
+
+          const totalMutations = updates.length + deletes.length;
+          if (totalMutations === 0) {
+            return { nothing_to_apply: true, calendar: cal.name, mode, reason: "No dates with 2+ events found in this calendar over the screenshot's range." };
+          }
+          if (totalMutations > MAX_BULK) {
+            return { error: `Dedup would mutate ${totalMutations} events (cap ${MAX_BULK}). Narrow the screenshot or split.` };
+          }
+          const tok = newToken();
+          const { error: pe } = await supabase.from("pending_actions").insert({
+            user_id: userId, action_type: "reimport_dedupe",
+            payload: { calendar_id: cal.id, updates, deletes, dedup_report: dedupReport },
+            confirmation_token: tok,
+          });
+          if (pe) return { error: pe.message };
+          return {
+            confirmation_token: tok, expires_in_seconds: 300, calendar: cal.name, mode,
+            would_update: updates.length,
+            would_delete: deletes.length,
+            dates_with_duplicates: dedupReport.length,
+            sample_updates: updates.slice(0, 8).map((u) => ({ title: u.title, from: u.from, to: u.to })),
+            sample_deletes: deletes.slice(0, 8).map((d) => ({ title: d.title, start_at: d.start_at, end_at: d.end_at })),
+            dedup_report_sample: dedupReport.slice(0, 8),
+          };
+        }
+
+        // ── reconcile mode (existing behavior) ──
         const dbByKey = new Map<string, any>();
         for (const e of dbEvs || []) dbByKey.set(`${norm(e.title)}|${stockholmDate(e.start_at)}`, e);
         const updates: any[] = []; const inserts: any[] = []; const skipped: any[] = [];
@@ -623,7 +709,7 @@ async function runTool(
         });
         if (pe) return { error: pe.message };
         return {
-          confirmation_token: tok, expires_in_seconds: 300, calendar: cal.name, view_hint: viewHint,
+          confirmation_token: tok, expires_in_seconds: 300, calendar: cal.name, view_hint: viewHint, mode,
           would_update: updates.length,
           would_insert: insertUnmatched ? inserts.length : 0,
           unmatched_not_inserted: insertUnmatched ? 0 : inserts.length,
