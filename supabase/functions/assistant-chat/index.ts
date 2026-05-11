@@ -346,6 +346,7 @@ async function runTool(
   args: any,
   images: { base64: string; mime: string; name?: string }[] = [],
   auth: string = "",
+  tokensIssuedThisRequest: Set<string> = new Set(),
 ) {
   try {
     const calByName = (n?: string) => {
