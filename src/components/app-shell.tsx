@@ -12,20 +12,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!user) return <>{children}</>;
 
   const items = [
-    { to: "/", label: "Today", icon: Home },
-    { to: "/calendar", label: "Calendar", icon: CalendarDays },
+    { to: "/", label: "Calendar", icon: CalendarDays },
     { to: "/sources", label: "Sources", icon: Layers },
   ] as const;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
-            <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground">
+          <Link to="/" className="flex items-center gap-2.5 font-semibold">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)]">
               <CalendarDays className="h-4 w-4" />
             </span>
-            <span>One</span>
+            <span className="text-base tracking-tight">One</span>
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
             {items.map((it) => (
@@ -50,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="mx-auto max-w-6xl px-4 py-6 pb-24">{children}</main>
 
       {/* mobile nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-background/95 backdrop-blur md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/60 bg-background/90 backdrop-blur-xl md:hidden">
         <div className="mx-auto flex max-w-6xl items-center justify-around px-2 py-2">
           {items.map((it) => (
             <Link
@@ -76,7 +75,7 @@ export function FAB({ onClick }: { onClick: () => void }) {
     <button
       onClick={onClick}
       className={cn(
-        "fixed bottom-20 right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 md:bottom-8 md:right-8",
+        "fixed bottom-20 right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background md:bottom-8 md:right-8",
       )}
       aria-label="Add event"
     >
