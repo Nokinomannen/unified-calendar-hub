@@ -1,70 +1,30 @@
-# Calendar-first landing, dark mode, agent hardening, visual polish
+# Theme toggle + UI zoom
 
-Four bundled changes. Frontend + one edge-function tweak. No schema changes.
+Two small additions to the app shell. Frontend only, no backend.
 
-## 1. Calendar = home
+## 1. Light/dark mode toggle
 
-- Move month-view code from `src/routes/calendar.tsx` into `src/routes/index.tsx` (so `/` shows the big month grid).
-- Delete the old "Today / Good morning + Next up + upcoming list" content from `index.tsx`.
-- Keep `/calendar` working by either (a) redirecting it to `/` via `beforeLoad`, or (b) deleting `routes/calendar.tsx` and removing the Calendar nav item. Plan: redirect, keep Calendar nav label pointing to `/` so the navbar still has Today/Calendar/Sources without dead links.
-- Default `view` to `"month"` and ignore any stale `localStorage["cal-view"]` if it equals `"day"` only when there is no width hint — simpler: leave persistence as-is, but seed initial state to `"month"` for first-time users.
-- `AppShell` nav: rename "Today" → "Calendar" (single item to `/`), drop the duplicate.
+- Add `src/hooks/use-theme.tsx`: a `ThemeProvider` + `useTheme()` hook that stores choice (`"light" | "dark" | "system"`) in `localStorage["theme"]`, applies/removes `.dark` on `document.documentElement`, and listens to `prefers-color-scheme` when set to `"system"`.
+- Wrap the app in `__root.tsx`'s `RootComponent` with `<ThemeProvider>`. Remove the hardcoded `className="dark"` from `<html>` in `RootShell` so the provider is the source of truth (provider sets it on mount; SSR ships without the class — acceptable since this is an authed app).
+- Add a theme switcher button in `AppShell` header next to "Sign out": dropdown menu (shadcn `DropdownMenu`) with Sun/Moon/Monitor icons and Light / Dark / System items. Icon swaps based on resolved theme.
+- Audit `:root` (light) palette in `src/styles.css` and lift `--primary` to match the dark violet vibe so light mode also looks polished. Add light variants of `--gradient-primary`, `--shadow-elegant`, `--shadow-glow` so components that use those tokens render correctly in light mode.
 
-## 2. Dark mode by default
+## 2. UI zoom controls
 
-- In `src/routes/__root.tsx` (root layout), add `className="dark"` to `<html>` so the `.dark` token block in `src/styles.css` is always applied.
-- Refresh the dark palette in `src/styles.css` for a richer feel:
-  - `--background` → near-black with a hint of indigo (`oklch(0.16 0.02 270)`)
-  - `--card` → slightly lifted surface (`oklch(0.21 0.02 270)`)
-  - `--primary` → vivid violet (`oklch(0.65 0.22 285)`) with `--primary-foreground` near-white
-  - `--border` → `oklch(1 0 0 / 8%)`, `--muted-foreground` → `oklch(0.72 0.02 260)`
-  - Add `--gradient-primary`, `--shadow-elegant` tokens for reuse.
-- Keep `:root` (light) values intact in case we want a toggle later, but the app ships dark-only.
-
-## 3. AI agent reliability
-
-The recent fixes (sanitize tool history, 402 → friendly reply, send full `convo` with tool messages) handle the crash modes. Remaining gaps:
-
-- **Tool-loop watchdog (`supabase/functions/assistant-chat/index.ts`)**: if the gateway returns 5xx mid-loop, retry once with 800ms backoff before bailing. If the model emits a tool call we don't know, return a structured `tool` reply with `{ error: "unknown_tool" }` instead of throwing — lets the model recover.
-- **Token expiry UX**: when `consumeToken` rejects with "expired/used", reply to the user with "That confirmation expired — want me to preview again?" instead of a raw error.
-- **Client (`src/components/assistant-panel.tsx`)**:
-  - On error, don't push the cryptic "Sorry, that failed." Instead show the server's `reply` if present.
-  - Add a small "Reset chat" button in the panel header that clears `convo`, `messages`, and any in-flight token (purely client state).
-  - Disable the input while `busy` (already) and show a typing indicator instead of swallowing the turn.
-- **Visible status**: render the last tool name in a tiny line above the assistant bubble (e.g. "→ find_events", "→ preview_delete_event") so the user sees progress and can tell when something stalls.
-
-No model swap, no new env vars.
-
-## 4. Visual polish
-
-Scope: shared chrome + month grid + assistant panel. No new libraries.
-
-- **Header (`AppShell`)**: thinner divider, gradient logo chip using `--gradient-primary`, slightly larger brand text. Replace "One" with the existing brand if any (keeping "One" otherwise).
-- **Month grid (`MonthGrid` / `DayCell` in the new `index.tsx`)**:
-  - Cell min-height 128px on desktop, rounded inner corners on the outer container, hairline borders using `--border`.
-  - Today's date pill: gradient background, soft glow shadow.
-  - Event chips: bigger left bar (4px), subtle bg `bg-card/40`, hover lifts with `--shadow-elegant`.
-  - Free-day badge: switch from emerald tint to a calmer mint that reads in dark mode.
-  - Conflict marker: replace inline `AlertTriangle` with a red dot + tooltip on hover.
-  - Calendar filter chips: pill style with filled dot, active = full color, inactive = outline + 40% opacity (already close, just tighten spacing and use tokens).
-- **FAB**: gradient background, larger shadow, scale-on-hover already present — add a subtle ring on focus.
-- **Assistant panel**: rounded-2xl, blurred backdrop, message bubbles use `--card` for assistant and `--primary/15` tinted for user. Add the status line from §3.
-- **Empty states**: replace plain dashed boxes with centered icon + one-line copy.
-
-All colors via tokens — no hex literals in components.
+- Add `src/hooks/use-ui-zoom.tsx`: stores a scale value (0.8 → 1.4, step 0.1) in `localStorage["ui-zoom"]`, default 1. Applies it by setting `document.documentElement.style.fontSize = ${scale * 16}px`. Since the design system uses rem-based Tailwind utilities, this scales the entire UI (text, spacing, sizing) proportionally.
+- Add a small zoom control in `AppShell` header: minus button, current % label, plus button, with a reset on label click. Hidden on small screens (md:flex) to save space; mobile users can pinch-zoom.
+- Keyboard shortcuts: `Ctrl/Cmd +` / `Ctrl/Cmd -` / `Ctrl/Cmd 0` bound globally inside the provider to step the zoom.
 
 ## Files touched
 
-- `src/routes/__root.tsx` — add `dark` class
-- `src/routes/index.tsx` — replace with month-calendar view
-- `src/routes/calendar.tsx` — convert to redirect (or delete + update nav)
-- `src/components/app-shell.tsx` — nav cleanup, header polish, FAB polish
-- `src/components/assistant-panel.tsx` — reset button, status line, better error reply
-- `src/styles.css` — refreshed dark palette + gradient/shadow tokens
-- `supabase/functions/assistant-chat/index.ts` — 5xx retry, unknown-tool guard, friendlier expired-token reply
+- `src/hooks/use-theme.tsx` — new
+- `src/hooks/use-ui-zoom.tsx` — new
+- `src/routes/__root.tsx` — wrap providers, drop hardcoded `dark` class
+- `src/components/app-shell.tsx` — add theme switcher + zoom controls in header
+- `src/styles.css` — refresh light palette + add light-mode gradient/shadow tokens
 
 ## Out of scope
 
-- Light-mode toggle (dark only for now)
-- Calendar source sync work
-- New AI features
+- Per-component zoom (only global root font-size scaling)
+- Persisting theme/zoom server-side per user
+- Accessibility prefs panel (just the two controls in the header)
