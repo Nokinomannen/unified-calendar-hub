@@ -290,7 +290,7 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: convo, tools: TOOLS }),
+        body: JSON.stringify({ model: "google/gemini-2.5-pro", messages: convo, tools: TOOLS }),
       });
       if (resp.status === 429) return json({ error: "Rate limited, try again shortly." }, 429);
       if (resp.status === 402) return json({ error: "AI credits exhausted." }, 402);
