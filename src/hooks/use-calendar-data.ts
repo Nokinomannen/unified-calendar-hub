@@ -106,8 +106,26 @@ export function useDeleteEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("events").delete().eq("id", id);
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("not signed in");
+      // Read full row first so we can record it in the audit log.
+      const { data: before, error: be } = await supabase.from("events").select("*").eq("id", id).single();
+      if (be) throw be;
+      const { error } = await supabase
+        .from("events")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", id);
       if (error) throw error;
+      // Best-effort audit log; don't block the UI on failure.
+      const { error: ae } = await supabase.from("agent_actions").insert({
+        user_id: u.user.id,
+        action: "soft_delete",
+        event_id: id,
+        before,
+        after: null,
+        tool_name: "ui_delete",
+      });
+      if (ae) console.error("audit insert failed", ae.message);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
   });
