@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_actions: {
+        Row: {
+          action: string
+          after: Json | null
+          before: Json | null
+          created_at: string
+          event_id: string | null
+          id: string
+          tool_name: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          tool_name: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          tool_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       calendars: {
         Row: {
           color: string
@@ -120,6 +153,7 @@ export type Database = {
           all_day: boolean
           calendar_id: string
           created_at: string
+          deleted_at: string | null
           description: string | null
           end_at: string
           external_id: string | null
@@ -136,6 +170,7 @@ export type Database = {
           all_day?: boolean
           calendar_id: string
           created_at?: string
+          deleted_at?: string | null
           description?: string | null
           end_at: string
           external_id?: string | null
@@ -152,6 +187,7 @@ export type Database = {
           all_day?: boolean
           calendar_id?: string
           created_at?: string
+          deleted_at?: string | null
           description?: string | null
           end_at?: string
           external_id?: string | null
@@ -173,6 +209,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pending_actions: {
+        Row: {
+          action_type: string
+          confirmation_token: string
+          confirmed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          payload: Json
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          confirmation_token: string
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payload: Json
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          confirmation_token?: string
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payload?: Json
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
