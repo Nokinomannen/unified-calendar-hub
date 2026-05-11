@@ -721,10 +721,17 @@ async function runTool(
       }
 
       case "confirm_reimport": {
-        const pa = await consumeToken(supabase, userId, args.confirmation_token, "reimport_apply", tokensIssuedThisRequest);
+        // Peek to learn whether this token is for reconcile-apply or dedupe.
+        const tokStr = args.confirmation_token;
+        if (!tokStr || typeof tokStr !== "string") return { error: "missing confirmation_token" };
+        if (tokensIssuedThisRequest.has(tokStr)) return { error: "This token was just created in the same turn. Show the preview to the user and wait for their explicit confirmation in a new message before calling confirm_*." };
+        const { data: peek } = await supabase.from("pending_actions")
+          .select("action_type").eq("user_id", userId).eq("confirmation_token", tokStr).maybeSingle();
+        const expected = peek?.action_type === "reimport_dedupe" ? "reimport_dedupe" : "reimport_apply";
+        const pa = await consumeToken(supabase, userId, tokStr, expected, tokensIssuedThisRequest);
         if ("error" in pa) return pa;
-        const { calendar_id, updates, inserts } = pa.payload;
-        let updated = 0, inserted = 0; const errs: string[] = [];
+        const { calendar_id, updates, inserts, deletes, dedup_report } = pa.payload;
+        let updated = 0, inserted = 0, deleted = 0; const errs: string[] = [];
         for (const u of updates || []) {
           const { data: after, error } = await supabase.from("events").update(u.after_patch).eq("id", u.id).select().single();
           if (error) { errs.push(`update ${u.id}: ${error.message}`); continue; }
@@ -743,7 +750,19 @@ async function runTool(
             for (const row of data || []) await audit(supabase, userId, "create", row.id, null, row, "confirm_reimport");
           }
         }
-        return { applied: true, updated, inserted, errors: errs };
+        if ((deletes || []).length) {
+          for (const d of deletes) {
+            const { data: after, error } = await supabase.from("events")
+              .update({ deleted_at: new Date().toISOString() }).eq("id", d.id).select().single();
+            if (error) { errs.push(`delete ${d.id}: ${error.message}`); continue; }
+            await audit(supabase, userId, "soft_delete", d.id, d.before, after, "confirm_reimport");
+            deleted++;
+          }
+        }
+        if (dedup_report) {
+          await audit(supabase, userId, "dedupe_report", null, null, { calendar_id, dedup_report }, "confirm_reimport");
+        }
+        return { applied: true, updated, inserted, deleted, errors: errs };
       }
 
       case "undo_last_delete": {
