@@ -230,6 +230,46 @@ const TOOLS = [
   },
 ];
 
+function sanitizeHistory(raw: any[]): any[] {
+  const msgs = (raw || []).filter((m: any) => m && m.role !== "system");
+  const out: any[] = [];
+  const knownToolCallIds = new Set<string>();
+  for (let i = 0; i < msgs.length; i++) {
+    const m = msgs[i];
+    if (m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length) {
+      const ids: string[] = m.tool_calls.map((tc: any) => tc.id).filter(Boolean);
+      const replies: any[] = [];
+      let j = i + 1;
+      while (j < msgs.length && msgs[j].role === "tool") {
+        replies.push(msgs[j]);
+        j++;
+      }
+      const replyIds = new Set(replies.map((r) => r.tool_call_id));
+      const allMatched = ids.length > 0 && ids.every((id) => replyIds.has(id));
+      if (!allMatched) {
+        console.error("dropping orphan assistant tool_calls", { ids, replyIds: [...replyIds] });
+        i = j - 1;
+        continue;
+      }
+      ids.forEach((id) => knownToolCallIds.add(id));
+      out.push(m);
+      for (const r of replies) {
+        if (ids.includes(r.tool_call_id)) out.push(r);
+      }
+      i = j - 1;
+    } else if (m.role === "tool") {
+      if (m.tool_call_id && knownToolCallIds.has(m.tool_call_id)) {
+        out.push(m);
+      } else {
+        console.error("dropping orphan tool message", { tool_call_id: m.tool_call_id });
+      }
+    } else {
+      out.push(m);
+    }
+  }
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
