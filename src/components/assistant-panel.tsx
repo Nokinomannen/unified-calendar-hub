@@ -15,6 +15,7 @@ export function AssistantPanel() {
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Hi! Tell me what's booked and I'll add it. Try: *\"Dentist next Thursday at 14:30 for an hour\"* or attach a weekly screenshot and say *\"fix my school times from this\"*." },
   ]);
+  const [convo, setConvo] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -101,15 +102,17 @@ export function AssistantPanel() {
     setAttachments([]);
     setBusy(true);
     try {
+      const outgoing = [...convo.filter((m) => m.role !== "system"), { role: "user", content: display }];
       const { data, error } = await supabase.functions.invoke("assistant-chat", {
         body: {
-          messages: next.map((m) => ({ role: m.role, content: m.content })),
+          messages: outgoing,
           images: sentAttachments.map((a) => ({ base64: a.base64, mime: a.mime, name: a.name })),
         },
       });
       if (error) throw error;
       if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       const reply = (data as { reply: string }).reply || "(no reply)";
+      setConvo((((data as any).convo) || []).filter((m: any) => m.role !== "system"));
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
       qc.invalidateQueries({ queryKey: ["events"] });
     } catch (e) {
