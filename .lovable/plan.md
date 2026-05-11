@@ -1,40 +1,31 @@
-## Wave 1.1 — Same-turn confirmation gate + model upgrade
+## Wave 1.2 — Stop fabricated previews
 
-Scope: `supabase/functions/assistant-chat/index.ts` only. No DB, no client, no other tools.
+Scope: `supabase/functions/assistant-chat/index.ts` only.
 
-### 1. Same-turn token guard
+### Status of previous fix
+Already shipped — verified in current file:
+- `tokensIssuedThisRequest` set is wired through `runTool` → `consumeToken` (line 287, 320, 689).
+- Model is already `google/gemini-2.5-pro` (line 291).
 
-At the top of the request handler (just before the `for (let i = 0; i < 8; i++)` loop, ~line 285), declare:
+No re-ship needed. Only the prompt rule is missing.
 
-```ts
-const tokensIssuedThisRequest = new Set<string>();
+### Change: tighten system prompt
+
+In the `sys` string (~line 266), replace the current "To delete or bulk-modify…" bullet and add two new rules right after it:
+
+```
+- To delete or bulk-modify: you MUST first call the matching preview_* tool and receive a real confirmation_token. Only after that token exists may you ask the user "Apply?". Do NOT tell the user you "will delete" or "will update" anything before the preview_* call has actually returned. Never fabricate a preview or a token.
+- If find_events returns no matches for what the user described, stop and tell them immediately: "I couldn't find an event matching [their description]. Could you give me more detail?" Do not invent an event, do not call preview_*, do not ask "Apply?".
+- After the user confirms in a NEW message, call confirm_* with the token. Tokens expire in 5 minutes and are one-time use.
 ```
 
-After each tool call inside the inner `for (const tc of toolCalls)` loop (~line 317), if `name.startsWith("preview_")` (also include `reimport_from_screenshot`, since it returns a token too) and `result?.confirmation_token` is a string, add it to the set.
+### Verification
 
-Pass `tokensIssuedThisRequest` into `runTool` as a new parameter, then forward it to `consumeToken`.
-
-In `consumeToken` (~line 689), after the missing-token check, add:
-
-```ts
-if (tokensIssuedThisRequest.has(token)) {
-  return { error: "This token was just created in the same turn. Show the preview to the user and wait for their explicit confirmation in a new message before calling confirm_*." };
-}
-```
-
-This is the single chokepoint — every `confirm_*` case already routes through `consumeToken`, so no per-case changes needed beyond plumbing the set through.
-
-### 2. Model upgrade
-
-Line 291: change `"google/gemini-2.5-flash"` → `"google/gemini-2.5-pro"`. Matches `parse-schedule`.
-
-### 3. Verification
-
-- Ask the assistant to delete an event in one message. Expect: it calls `preview_delete_event`, then if it tries `confirm_delete_event` in the same turn the tool returns the "same turn" error, and the model is forced to surface the preview and stop.
-- Second user message ("yes, apply") → `confirm_delete_event` succeeds (token is no longer in the per-request set).
-- Existing flows (cross-turn confirm, expired token, reused token) still work.
-- Check edge function logs to confirm `[tool]` lines show the rejected confirm in the bad case.
+- "Delete my dentist appointment" when none exists → assistant calls `find_events`, gets empty result, asks for clarification. No `preview_delete_event` call, no fake "Apply?".
+- "Delete my dentist appointment" when one exists → `find_events` → `preview_delete_event` returns token → assistant shows preview and asks "Apply?" → ends turn (same-turn guard already blocks chained confirm).
+- Next user message "yes" → `confirm_delete_event` succeeds.
+- Check `[tool]` log lines to confirm `preview_delete_event` actually fires before any "Apply?" reply.
 
 ### Out of scope
 
-No changes to tool schemas, system prompt, DB, client, or other functions.
+DB, client, other tools, schemas.

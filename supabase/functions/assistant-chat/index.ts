@@ -272,7 +272,9 @@ Event context: ${evCount ?? 0} non-deleted events in the window now-30d → now+
 How to act:
 - For new bookings: call create_event for one, or preview_bulk_create_events → confirm_bulk_create_events for many.
 - To edit one event: call update_event with the FULL UUID.
-- To delete or bulk-modify: call the matching preview_* tool, show the user the preview + ask "Apply?", then call confirm_* with the returned confirmation_token. Tokens expire in 5 minutes and are one-time use.
+- To delete or bulk-modify: you MUST first call the matching preview_* tool and receive a real confirmation_token. Only after that token exists may you ask the user "Apply?". Do NOT tell the user you "will delete" or "will update" anything before the preview_* call has actually returned. Never fabricate a preview or a token.
+- If find_events returns no matches for what the user described, stop and tell them immediately: "I couldn't find an event matching [their description]. Could you give me more detail?" Do not invent an event, do not call preview_*, do not ask "Apply?".
+- After the user confirms in a NEW message, call confirm_* with the token. Tokens expire in 5 minutes and are one-time use.
 - Hard cap: 50 events per bulk operation. If more, batch.
 - To recover a recently deleted event (agent OR manual UI delete), call undo_last_delete.
 - Always use ISO 8601 with timezone offset. Default Europe/Stockholm.
