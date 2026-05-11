@@ -247,6 +247,14 @@ Deno.serve(async (req) => {
 
     const { messages, images } = await req.json();
     const attachedImages: { base64: string; mime: string; name?: string }[] = Array.isArray(images) ? images : [];
+
+    console.error("incoming messages structure:", JSON.stringify(
+      (messages || []).map((m: any) => ({
+        role: m.role,
+        has_tool_calls: Array.isArray(m.tool_calls) && m.tool_calls.length > 0,
+        tool_call_id: m.tool_call_id,
+      }))
+    ));
     const KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!KEY) throw new Error("LOVABLE_API_KEY missing");
 
