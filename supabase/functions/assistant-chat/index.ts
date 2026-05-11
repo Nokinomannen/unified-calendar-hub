@@ -283,6 +283,8 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
 
     const convo: any[] = [{ role: "system", content: sys }, ...messages];
 
+    const tokensIssuedThisRequest = new Set<string>();
+
     for (let i = 0; i < 8; i++) {
       const t0 = Date.now();
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
