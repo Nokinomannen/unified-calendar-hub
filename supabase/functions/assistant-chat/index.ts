@@ -7,6 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const MAX_BULK = 50;
+
 const TOOLS = [
   {
     type: "function",
@@ -21,19 +23,15 @@ const TOOLS = [
     function: {
       name: "find_events",
       description:
-        "Find events by fuzzy title/location match and optional date range. Returns full event ids you can then pass to update_event, delete_event, or bulk_update_events. ALWAYS call this before updating or deleting if you don't already have the exact full UUID.",
+        "Find non-deleted events by fuzzy title/location match and optional date range. Returns full event ids you can then pass to update_event or the preview_* tools. ALWAYS call this before updating or deleting if you don't already have the exact full UUID.",
       parameters: {
         type: "object",
         properties: {
-          query: { type: "string", description: "Substring match on title or location (case-insensitive)." },
+          query: { type: "string" },
           calendar_name: { type: "string" },
-          start: { type: "string", description: "ISO datetime, optional lower bound." },
-          end: { type: "string", description: "ISO datetime, optional upper bound." },
-          weekday: {
-            type: "string",
-            enum: ["MO", "TU", "WE", "TH", "FR", "SA", "SU"],
-            description: "Filter to a specific weekday.",
-          },
+          start: { type: "string" },
+          end: { type: "string" },
+          weekday: { type: "string", enum: ["MO", "TU", "WE", "TH", "FR", "SA", "SU"] },
         },
       },
     },
@@ -42,14 +40,10 @@ const TOOLS = [
     type: "function",
     function: {
       name: "search_events",
-      description: "Get events between two ISO dates. Optional text filter on title/location.",
+      description: "Get non-deleted events between two ISO dates. Optional text filter on title/location.",
       parameters: {
         type: "object",
-        properties: {
-          start: { type: "string" },
-          end: { type: "string" },
-          query: { type: "string" },
-        },
+        properties: { start: { type: "string" }, end: { type: "string" }, query: { type: "string" } },
         required: ["start", "end"],
       },
     },
@@ -58,7 +52,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "create_event",
-      description: "Create one event. Use ISO 8601 with offset (Europe/Stockholm if unspecified).",
+      description: "Create one event. ISO 8601 with offset (Europe/Stockholm if unspecified).",
       parameters: {
         type: "object",
         properties: {
@@ -79,11 +73,11 @@ const TOOLS = [
     type: "function",
     function: {
       name: "update_event",
-      description: "Update one event by its FULL UUID id.",
+      description: "Update one event by FULL UUID. Non-destructive single edit.",
       parameters: {
         type: "object",
         properties: {
-          id: { type: "string", description: "Full UUID, not a prefix." },
+          id: { type: "string" },
           title: { type: "string" },
           start: { type: "string" },
           end: { type: "string" },
@@ -99,11 +93,11 @@ const TOOLS = [
   {
     type: "function",
     function: {
-      name: "delete_event",
-      description: "Delete an event by its FULL UUID id.",
+      name: "preview_delete_event",
+      description: "Stage a delete. Returns a confirmation_token + preview. Show the preview to the user, ask 'Apply?', then call confirm_delete_event with the token.",
       parameters: {
         type: "object",
-        properties: { id: { type: "string", description: "Full UUID, not a prefix." } },
+        properties: { id: { type: "string", description: "Full UUID." } },
         required: ["id"],
       },
     },
@@ -111,8 +105,56 @@ const TOOLS = [
   {
     type: "function",
     function: {
-      name: "bulk_create_events",
-      description: "Create many events at once.",
+      name: "confirm_delete_event",
+      description: "Apply a previously previewed delete. Token expires in 5 minutes; one-time use.",
+      parameters: {
+        type: "object",
+        properties: { confirmation_token: { type: "string" } },
+        required: ["confirmation_token"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "preview_bulk_update_events",
+      description: `Stage a bulk update (up to ${MAX_BULK} events). Returns confirmation_token + per-event diff. Show summary, ask 'Apply?', then call confirm_bulk_update_events.`,
+      parameters: {
+        type: "object",
+        properties: {
+          ids: { type: "array", items: { type: "string" } },
+          patch: {
+            type: "object",
+            properties: {
+              start_time: { type: "string", description: "HH:MM, Europe/Stockholm" },
+              end_time: { type: "string", description: "HH:MM, Europe/Stockholm" },
+              location: { type: "string" },
+              calendar_name: { type: "string" },
+              all_day: { type: "boolean" },
+            },
+          },
+        },
+        required: ["ids", "patch"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confirm_bulk_update_events",
+      description: "Apply a previously previewed bulk update.",
+      parameters: {
+        type: "object",
+        properties: { confirmation_token: { type: "string" } },
+        required: ["confirmation_token"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "preview_bulk_create_events",
+      description: `Stage a bulk create (up to ${MAX_BULK} events). Returns confirmation_token + sample. Then call confirm_bulk_create_events.`,
       parameters: {
         type: "object",
         properties: {
@@ -139,25 +181,12 @@ const TOOLS = [
   {
     type: "function",
     function: {
-      name: "bulk_update_events",
-      description:
-        "Update many events at once by an explicit list of FULL UUIDs (call find_events first to get them). Use this for pattern fixes like 'change all my Tuesday school events to end at 15:00'. The patch can set new start/end TIME-OF-DAY (HH:MM) which will be applied per-event preserving each event's date.",
+      name: "confirm_bulk_create_events",
+      description: "Apply a previously previewed bulk create.",
       parameters: {
         type: "object",
-        properties: {
-          ids: { type: "array", items: { type: "string" } },
-          patch: {
-            type: "object",
-            properties: {
-              start_time: { type: "string", description: "New start time of day, HH:MM (Europe/Stockholm)." },
-              end_time: { type: "string", description: "New end time of day, HH:MM (Europe/Stockholm)." },
-              location: { type: "string" },
-              calendar_name: { type: "string" },
-              all_day: { type: "boolean" },
-            },
-          },
-        },
-        required: ["ids", "patch"],
+        properties: { confirmation_token: { type: "string" } },
+        required: ["confirmation_token"],
       },
     },
   },
@@ -165,19 +194,37 @@ const TOOLS = [
     type: "function",
     function: {
       name: "reimport_from_screenshot",
-      description:
-        "Parse an attached screenshot (use the index from the system prompt) and match its events against existing calendar events by title + date (Europe/Stockholm). Updates start/end times for matches and reports unmatched events. Default view_hint is 'weekly'. ALWAYS run with dry_run=true first to preview, then call again with dry_run=false ONLY after the user confirms.",
+      description: `Parse an attached screenshot and match against existing events by title + Stockholm date. ALWAYS dry-run only — returns confirmation_token + preview. Then call confirm_reimport. Cap ${MAX_BULK} mutations per call.`,
       parameters: {
         type: "object",
         properties: {
-          image_index: { type: "number", description: "0-based index of the attached image." },
-          calendar_name: { type: "string", description: "Which calendar to match against (e.g. 'School'). Required." },
-          view_hint: { type: "string", enum: ["weekly", "monthly"], description: "Defaults to 'weekly'." },
-          dry_run: { type: "boolean", description: "If true, returns preview without writing. Default true." },
-          insert_unmatched: { type: "boolean", description: "If true, parsed events with no DB match are inserted as new events. Default false." },
+          image_index: { type: "number" },
+          calendar_name: { type: "string" },
+          view_hint: { type: "string", enum: ["weekly", "monthly"] },
+          insert_unmatched: { type: "boolean", description: "If true, include unmatched parsed events as inserts in the apply step." },
         },
         required: ["image_index", "calendar_name"],
       },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confirm_reimport",
+      description: "Apply a previously previewed screenshot reimport.",
+      parameters: {
+        type: "object",
+        properties: { confirmation_token: { type: "string" } },
+        required: ["confirmation_token"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "undo_last_delete",
+      description: "Restore the most recent soft-deleted event for this user (within the last 30 days). Works for both agent and UI deletes.",
+      parameters: { type: "object", properties: {} },
     },
   },
 ];
@@ -203,54 +250,45 @@ Deno.serve(async (req) => {
     if (!KEY) throw new Error("LOVABLE_API_KEY missing");
 
     const { data: cals } = await supabase.from("calendars").select("id,name,source,color");
+
+    // Just a count for the system prompt — events themselves come from find_events.
     const now = new Date();
     const horizonStart = new Date(now.getTime() - 30 * 86400000).toISOString();
     const horizonEnd = new Date(now.getTime() + 180 * 86400000).toISOString();
-    const { data: evs } = await supabase
+    const { count: evCount } = await supabase
       .from("events")
-      .select("id,title,start_at,end_at,location,calendar_id,rrule")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
       .lte("start_at", horizonEnd)
-      .gte("end_at", horizonStart)
-      .order("start_at")
-      .limit(300);
+      .gte("end_at", horizonStart);
 
-    const calNameById = new Map((cals || []).map((c) => [c.id, c.name]));
-
-    const hasImages = attachedImages.length > 0;
     const sys = `You are the user's calendar assistant. Today is ${now.toISOString()}. Timezone: Europe/Stockholm.
 
 User's calendars:
-${(cals || []).map((c) => `- ${c.name} (source: ${c.source}, id: ${c.id})`).join("\n")}
+${(cals || []).map((c) => `- ${c.name} (source: ${c.source}, id: ${c.id})`).join("\n") || "(none)"}
 
-${hasImages
-  ? `Recent + upcoming events list OMITTED this turn to avoid biasing screenshot date parsing. Call find_events when you need ids.`
-  : `Recent + upcoming events (FULL ids — use these exactly when you call update_event / delete_event):
-${(evs || []).map((e) => `- id=${e.id} | "${e.title}" | ${e.start_at} → ${e.end_at} | calendar=${calNameById.get(e.calendar_id) || "?"}${e.location ? ` | @${e.location}` : ""}${e.rrule ? ` | recurring=${e.rrule}` : ""}`).join("\n") || "(none)"}`}
+Event context: ${evCount ?? 0} non-deleted events in the window now-30d → now+180d. Do NOT guess ids — call find_events to retrieve them.
 
 How to act:
-- For new bookings: call create_event or bulk_create_events directly.
-- To change or delete events: ALWAYS use the FULL UUID (the value after id=). Never invent or shorten ids. If you only have a vague reference ("the host caro event"), call find_events first to get the full id, then update_event / delete_event.
-- For pattern fixes ("all my Tuesday school events end at 15:00 not 10:30"): call find_events to gather ids, then call bulk_update_events with patch.start_time/patch.end_time as HH:MM. The system will preserve each event's date and shift only the time of day.
-- Risk policy:
-  - Direct action for clear single creates / single edits / non-destructive moves.
-  - Before any DELETE, or any change touching MORE THAN 3 events, briefly list what you'll do and ask "Apply?" — only proceed after the user confirms.
-- Always use ISO 8601 with timezone offset for explicit datetimes. Default to Europe/Stockholm.
+- For new bookings: call create_event for one, or preview_bulk_create_events → confirm_bulk_create_events for many.
+- To edit one event: call update_event with the FULL UUID.
+- To delete or bulk-modify: call the matching preview_* tool, show the user the preview + ask "Apply?", then call confirm_* with the returned confirmation_token. Tokens expire in 5 minutes and are one-time use.
+- Hard cap: 50 events per bulk operation. If more, batch.
+- To recover a recently deleted event (agent OR manual UI delete), call undo_last_delete.
+- Always use ISO 8601 with timezone offset. Default Europe/Stockholm.
 - Match calendar_name fuzzily (School, Tiger of Sweden, A-hub, Personal). Default Personal if unsure.
-- If a tool returns an error, tell the user the actual error message in plain language and suggest a fix. Don't say "tool error".
-${attachedImages.length ? `- The user attached ${attachedImages.length} screenshot(s) (indices 0..${attachedImages.length - 1}). Use the reimport_from_screenshot tool — default view_hint='weekly'. ALWAYS dry_run=true first, present the preview (counts + a few sample title changes), then re-call with dry_run=false after the user confirms. Set insert_unmatched=true only if the user wants new events added too.` : ""}
+- If a tool returns an error, relay the message in plain language.
+${attachedImages.length ? `- The user attached ${attachedImages.length} screenshot(s) (indices 0..${attachedImages.length - 1}). Call reimport_from_screenshot (default view_hint='weekly') to get a preview + token, then confirm_reimport after the user approves.` : ""}
 - Be concise.`;
 
     const convo: any[] = [{ role: "system", content: sys }, ...messages];
 
     for (let i = 0; i < 8; i++) {
+      const t0 = Date.now();
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: convo,
-          tools: TOOLS,
-        }),
+        body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: convo, tools: TOOLS }),
       });
       if (resp.status === 429) return json({ error: "Rate limited, try again shortly." }, 429);
       if (resp.status === 402) return json({ error: "AI credits exhausted." }, 402);
@@ -260,6 +298,7 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
         return json({ error: "AI gateway error" }, 500);
       }
       const data = await resp.json();
+      console.log("[chat] turn", i, JSON.stringify({ ms: Date.now() - t0, usage: data.usage }));
       const msg = data.choices?.[0]?.message;
       if (!msg) return json({ error: "empty response" }, 500);
 
@@ -274,12 +313,14 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
         const name = tc.function?.name;
         let args: any = {};
         try { args = JSON.parse(tc.function?.arguments || "{}"); } catch {}
+        const tt = Date.now();
         const result = await runTool(supabase, userId, cals || [], name, args, attachedImages, auth);
-        convo.push({
-          role: "tool",
-          tool_call_id: tc.id,
-          content: JSON.stringify(result),
-        });
+        console.log("[tool]", name, JSON.stringify({
+          ms: Date.now() - tt,
+          args_summary: summarize(args),
+          result_summary: summarize(result),
+        }));
+        convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
       }
     }
 
@@ -292,7 +333,15 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
 
 const WD = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 
-async function runTool(supabase: any, userId: string, cals: any[], name: string, args: any, images: { base64: string; mime: string; name?: string }[] = [], auth: string = "") {
+async function runTool(
+  supabase: any,
+  userId: string,
+  cals: any[],
+  name: string,
+  args: any,
+  images: { base64: string; mime: string; name?: string }[] = [],
+  auth: string = "",
+) {
   try {
     const calByName = (n?: string) => {
       if (!n) return cals[0];
@@ -308,7 +357,9 @@ async function runTool(supabase: any, userId: string, cals: any[], name: string,
         return { calendars: cals };
 
       case "find_events": {
-        let q = supabase.from("events").select("id,title,start_at,end_at,location,calendar_id,rrule,all_day");
+        let q = supabase.from("events")
+          .select("id,title,start_at,end_at,location,calendar_id,rrule,all_day")
+          .is("deleted_at", null);
         if (args.start) q = q.gte("end_at", args.start);
         if (args.end) q = q.lte("start_at", args.end);
         if (args.calendar_name) {
@@ -332,6 +383,7 @@ async function runTool(supabase: any, userId: string, cals: any[], name: string,
       case "search_events": {
         const { data, error } = await supabase.from("events")
           .select("id,title,start_at,end_at,location,calendar_id,rrule")
+          .is("deleted_at", null)
           .lte("start_at", args.end).gte("end_at", args.start).order("start_at");
         if (error) return { error: error.message };
         const filtered = args.query
@@ -344,76 +396,148 @@ async function runTool(supabase: any, userId: string, cals: any[], name: string,
         const cal = calByName(args.calendar_name);
         if (!cal) return { error: "no calendar" };
         const { data, error } = await supabase.from("events").insert({
-          user_id: userId,
-          calendar_id: cal.id,
-          title: args.title,
-          start_at: args.start,
-          end_at: args.end,
-          location: args.location || null,
-          description: args.description || null,
-          all_day: !!args.all_day,
-          rrule: args.rrule || null,
+          user_id: userId, calendar_id: cal.id, title: args.title,
+          start_at: args.start, end_at: args.end,
+          location: args.location || null, description: args.description || null,
+          all_day: !!args.all_day, rrule: args.rrule || null,
         }).select().single();
         if (error) return { error: error.message };
+        await audit(supabase, userId, "create", data.id, null, data, "create_event");
         return { created: data };
       }
 
       case "update_event": {
-        if (!isUuid(args.id)) return { error: `'${args.id}' is not a valid full UUID. Call find_events to get the real id.` };
+        if (!isUuid(args.id)) return { error: `'${args.id}' is not a valid full UUID. Call find_events.` };
+        const { data: before, error: be } = await supabase.from("events").select("*").eq("id", args.id).is("deleted_at", null).single();
+        if (be || !before) return { error: "event not found (or already deleted)" };
         const patch: any = {};
         for (const k of ["title", "location", "description", "rrule", "all_day"]) if (args[k] !== undefined) patch[k] = args[k];
         if (args.start) patch.start_at = args.start;
         if (args.end) patch.end_at = args.end;
-        const { data, error } = await supabase.from("events").update(patch).eq("id", args.id).select().single();
+        const { data: after, error } = await supabase.from("events").update(patch).eq("id", args.id).select().single();
         if (error) return { error: error.message };
-        return { updated: data };
+        await audit(supabase, userId, "update", args.id, before, after, "update_event");
+        return { updated: after };
       }
 
-      case "delete_event": {
-        if (!isUuid(args.id)) return { error: `'${args.id}' is not a valid full UUID. Call find_events to get the real id.` };
-        const { error, count } = await supabase.from("events").delete({ count: "exact" }).eq("id", args.id);
-        if (error) return { error: error.message };
-        if (!count) return { error: `No event found with id ${args.id}` };
-        return { deleted: args.id };
+      // ── Preview / confirm: delete ──
+      case "preview_delete_event": {
+        if (!isUuid(args.id)) return { error: `'${args.id}' is not a valid full UUID.` };
+        const { data: row, error: re } = await supabase.from("events")
+          .select("id,title,start_at,end_at,location,calendar_id")
+          .eq("id", args.id).is("deleted_at", null).single();
+        if (re || !row) return { error: "event not found (or already deleted)" };
+        const tok = newToken();
+        const { error: pe } = await supabase.from("pending_actions").insert({
+          user_id: userId, action_type: "delete_event",
+          payload: { id: args.id, snapshot: row }, confirmation_token: tok,
+        });
+        if (pe) return { error: pe.message };
+        return {
+          confirmation_token: tok, expires_in_seconds: 300,
+          preview: { id: row.id, title: row.title, start_at: row.start_at, end_at: row.end_at, calendar: cals.find((c) => c.id === row.calendar_id)?.name },
+        };
       }
 
-      case "bulk_create_events": {
-        const cal = calByName(args.calendar_name);
-        if (!cal) return { error: "no calendar" };
-        const rows = (args.events || []).map((e: any) => ({
-          user_id: userId, calendar_id: cal.id, title: e.title,
-          start_at: e.start, end_at: e.end, location: e.location || null, all_day: !!e.all_day,
-        }));
-        const { data, error } = await supabase.from("events").insert(rows).select();
-        if (error) return { error: error.message };
-        return { created_count: data?.length ?? 0 };
+      case "confirm_delete_event": {
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "delete_event");
+        if ("error" in pa) return pa;
+        const id = pa.payload.id as string;
+        const { data: before, error: be } = await supabase.from("events").select("*").eq("id", id).single();
+        if (be || !before) return { error: "event vanished before confirm" };
+        const { error: de } = await supabase.from("events").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+        if (de) return { error: de.message };
+        await audit(supabase, userId, "soft_delete", id, before, null, "confirm_delete_event");
+        return { deleted: id };
       }
 
-      case "bulk_update_events": {
+      // ── Preview / confirm: bulk update ──
+      case "preview_bulk_update_events": {
         const ids: string[] = (args.ids || []).filter(isUuid);
-        if (!ids.length) return { error: "No valid UUIDs supplied. Call find_events first." };
+        if (!ids.length) return { error: "No valid UUIDs." };
+        if (ids.length > MAX_BULK) return { error: `exceeds ${MAX_BULK}-event cap (got ${ids.length}). Batch in smaller chunks.` };
         const patch = args.patch || {};
-        const { data: rows, error: e1 } = await supabase
-          .from("events").select("id,start_at,end_at").in("id", ids);
-        if (e1) return { error: e1.message };
-
+        const { data: rows, error } = await supabase.from("events")
+          .select("id,title,start_at,end_at,location,calendar_id,all_day")
+          .in("id", ids).is("deleted_at", null);
+        if (error) return { error: error.message };
         const calId = patch.calendar_name ? calByName(patch.calendar_name)?.id : undefined;
-        let updated = 0;
-        const errs: string[] = [];
+        const diffs: any[] = [];
         for (const r of rows || []) {
-          const upd: any = {};
-          if (patch.start_time) upd.start_at = applyTimeOfDay(r.start_at, patch.start_time);
-          if (patch.end_time) upd.end_at = applyTimeOfDay(r.end_at, patch.end_time);
-          if (patch.location !== undefined) upd.location = patch.location || null;
-          if (patch.all_day !== undefined) upd.all_day = !!patch.all_day;
-          if (calId) upd.calendar_id = calId;
-          if (!Object.keys(upd).length) continue;
-          const { error } = await supabase.from("events").update(upd).eq("id", r.id);
-          if (error) errs.push(`${r.id}: ${error.message}`); else updated++;
+          const after: any = { ...r };
+          if (patch.start_time) after.start_at = applyTimeOfDay(r.start_at, patch.start_time);
+          if (patch.end_time) after.end_at = applyTimeOfDay(r.end_at, patch.end_time);
+          if (patch.location !== undefined) after.location = patch.location || null;
+          if (patch.all_day !== undefined) after.all_day = !!patch.all_day;
+          if (calId) after.calendar_id = calId;
+          diffs.push({ id: r.id, before: r, after });
+        }
+        const tok = newToken();
+        const { error: pe } = await supabase.from("pending_actions").insert({
+          user_id: userId, action_type: "bulk_update_events",
+          payload: { diffs }, confirmation_token: tok,
+        });
+        if (pe) return { error: pe.message };
+        return {
+          confirmation_token: tok, expires_in_seconds: 300, count: diffs.length,
+          sample: diffs.slice(0, 8).map((d) => ({ title: d.before.title, from: `${d.before.start_at}→${d.before.end_at}`, to: `${d.after.start_at}→${d.after.end_at}` })),
+        };
+      }
+
+      case "confirm_bulk_update_events": {
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "bulk_update_events");
+        if ("error" in pa) return pa;
+        const diffs: any[] = pa.payload.diffs || [];
+        let updated = 0; const errs: string[] = [];
+        for (const d of diffs) {
+          const upd: any = {
+            start_at: d.after.start_at, end_at: d.after.end_at,
+            location: d.after.location, all_day: d.after.all_day, calendar_id: d.after.calendar_id,
+          };
+          const { data: after, error } = await supabase.from("events").update(upd).eq("id", d.id).select().single();
+          if (error) { errs.push(`${d.id}: ${error.message}`); continue; }
+          await audit(supabase, userId, "update", d.id, d.before, after, "confirm_bulk_update_events");
+          updated++;
         }
         return { updated_count: updated, errors: errs };
       }
 
+      // ── Preview / confirm: bulk create ──
+      case "preview_bulk_create_events": {
+        const cal = calByName(args.calendar_name);
+        if (!cal) return { error: "no calendar" };
+        const evs = args.events || [];
+        if (!evs.length) return { error: "no events to create" };
+        if (evs.length > MAX_BULK) return { error: `exceeds ${MAX_BULK}-event cap (got ${evs.length}).` };
+        const tok = newToken();
+        const { error: pe } = await supabase.from("pending_actions").insert({
+          user_id: userId, action_type: "bulk_create_events",
+          payload: { calendar_id: cal.id, events: evs }, confirmation_token: tok,
+        });
+        if (pe) return { error: pe.message };
+        return {
+          confirmation_token: tok, expires_in_seconds: 300, count: evs.length,
+          calendar: cal.name, sample: evs.slice(0, 8),
+        };
+      }
+
+      case "confirm_bulk_create_events": {
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "bulk_create_events");
+        if ("error" in pa) return pa;
+        const calId = pa.payload.calendar_id as string;
+        const rows = (pa.payload.events as any[]).map((e) => ({
+          user_id: userId, calendar_id: calId, title: e.title,
+          start_at: e.start, end_at: e.end, location: e.location || null, all_day: !!e.all_day,
+        }));
+        const { data, error } = await supabase.from("events").insert(rows).select();
+        if (error) return { error: error.message };
+        for (const row of data || []) {
+          await audit(supabase, userId, "create", row.id, null, row, "confirm_bulk_create_events");
+        }
+        return { created_count: data?.length ?? 0 };
+      }
+
+      // ── Reimport (preview only; confirm via confirm_reimport) ──
       case "reimport_from_screenshot": {
         const idx = Number(args.image_index);
         if (!Number.isInteger(idx) || idx < 0 || idx >= images.length) {
@@ -422,37 +546,24 @@ async function runTool(supabase: any, userId: string, cals: any[], name: string,
         const cal = calByName(args.calendar_name);
         if (!cal) return { error: `Unknown calendar '${args.calendar_name}'.` };
         const viewHint = args.view_hint || "weekly";
-        const dryRun = args.dry_run !== false; // default true
         const insertUnmatched = !!args.insert_unmatched;
         const img = images[idx];
         console.log("[reimport] image", JSON.stringify({
-          image_index: idx,
-          images_total: images.length,
-          mime: img.mime,
-          name: img.name,
-          base64_len: img.base64?.length || 0,
-          approx_bytes: Math.floor((img.base64?.length || 0) * 3 / 4),
+          image_index: idx, images_total: images.length, mime: img.mime, name: img.name,
+          base64_len: img.base64?.length || 0, approx_bytes: Math.floor((img.base64?.length || 0) * 3 / 4),
         }));
 
-        // Call parse-schedule
         const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/parse-schedule`;
         const psResp = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: auth, apikey: Deno.env.get("SUPABASE_ANON_KEY")! },
-          body: JSON.stringify({
-            imageBase64: img.base64,
-            imageMime: img.mime,
-            referenceDate: new Date().toISOString(),
-            viewHint,
-          }),
+          body: JSON.stringify({ imageBase64: img.base64, imageMime: img.mime, referenceDate: new Date().toISOString(), viewHint }),
         });
         if (!psResp.ok) return { error: `parse-schedule failed: ${psResp.status}` };
         const psData = await psResp.json();
         const parsedAll: any[] = psData.events || [];
-        // Filter "Host:" all-day banners
         const parsed = parsedAll.filter((e) => !(e.all_day && /^host[: ]/i.test(e.title || "")));
 
-        // Pull DB events for this calendar in a window covering parsed dates
         const dates = parsed.map((p) => stockholmDate(p.start)).filter(Boolean);
         if (!dates.length) return { error: "No events found in screenshot." };
         const minDate = dates.sort()[0];
@@ -461,82 +572,102 @@ async function runTool(supabase: any, userId: string, cals: any[], name: string,
         const winEndDate = new Date(`${maxDate}T00:00:00Z`); winEndDate.setUTCDate(winEndDate.getUTCDate() + 2);
         const winEnd = winEndDate.toISOString();
         const { data: dbEvs, error: dbErr } = await supabase
-          .from("events")
-          .select("id,title,start_at,end_at,calendar_id")
-          .eq("calendar_id", cal.id)
-          .gte("start_at", winStart)
-          .lte("start_at", winEnd);
+          .from("events").select("id,title,start_at,end_at,calendar_id")
+          .eq("calendar_id", cal.id).is("deleted_at", null)
+          .gte("start_at", winStart).lte("start_at", winEnd);
         if (dbErr) return { error: dbErr.message };
 
-        // Match by normalized title + Stockholm date
         const norm = (s: string) => (s || "").toLowerCase().trim().replace(/\s+/g, " ");
         const dbByKey = new Map<string, any>();
-        for (const e of dbEvs || []) {
-          dbByKey.set(`${norm(e.title)}|${stockholmDate(e.start_at)}`, e);
-        }
-        const updates: any[] = [];
-        const inserts: any[] = [];
-        const skipped: any[] = [];
+        for (const e of dbEvs || []) dbByKey.set(`${norm(e.title)}|${stockholmDate(e.start_at)}`, e);
+        const updates: any[] = []; const inserts: any[] = []; const skipped: any[] = [];
         for (const p of parsed) {
           const key = `${norm(p.title)}|${stockholmDate(p.start)}`;
           let match = dbByKey.get(key);
           if (!match) {
-            // fuzzy: same date, levenshtein ≤ 2 on title
             const date = stockholmDate(p.start);
             const candidates = (dbEvs || []).filter((e: any) => stockholmDate(e.start_at) === date);
-            for (const c of candidates) {
-              if (lev(norm(c.title), norm(p.title)) <= 2) { match = c; break; }
-            }
+            for (const c of candidates) if (lev(norm(c.title), norm(p.title)) <= 2) { match = c; break; }
           }
           if (match) {
             const sameStart = new Date(match.start_at).getTime() === new Date(p.start).getTime();
             const sameEnd = new Date(match.end_at).getTime() === new Date(p.end).getTime();
-            if (sameStart && sameEnd) {
-              skipped.push({ title: p.title, reason: "already correct" });
-            } else {
-              updates.push({
-                id: match.id,
-                title: match.title,
-                from: `${match.start_at} → ${match.end_at}`,
-                to: `${p.start} → ${p.end}`,
-                _patch: { start_at: p.start, end_at: p.end },
-              });
-            }
+            if (sameStart && sameEnd) skipped.push({ title: p.title, reason: "already correct" });
+            else updates.push({ id: match.id, title: match.title, before: match, after_patch: { start_at: p.start, end_at: p.end }, from: `${match.start_at}→${match.end_at}`, to: `${p.start}→${p.end}` });
           } else {
             inserts.push({ title: p.title, start: p.start, end: p.end, location: p.location || null, all_day: !!p.all_day });
           }
         }
 
-        if (dryRun) {
-          return {
-            dry_run: true,
-            calendar: cal.name,
-            view_hint: viewHint,
-            would_update: updates.length,
-            would_insert: insertUnmatched ? inserts.length : 0,
-            unmatched_not_inserted: insertUnmatched ? 0 : inserts.length,
-            skipped_already_correct: skipped.length,
-            sample_updates: updates.slice(0, 8).map((u) => ({ title: u.title, from: u.from, to: u.to })),
-            sample_inserts: inserts.slice(0, 8),
-            sample_unmatched: insertUnmatched ? [] : inserts.slice(0, 8).map((i) => i.title),
-          };
+        const totalMutations = updates.length + (insertUnmatched ? inserts.length : 0);
+        if (totalMutations === 0) {
+          return { nothing_to_apply: true, calendar: cal.name, skipped_already_correct: skipped.length, unmatched: inserts.length };
         }
+        if (totalMutations > MAX_BULK) {
+          return { error: `Reimport would mutate ${totalMutations} events (cap ${MAX_BULK}). Narrow the screenshot or split.` };
+        }
+        const tok = newToken();
+        const { error: pe } = await supabase.from("pending_actions").insert({
+          user_id: userId, action_type: "reimport_apply",
+          payload: { calendar_id: cal.id, updates, inserts: insertUnmatched ? inserts : [] },
+          confirmation_token: tok,
+        });
+        if (pe) return { error: pe.message };
+        return {
+          confirmation_token: tok, expires_in_seconds: 300, calendar: cal.name, view_hint: viewHint,
+          would_update: updates.length,
+          would_insert: insertUnmatched ? inserts.length : 0,
+          unmatched_not_inserted: insertUnmatched ? 0 : inserts.length,
+          skipped_already_correct: skipped.length,
+          sample_updates: updates.slice(0, 8).map((u) => ({ title: u.title, from: u.from, to: u.to })),
+          sample_inserts: insertUnmatched ? inserts.slice(0, 8) : [],
+          sample_unmatched: insertUnmatched ? [] : inserts.slice(0, 8).map((i) => i.title),
+        };
+      }
 
-        let updated = 0, inserted = 0;
-        const errs: string[] = [];
-        for (const u of updates) {
-          const { error } = await supabase.from("events").update(u._patch).eq("id", u.id);
-          if (error) errs.push(`update ${u.id}: ${error.message}`); else updated++;
+      case "confirm_reimport": {
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "reimport_apply");
+        if ("error" in pa) return pa;
+        const { calendar_id, updates, inserts } = pa.payload;
+        let updated = 0, inserted = 0; const errs: string[] = [];
+        for (const u of updates || []) {
+          const { data: after, error } = await supabase.from("events").update(u.after_patch).eq("id", u.id).select().single();
+          if (error) { errs.push(`update ${u.id}: ${error.message}`); continue; }
+          await audit(supabase, userId, "update", u.id, u.before, after, "confirm_reimport");
+          updated++;
         }
-        if (insertUnmatched && inserts.length) {
-          const rows = inserts.map((i) => ({
-            user_id: userId, calendar_id: cal.id, title: i.title,
+        if ((inserts || []).length) {
+          const rows = inserts.map((i: any) => ({
+            user_id: userId, calendar_id, title: i.title,
             start_at: i.start, end_at: i.end, location: i.location, all_day: !!i.all_day,
           }));
-          const { data, error } = await supabase.from("events").insert(rows).select("id");
-          if (error) errs.push(`insert: ${error.message}`); else inserted = data?.length || 0;
+          const { data, error } = await supabase.from("events").insert(rows).select();
+          if (error) errs.push(`insert: ${error.message}`);
+          else {
+            inserted = data?.length || 0;
+            for (const row of data || []) await audit(supabase, userId, "create", row.id, null, row, "confirm_reimport");
+          }
         }
-        return { applied: true, updated, inserted, skipped: skipped.length, errors: errs };
+        return { applied: true, updated, inserted, errors: errs };
+      }
+
+      case "undo_last_delete": {
+        const since = new Date(Date.now() - 30 * 86400000).toISOString();
+        const { data: actions, error } = await supabase.from("agent_actions")
+          .select("id,event_id,before,created_at")
+          .eq("action", "soft_delete").gte("created_at", since)
+          .order("created_at", { ascending: false }).limit(20);
+        if (error) return { error: error.message };
+        for (const a of actions || []) {
+          if (!a.event_id) continue;
+          const { data: ev } = await supabase.from("events").select("id,deleted_at").eq("id", a.event_id).maybeSingle();
+          if (!ev || ev.deleted_at === null) continue; // already restored or gone
+          const { data: after, error: re } = await supabase.from("events").update({ deleted_at: null }).eq("id", a.event_id).select().single();
+          if (re) return { error: re.message };
+          await audit(supabase, userId, "restore", a.event_id, a.before, after, "undo_last_delete");
+          return { restored: after };
+        }
+        return { error: "Nothing to undo (no soft-deleted events in the last 30 days)." };
       }
     }
     return { error: `unknown tool ${name}` };
@@ -545,39 +676,75 @@ async function runTool(supabase: any, userId: string, cals: any[], name: string,
   }
 }
 
+// ── helpers ──
+
+function newToken(): string {
+  // 12 chars from a base32-ish alphabet (no I/O/0/1)
+  const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const buf = new Uint8Array(12);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (b) => a[b % a.length]).join("");
+}
+
+async function consumeToken(supabase: any, userId: string, token: string, expectedType: string) {
+  if (!token || typeof token !== "string") return { error: "missing confirmation_token" };
+  const { data, error } = await supabase.from("pending_actions")
+    .select("*").eq("user_id", userId).eq("confirmation_token", token).maybeSingle();
+  if (error) return { error: error.message };
+  if (!data) return { error: "Unknown or already-used token." };
+  if (data.confirmed_at) return { error: "Token already used." };
+  if (new Date(data.expires_at).getTime() < Date.now()) return { error: "Token expired (5 min limit). Re-run the preview." };
+  if (data.action_type !== expectedType) return { error: `Token is for ${data.action_type}, not ${expectedType}.` };
+  const { error: ue } = await supabase.from("pending_actions")
+    .update({ confirmed_at: new Date().toISOString() }).eq("id", data.id);
+  if (ue) return { error: ue.message };
+  return data;
+}
+
+async function audit(supabase: any, userId: string, action: string, eventId: string | null, before: any, after: any, toolName: string) {
+  const { error } = await supabase.from("agent_actions").insert({
+    user_id: userId, action, event_id: eventId, before, after, tool_name: toolName,
+  });
+  if (error) console.error("[audit] insert failed", error.message);
+}
+
+function summarize(o: any): any {
+  if (o == null) return o;
+  if (Array.isArray(o)) return o.length > 5 ? `[${o.length} items]` : o.map(summarize);
+  if (typeof o === "object") {
+    const out: any = {};
+    for (const k of Object.keys(o)) {
+      const v = (o as any)[k];
+      if (typeof v === "string" && v.length > 200) out[k] = `${v.slice(0, 80)}…(${v.length})`;
+      else if (Array.isArray(v) && v.length > 5) out[k] = `[${v.length} items]`;
+      else out[k] = v;
+    }
+    return out;
+  }
+  return o;
+}
+
 function isUuid(s: unknown): s is string {
   return typeof s === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 }
 
-// Replace the time-of-day in a UTC ISO string while preserving the date as observed in Europe/Stockholm.
 function applyTimeOfDay(iso: string, hhmm: string): string {
   const [hh, mm] = hhmm.split(":").map((x) => parseInt(x, 10));
   const d = new Date(iso);
-  // Determine Stockholm date components for d
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Stockholm",
-    year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(d);
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Stockholm", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
   const get = (t: string) => fmt.find((p) => p.type === t)?.value || "00";
   const y = get("year"), m = get("month"), day = get("day");
-  // Build a target wall-clock in Stockholm; figure out offset by probing
   const target = new Date(`${y}-${m}-${day}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00Z`);
-  // Compute Stockholm offset at that instant
-  const probeFmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Europe/Stockholm", hour: "2-digit", hour12: false,
-  }).format(target);
+  const probeFmt = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Stockholm", hour: "2-digit", hour12: false }).format(target);
   const probeHour = parseInt(probeFmt, 10);
   const offsetHours = (probeHour - hh + 24) % 24;
-  // Adjust: the wall-clock time we built was UTC; subtract offset to get true UTC
   return new Date(target.getTime() - offsetHours * 3600_000).toISOString();
 }
 
 function stockholmDate(iso: string): string {
   try {
     const d = new Date(iso);
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Stockholm", year: "numeric", month: "2-digit", day: "2-digit",
-    }).formatToParts(d);
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Stockholm", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
     const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
     return `${get("year")}-${get("month")}-${get("day")}`;
   } catch { return ""; }
@@ -590,16 +757,11 @@ function lev(a: string, b: string): number {
   const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
   for (let j = 1; j <= n; j++) dp[0][j] = j;
   for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) {
-    dp[i][j] = a[i - 1] === b[j - 1]
-      ? dp[i - 1][j - 1]
-      : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
   }
   return dp[m][n];
 }
 
 function json(body: unknown, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
