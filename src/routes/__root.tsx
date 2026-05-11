@@ -10,6 +10,8 @@ import {
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
+import { ThemeProvider } from "@/hooks/use-theme";
+import { UiZoomProvider } from "@/hooks/use-ui-zoom";
 import { Toaster } from "sonner";
 
 function NotFoundComponent() {
@@ -96,9 +98,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme')||'dark';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');var z=parseFloat(localStorage.getItem('ui-zoom')||'1');if(!isNaN(z))document.documentElement.style.fontSize=(z*16)+'px';}catch(e){document.documentElement.classList.add('dark');}})();`,
+          }}
+        />
       </head>
       <body>
         {children}
@@ -113,10 +120,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <Toaster richColors position="top-right" />
-      </AuthProvider>
+      <ThemeProvider>
+        <UiZoomProvider>
+          <AuthProvider>
+            <Outlet />
+            <Toaster richColors position="top-right" />
+          </AuthProvider>
+        </UiZoomProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
