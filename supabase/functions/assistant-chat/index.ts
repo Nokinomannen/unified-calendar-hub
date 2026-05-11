@@ -446,7 +446,7 @@ async function runTool(
       }
 
       case "confirm_delete_event": {
-        const pa = await consumeToken(supabase, userId, args.confirmation_token, "delete_event");
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "delete_event", tokensIssuedThisRequest);
         if ("error" in pa) return pa;
         const id = pa.payload.id as string;
         const { data: before, error: be } = await supabase.from("events").select("*").eq("id", id).single();
@@ -491,7 +491,7 @@ async function runTool(
       }
 
       case "confirm_bulk_update_events": {
-        const pa = await consumeToken(supabase, userId, args.confirmation_token, "bulk_update_events");
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "bulk_update_events", tokensIssuedThisRequest);
         if ("error" in pa) return pa;
         const diffs: any[] = pa.payload.diffs || [];
         let updated = 0; const errs: string[] = [];
@@ -528,7 +528,7 @@ async function runTool(
       }
 
       case "confirm_bulk_create_events": {
-        const pa = await consumeToken(supabase, userId, args.confirmation_token, "bulk_create_events");
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "bulk_create_events", tokensIssuedThisRequest);
         if ("error" in pa) return pa;
         const calId = pa.payload.calendar_id as string;
         const rows = (pa.payload.events as any[]).map((e) => ({
@@ -632,7 +632,7 @@ async function runTool(
       }
 
       case "confirm_reimport": {
-        const pa = await consumeToken(supabase, userId, args.confirmation_token, "reimport_apply");
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "reimport_apply", tokensIssuedThisRequest);
         if ("error" in pa) return pa;
         const { calendar_id, updates, inserts } = pa.payload;
         let updated = 0, inserted = 0; const errs: string[] = [];
