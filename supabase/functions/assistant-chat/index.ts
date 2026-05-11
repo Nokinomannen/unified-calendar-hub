@@ -283,12 +283,14 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
 
     const convo: any[] = [{ role: "system", content: sys }, ...messages];
 
+    const tokensIssuedThisRequest = new Set<string>();
+
     for (let i = 0; i < 8; i++) {
       const t0 = Date.now();
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: convo, tools: TOOLS }),
+        body: JSON.stringify({ model: "google/gemini-2.5-pro", messages: convo, tools: TOOLS }),
       });
       if (resp.status === 429) return json({ error: "Rate limited, try again shortly." }, 429);
       if (resp.status === 402) return json({ error: "AI credits exhausted." }, 402);
@@ -314,7 +316,10 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
         let args: any = {};
         try { args = JSON.parse(tc.function?.arguments || "{}"); } catch {}
         const tt = Date.now();
-        const result = await runTool(supabase, userId, cals || [], name, args, attachedImages, auth);
+        const result = await runTool(supabase, userId, cals || [], name, args, attachedImages, auth, tokensIssuedThisRequest);
+        if ((name?.startsWith("preview_") || name === "reimport_from_screenshot") && typeof result?.confirmation_token === "string") {
+          tokensIssuedThisRequest.add(result.confirmation_token);
+        }
         console.log("[tool]", name, JSON.stringify({
           ms: Date.now() - tt,
           args_summary: summarize(args),
@@ -341,6 +346,7 @@ async function runTool(
   args: any,
   images: { base64: string; mime: string; name?: string }[] = [],
   auth: string = "",
+  tokensIssuedThisRequest: Set<string> = new Set(),
 ) {
   try {
     const calByName = (n?: string) => {
@@ -440,7 +446,7 @@ async function runTool(
       }
 
       case "confirm_delete_event": {
-        const pa = await consumeToken(supabase, userId, args.confirmation_token, "delete_event");
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "delete_event", tokensIssuedThisRequest);
         if ("error" in pa) return pa;
         const id = pa.payload.id as string;
         const { data: before, error: be } = await supabase.from("events").select("*").eq("id", id).single();
@@ -485,7 +491,7 @@ async function runTool(
       }
 
       case "confirm_bulk_update_events": {
-        const pa = await consumeToken(supabase, userId, args.confirmation_token, "bulk_update_events");
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "bulk_update_events", tokensIssuedThisRequest);
         if ("error" in pa) return pa;
         const diffs: any[] = pa.payload.diffs || [];
         let updated = 0; const errs: string[] = [];
@@ -522,7 +528,7 @@ async function runTool(
       }
 
       case "confirm_bulk_create_events": {
-        const pa = await consumeToken(supabase, userId, args.confirmation_token, "bulk_create_events");
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "bulk_create_events", tokensIssuedThisRequest);
         if ("error" in pa) return pa;
         const calId = pa.payload.calendar_id as string;
         const rows = (pa.payload.events as any[]).map((e) => ({
@@ -626,7 +632,7 @@ async function runTool(
       }
 
       case "confirm_reimport": {
-        const pa = await consumeToken(supabase, userId, args.confirmation_token, "reimport_apply");
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "reimport_apply", tokensIssuedThisRequest);
         if ("error" in pa) return pa;
         const { calendar_id, updates, inserts } = pa.payload;
         let updated = 0, inserted = 0; const errs: string[] = [];
@@ -686,8 +692,9 @@ function newToken(): string {
   return Array.from(buf, (b) => a[b % a.length]).join("");
 }
 
-async function consumeToken(supabase: any, userId: string, token: string, expectedType: string) {
+async function consumeToken(supabase: any, userId: string, token: string, expectedType: string, tokensIssuedThisRequest: Set<string> = new Set()) {
   if (!token || typeof token !== "string") return { error: "missing confirmation_token" };
+  if (tokensIssuedThisRequest.has(token)) return { error: "This token was just created in the same turn. Show the preview to the user and wait for their explicit confirmation in a new message before calling confirm_*." };
   const { data, error } = await supabase.from("pending_actions")
     .select("*").eq("user_id", userId).eq("confirmation_token", token).maybeSingle();
   if (error) return { error: error.message };
