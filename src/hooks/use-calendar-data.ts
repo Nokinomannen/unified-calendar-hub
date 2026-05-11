@@ -31,6 +31,7 @@ export function useEvents(rangeStart: Date, rangeEnd: Date) {
       const { data, error } = await supabase
         .from("events")
         .select("*, calendar:calendars(*)")
+        .is("deleted_at", null)
         .lte("start_at", rangeEnd.toISOString());
       if (error) throw error;
       const expanded: ExpandedEvent[] = [];
