@@ -1,7 +1,15 @@
 import { Link, useRouter } from "@tanstack/react-router";
-import { CalendarDays, Layers, LogOut, Plus } from "lucide-react";
+import { CalendarDays, Layers, LogOut, Plus, Sun, Moon, Monitor, Minus } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useTheme } from "@/hooks/use-theme";
+import { useUiZoom } from "@/hooks/use-ui-zoom";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { AssistantPanel } from "@/components/assistant-panel";
 
@@ -38,9 +46,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <ZoomControls />
+            <ThemeToggle />
             <Button size="sm" variant="ghost" onClick={async () => { await signOut(); router.navigate({ to: "/auth" }); }}>
-              <LogOut className="mr-1 h-4 w-4" /> Sign out
+              <LogOut className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Sign out</span>
             </Button>
           </div>
         </div>
