@@ -2,7 +2,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { format } from "date-fns";
 import type { ExpandedEvent } from "@/hooks/use-calendar-data";
 import { useToggleSkip, dateKey, type Override } from "@/hooks/use-overrides";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2, Circle, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -11,13 +12,14 @@ type Props = {
   overrides: Override[];
   onClose: () => void;
   onEdit?: (e: ExpandedEvent) => void;
+  onAdd?: (date: Date) => void;
 };
 
 const HOUR_PX = 44;
 const START_HOUR = 7;
 const END_HOUR = 23;
 
-export function DayDrawer({ date, events, overrides, onClose, onEdit }: Props) {
+export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: Props) {
   const toggle = useToggleSkip();
   if (!date) return null;
   const dk = dateKey(date);
@@ -44,7 +46,14 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit }: Props) {
               {totalHours.toFixed(1)}h booked · {events.length} events
             </span>
           </SheetTitle>
-          <p className="text-[11px] text-muted-foreground">Tip: click any event to edit · or ask the assistant to bulk-fix times.</p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <p className="text-[11px] text-muted-foreground">Tip: click any event to edit.</p>
+            {onAdd && (
+              <Button size="sm" onClick={() => onAdd(date)} className="h-7 gap-1 text-xs">
+                <Plus className="h-3.5 w-3.5" /> Add event
+              </Button>
+            )}
+          </div>
         </SheetHeader>
 
         <div className="px-5 pb-12">

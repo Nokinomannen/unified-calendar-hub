@@ -7,6 +7,7 @@ import { useCalendars, useEvents, useUpdateCalendar, type ExpandedEvent, type Ev
 import { useOverrides, dateKey } from "@/hooks/use-overrides";
 import { DayDrawer } from "@/components/day-drawer";
 import { WeekView } from "@/components/week-view";
+import { HoursTracker } from "@/components/hours-tracker";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths,
   addWeeks, subWeeks, format, isSameMonth, isSameDay, isToday, isWeekend,
@@ -148,6 +149,8 @@ function CalendarPage() {
           </span>
         </div>
 
+        <HoursTracker />
+
         {view === "month" && (
           <MonthGrid cursor={cursor} events={visible} skippedSet={skippedSet}
             onDayClick={(d) => setDrawerDate(d)}
@@ -175,7 +178,7 @@ function CalendarPage() {
 
       <FAB onClick={() => openAdd()} />
       <AddEventDialog open={open} onOpenChange={setOpen} defaultStart={defaultStart} event={editing} />
-      <DayDrawer date={drawerDate} events={drawerEvents} overrides={overrides} onClose={() => setDrawerDate(null)} onEdit={openEdit} />
+      <DayDrawer date={drawerDate} events={drawerEvents} overrides={overrides} onClose={() => setDrawerDate(null)} onEdit={openEdit} onAdd={(d) => { setDrawerDate(null); openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0)); }} />
     </AppShell>
   );
 }

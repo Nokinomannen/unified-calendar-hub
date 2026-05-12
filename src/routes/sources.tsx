@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Sparkles, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { RecentlyDeleted } from "@/components/recently-deleted";
 
 export const Route = createFileRoute("/sources")({
   component: SourcesPage,
@@ -213,6 +214,8 @@ function SourcesPage() {
             </div>
           )}
         </section>
+
+        <RecentlyDeleted />
 
         <section className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
           <h2 className="mb-2 font-medium text-foreground">Coming next</h2>
