@@ -52,11 +52,28 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: P
           </SheetTitle>
           <div className="mt-2 flex items-center justify-between gap-2">
             <p className="text-[11px] text-muted-foreground">Tip: click any event to edit.</p>
-            {onAdd && (
-              <Button size="sm" onClick={() => onAdd(date)} className="h-7 gap-1 text-xs">
-                <Plus className="h-3.5 w-3.5" /> Add event
-              </Button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {(() => {
+                const jobShift = events.find((e) => e.calendar?.source === "job" && !skipped.has(e.id));
+                const jobCalId = jobShift?.calendar?.id ?? events.find((e) => e.calendar?.source === "job")?.calendar?.id;
+                if (!jobCalId) return null;
+                return (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setLogCalendarId(jobCalId); setLogOpen(true); }}
+                    className="h-7 gap-1 text-xs"
+                  >
+                    <Clock className="h-3.5 w-3.5" /> Log hours
+                  </Button>
+                );
+              })()}
+              {onAdd && (
+                <Button size="sm" onClick={() => onAdd(date)} className="h-7 gap-1 text-xs">
+                  <Plus className="h-3.5 w-3.5" /> Add event
+                </Button>
+              )}
+            </div>
           </div>
         </SheetHeader>
 
