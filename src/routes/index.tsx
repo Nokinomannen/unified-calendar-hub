@@ -7,6 +7,7 @@ import { useCalendars, useEvents, useUpdateCalendar, type ExpandedEvent, type Ev
 import { useOverrides, dateKey } from "@/hooks/use-overrides";
 import { DayDrawer } from "@/components/day-drawer";
 import { WeekView } from "@/components/week-view";
+import { HoursTracker } from "@/components/hours-tracker";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths,
   addWeeks, subWeeks, format, isSameMonth, isSameDay, isToday, isWeekend,
