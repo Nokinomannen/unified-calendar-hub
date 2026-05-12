@@ -29,7 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2.5 font-semibold">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)]">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
               <CalendarDays className="h-4 w-4" />
             </span>
             <span className="text-base tracking-tight">One</span>
