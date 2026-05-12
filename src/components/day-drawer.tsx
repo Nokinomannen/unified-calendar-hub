@@ -2,9 +2,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { format } from "date-fns";
 import type { ExpandedEvent } from "@/hooks/use-calendar-data";
 import { useToggleSkip, dateKey, type Override } from "@/hooks/use-overrides";
-import { CheckCircle2, Circle, Plus } from "lucide-react";
+import { CheckCircle2, Circle, Plus, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { LogHoursDialog } from "@/components/log-hours-dialog";
 
 type Props = {
   date: Date | null;
