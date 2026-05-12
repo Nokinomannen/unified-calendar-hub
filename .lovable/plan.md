@@ -1,55 +1,52 @@
-## Calendar reset & import
+## 1. Add events directly from the day view
 
-### 1. Reset
-Soft-delete (set `deleted_at = now()`) every event whose `calendar_id` is **not** the School calendar (`d2039ae9…`). This wipes Tiger of Sweden, Personal, and A-hub. School events stay untouched. Personal events you'll paste in next will be added after.
+When you click a day in the month grid, the day drawer opens. Right now it only shows existing events — no way to add. I'll add:
 
-A-hub source already exists — no schema changes needed. Days you don't add A-hub shifts to stay free, as requested.
+- An **"+ Add event"** button at the top of the day drawer (next to the date header).
+- Clicking it opens the existing `AddEventDialog` with the date pre-filled to that day at 09:00 (and the calendar selector defaulting to your last-used calendar).
+- Same in the day-view route (the "Open day details" button area gets an add button too).
 
-### 2. Tiger of Sweden — Noah Krüeger shifts (2026, full window, break ignored)
+This means: tap a day → tap "+ Add event" → just type the title/time. The date is already chosen.
 
-**May**
-- Mon May 11, 09:45–16:00
-- Tue May 12, 09:45–16:00
-- Thu May 14, 09:45–17:00
-- Mon May 18, 09:45–16:00
-- Tue May 19, 14:00–20:10
-- Wed May 27, 12:00–20:10
-- Thu May 28, 09:45–16:00
+I'll also keep the small `+` that appears on hover in each month cell (already works) — useful for desktop.
 
-**June**
-- Sat Jun 6, 11:00–16:00
-- Sun Jun 7, 13:00–17:00
-- Mon Jun 8, 12:00–17:00
-- Sat Jun 13, 12:00–20:10
-- Sun Jun 14, 09:45–17:00
-- Sun Jun 21, 09:45–17:00
-- Sat Jun 27, 09:45–17:00
-- Sun Jun 28, 13:30–20:10
-- Mon Jun 29, 12:00–20:10
-- Tue Jun 30, 09:45–17:00
+## 2. Hours tracker for Tiger of Sweden + A-hub
 
-All Europe/Stockholm timezone.
+A new section on the calendar page (above the month grid, collapsible) showing worked hours from your two job calendars.
 
-### 3. DJ Sets → Personal calendar
-No-time gigs default to **19:00–23:59** (your "evening to night" rule). Tentative items get `[tentativ]` prefix in title.
+```
+┌─ Hours this week ────────────────────────┐
+│  Tiger of Sweden    12.5h   ███████░░░  │
+│  A-hub               8.0h   ████░░░░░░  │
+│  ─────────────────────────────────────   │
+│  Total              20.5h                │
+│                                          │
+│  [ This week ▾ ]   May 11 – May 17       │
+└──────────────────────────────────────────┘
+```
 
-- Fri Jun 5, 19:00–23:59 — `[tentativ] Erik Fång student` (note: vill ha mig till 06 ungefär, får höja till ev 4000)
-- Fri Jun 5, 19:00–23:59 — `[tentativ] Bruno (istället för Erik Fång)`
-- Sat Jun 6, 19:00–23:59 — `Marie Liebich` (tid och detaljer oklara)
-- Thu Jun 11, 19:00–23:59 — `Procivitas Lund` (detaljer oklara)
-- Fri Jun 12, 19:00–23:59 — `Isak Berglund Student` (kontaktad om det blir)
-- Sun Aug 9, 19:00–23:59 — `palladium`
-- Sat Aug 29 22:00 → Sun Aug 30 01:00 — `Bistro bro` (kom ihåg att skriva till honom och träffa på öl…)
+- Period selector: **This week / This month / Custom range**.
+- Counts only events from the **Tiger of Sweden** and **A-hub** source calendars (`source = 'job'`).
+- Skipped occurrences (via the existing override system) are excluded from totals.
+- Pure calculation from existing event data — no schema changes, no new tables.
 
-Bruno + Erik Fång are both same evening — kept as two separate tentative entries so you can delete the one that doesn't pan out.
+Open question: do you want **hourly rate × hours = pay** displayed too? If yes, I'll add a small "rates" settings popover (rates stored locally per calendar, only visible to you). If no, I'll skip it for now and you can ask later.
 
-### 4. Personal events
-Waiting on your next message before adding anything to Personal.
+## 3. Cloud / data-safety verification
 
-### 5. Hours tracker (next step, not in this plan)
-After the reset+import lands, we'll design the A-hub + Tiger hours tracker. I'll ask scope questions then (hourly rate? weekly target? export?).
+Quick audit of what's already in place:
 
-### Technical
-- One `supabase--migration` doing the soft-delete + all 24 inserts in a single transaction, using your user_id from auth.users.
-- Times stored UTC, converted from Europe/Stockholm (CEST = UTC+2 in May–Aug 2026).
-- No frontend changes.
+- ✅ All events live in **Lovable Cloud** (Postgres). Nothing is stored only in the browser.
+- ✅ Soft-delete: deleting an event sets `deleted_at` instead of wiping the row. The audit log (`agent_actions`) records every delete with the full pre-delete row — recoverable.
+- ✅ Row-level security: only your account can read/write your events.
+- ✅ Auth session persists across browser restarts.
+
+What I'll add for extra safety:
+- A **"Recently deleted"** view (small link in the source/calendar settings page) showing soft-deleted events from the last 30 days with a one-click **Restore**. So if something disappears by accident — chatbot, you, anything — it's recoverable from the UI, not just the database.
+
+## Technical (skim if not interested)
+
+- `DayDrawer` gets a new `onAdd?: (date: Date) => void` prop wired from `routes/index.tsx` to the existing `openAdd(date)`.
+- New `src/components/hours-tracker.tsx` — pure client component, reads `useEvents(rangeStart, rangeEnd)` for the selected period, filters by `calendar.source === 'job'`, aggregates by calendar.
+- New `src/components/recently-deleted.tsx` — queries events with `deleted_at IS NOT NULL` in the last 30 days, "Restore" sets `deleted_at = null`. Mounted from the existing `/sources` route.
+- No DB migration. No new tables. Recurring-event hour math handled the same way as existing event expansion.
