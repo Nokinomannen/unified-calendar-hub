@@ -243,6 +243,47 @@ export type Database = {
         }
         Relationships: []
       }
+      work_logs: {
+        Row: {
+          calendar_id: string
+          created_at: string
+          hours: number
+          id: string
+          note: string | null
+          updated_at: string
+          user_id: string
+          work_date: string
+        }
+        Insert: {
+          calendar_id: string
+          created_at?: string
+          hours: number
+          id?: string
+          note?: string | null
+          updated_at?: string
+          user_id: string
+          work_date: string
+        }
+        Update: {
+          calendar_id?: string
+          created_at?: string
+          hours?: number
+          id?: string
+          note?: string | null
+          updated_at?: string
+          user_id?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_logs_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

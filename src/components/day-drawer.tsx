@@ -2,9 +2,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { format } from "date-fns";
 import type { ExpandedEvent } from "@/hooks/use-calendar-data";
 import { useToggleSkip, dateKey, type Override } from "@/hooks/use-overrides";
-import { CheckCircle2, Circle, Plus } from "lucide-react";
+import { CheckCircle2, Circle, Plus, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { LogHoursDialog } from "@/components/log-hours-dialog";
 
 type Props = {
   date: Date | null;
@@ -21,6 +23,8 @@ const END_HOUR = 23;
 
 export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: Props) {
   const toggle = useToggleSkip();
+  const [logOpen, setLogOpen] = useState(false);
+  const [logCalendarId, setLogCalendarId] = useState<string | undefined>(undefined);
   if (!date) return null;
   const dk = dateKey(date);
   const skipped = new Set(overrides.filter((o) => o.occurrence_date === dk && o.status === "skipped").map((o) => o.event_id));
@@ -48,11 +52,28 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: P
           </SheetTitle>
           <div className="mt-2 flex items-center justify-between gap-2">
             <p className="text-[11px] text-muted-foreground">Tip: click any event to edit.</p>
-            {onAdd && (
-              <Button size="sm" onClick={() => onAdd(date)} className="h-7 gap-1 text-xs">
-                <Plus className="h-3.5 w-3.5" /> Add event
-              </Button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {(() => {
+                const jobShift = events.find((e) => e.calendar?.source === "job" && !skipped.has(e.id));
+                const jobCalId = jobShift?.calendar?.id ?? events.find((e) => e.calendar?.source === "job")?.calendar?.id;
+                if (!jobCalId) return null;
+                return (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setLogCalendarId(jobCalId); setLogOpen(true); }}
+                    className="h-7 gap-1 text-xs"
+                  >
+                    <Clock className="h-3.5 w-3.5" /> Log hours
+                  </Button>
+                );
+              })()}
+              {onAdd && (
+                <Button size="sm" onClick={() => onAdd(date)} className="h-7 gap-1 text-xs">
+                  <Plus className="h-3.5 w-3.5" /> Add event
+                </Button>
+              )}
+            </div>
           </div>
         </SheetHeader>
 
@@ -150,6 +171,18 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: P
           )}
         </div>
       </SheetContent>
+      <LogHoursDialog
+        open={logOpen}
+        onOpenChange={setLogOpen}
+        defaultDate={date}
+        defaultCalendarId={logCalendarId}
+        defaultHours={(() => {
+          if (!logCalendarId) return undefined;
+          const shifts = events.filter((e) => e.calendar?.id === logCalendarId && !e.all_day);
+          if (shifts.length === 0) return undefined;
+          return shifts.reduce((s, e) => s + (e.occurrence_end.getTime() - e.occurrence_start.getTime()) / 3600_000, 0);
+        })()}
+      />
     </Sheet>
   );
 }

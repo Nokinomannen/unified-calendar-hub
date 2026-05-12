@@ -1,15 +1,20 @@
 import { useMemo, useState } from "react";
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from "date-fns";
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, parseISO, isWithinInterval } from "date-fns";
 import { useEvents } from "@/hooks/use-calendar-data";
 import { useOverrides } from "@/hooks/use-overrides";
-import { Briefcase, ChevronDown, ChevronUp } from "lucide-react";
+import { useWorkLogs } from "@/hooks/use-work-logs";
+import { Briefcase, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { LogHoursDialog } from "@/components/log-hours-dialog";
 
 type Period = "week" | "month";
 
 export function HoursTracker() {
   const [period, setPeriod] = useState<Period>("week");
   const [open, setOpen] = useState(true);
+  const [logOpen, setLogOpen] = useState(false);
+  const [logCalendarId, setLogCalendarId] = useState<string | undefined>(undefined);
 
   const range = useMemo(() => {
     const now = new Date();
@@ -21,6 +26,7 @@ export function HoursTracker() {
 
   const { data: events = [] } = useEvents(range.start, range.end);
   const { data: overrides = [] } = useOverrides();
+  const { data: workLogs = [] } = useWorkLogs();
 
   const skipped = useMemo(() => {
     const s = new Set<string>();
@@ -28,22 +34,38 @@ export function HoursTracker() {
     return s;
   }, [overrides]);
 
-  const byCalendar = useMemo(() => {
-    const map = new Map<string, { name: string; color: string; hours: number }>();
+  const rows = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string; scheduled: number; actual: number }>();
+
+    // Seed jobs from events
     for (const e of events) {
       if (e.calendar?.source !== "job") continue;
       const dk = format(e.occurrence_start, "yyyy-MM-dd");
-      if (skipped.has(`${e.id}|${dk}`)) continue;
-      const hours = (e.occurrence_end.getTime() - e.occurrence_start.getTime()) / 3600_000;
-      const cur = map.get(e.calendar.id) ?? { name: e.calendar.name, color: e.calendar.color, hours: 0 };
-      cur.hours += hours;
+      const cur = map.get(e.calendar.id) ?? { id: e.calendar.id, name: e.calendar.name, color: e.calendar.color, scheduled: 0, actual: 0 };
+      if (!skipped.has(`${e.id}|${dk}`)) {
+        cur.scheduled += (e.occurrence_end.getTime() - e.occurrence_start.getTime()) / 3600_000;
+      }
       map.set(e.calendar.id, cur);
     }
-    return Array.from(map.values()).sort((a, b) => b.hours - a.hours);
-  }, [events, skipped]);
 
-  const total = byCalendar.reduce((s, c) => s + c.hours, 0);
-  const max = Math.max(1, ...byCalendar.map((c) => c.hours));
+    // Add actual from work_logs in range
+    for (const log of workLogs) {
+      const d = parseISO(log.work_date);
+      if (!isWithinInterval(d, { start: range.start, end: range.end })) continue;
+      const cur = map.get(log.calendar_id);
+      if (cur) {
+        cur.actual += Number(log.hours);
+      } else {
+        // Job calendar with no events but logged hours — pull from any log entry
+        map.set(log.calendar_id, { id: log.calendar_id, name: "Work", color: "#10b981", scheduled: 0, actual: Number(log.hours) });
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => (b.scheduled + b.actual) - (a.scheduled + a.actual));
+  }, [events, skipped, workLogs, range]);
+
+  const totalScheduled = rows.reduce((s, c) => s + c.scheduled, 0);
+  const totalActual = rows.reduce((s, c) => s + c.actual, 0);
 
   return (
     <div className="rounded-2xl border border-border bg-card/60 backdrop-blur">
@@ -55,7 +77,7 @@ export function HoursTracker() {
           <Briefcase className="h-4 w-4 text-primary" />
           <span className="text-sm font-semibold">Work hours</span>
           <span className="text-xs text-muted-foreground">
-            {total.toFixed(1)}h · {period === "week" ? "this week" : "this month"}
+            {totalActual.toFixed(1)}h actual · {totalScheduled.toFixed(1)}h scheduled
           </span>
         </div>
         {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -82,35 +104,56 @@ export function HoursTracker() {
             </span>
           </div>
 
-          {byCalendar.length === 0 ? (
-            <p className="py-3 text-center text-xs text-muted-foreground">No work shifts in this period.</p>
+          {rows.length === 0 ? (
+            <p className="py-3 text-center text-xs text-muted-foreground">No work in this period.</p>
           ) : (
-            <ul className="space-y-2">
-              {byCalendar.map((c) => (
-                <li key={c.name} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="inline-flex items-center gap-1.5 font-medium">
+            <ul className="space-y-2.5">
+              <li className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span>Job</span>
+                <span className="w-14 text-right">Sched.</span>
+                <span className="w-14 text-right">Actual</span>
+                <span className="w-7" />
+              </li>
+              {rows.map((c) => {
+                const diff = c.actual - c.scheduled;
+                return (
+                  <li key={c.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium">
                       <span className="h-2 w-2 rounded-full" style={{ background: c.color }} />
-                      {c.name}
+                      <span className="truncate">{c.name}</span>
                     </span>
-                    <span className="tabular-nums text-muted-foreground">{c.hours.toFixed(1)}h</span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${(c.hours / max) * 100}%`, background: c.color }}
-                    />
-                  </div>
-                </li>
-              ))}
-              <li className="flex items-center justify-between border-t border-border pt-2 text-xs font-semibold">
+                    <span className="w-14 text-right text-xs tabular-nums text-muted-foreground">{c.scheduled.toFixed(1)}h</span>
+                    <span className="w-14 text-right text-xs tabular-nums">
+                      <span className="font-semibold">{c.actual.toFixed(1)}h</span>
+                      {c.actual > 0 && c.scheduled > 0 && (
+                        <span className={cn("ml-1 text-[10px]", diff >= 0 ? "text-emerald-500" : "text-amber-500")}>
+                          {diff >= 0 ? "+" : ""}{diff.toFixed(1)}
+                        </span>
+                      )}
+                    </span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => { setLogCalendarId(c.id); setLogOpen(true); }}
+                      title="Log actual hours"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </li>
+                );
+              })}
+              <li className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 border-t border-border pt-2 text-xs font-semibold">
                 <span>Total</span>
-                <span className="tabular-nums">{total.toFixed(1)}h</span>
+                <span className="w-14 text-right tabular-nums text-muted-foreground">{totalScheduled.toFixed(1)}h</span>
+                <span className="w-14 text-right tabular-nums">{totalActual.toFixed(1)}h</span>
+                <span className="w-7" />
               </li>
             </ul>
           )}
         </div>
       )}
+      <LogHoursDialog open={logOpen} onOpenChange={setLogOpen} defaultCalendarId={logCalendarId} />
     </div>
   );
 }

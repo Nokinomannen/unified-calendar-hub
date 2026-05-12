@@ -1,52 +1,49 @@
-## 1. Add events directly from the day view
+## Goal
 
-When you click a day in the month grid, the day drawer opens. Right now it only shows existing events — no way to add. I'll add:
+Keep the existing **scheduled hours** view (from calendar events) and add a way to log the **actual hours** I was present at work. Show both side by side so I can compare.
 
-- An **"+ Add event"** button at the top of the day drawer (next to the date header).
-- Clicking it opens the existing `AddEventDialog` with the date pre-filled to that day at 09:00 (and the calendar selector defaulting to your last-used calendar).
-- Same in the day-view route (the "Open day details" button area gets an add button too).
+## What changes
 
-This means: tap a day → tap "+ Add event" → just type the title/time. The date is already chosen.
+### 1. New table: `work_logs`
+Stores actual time worked per day, per job calendar.
 
-I'll also keep the small `+` that appears on hover in each month cell (already works) — useful for desktop.
+Columns:
+- `user_id`, `calendar_id` (links to Tiger of Sweden / A-hub), `work_date` (date), `hours` (numeric), `note` (optional text)
+- Unique on `(user_id, calendar_id, work_date)` so editing the same day overwrites
+- RLS: own rows only
 
-## 2. Hours tracker for Tiger of Sweden + A-hub
+### 2. Hours tracker UI (`hours-tracker.tsx`)
+The existing card gets two columns per job:
 
-A new section on the calendar page (above the month grid, collapsible) showing worked hours from your two job calendars.
-
-```
-┌─ Hours this week ────────────────────────┐
-│  Tiger of Sweden    12.5h   ███████░░░  │
-│  A-hub               8.0h   ████░░░░░░  │
-│  ─────────────────────────────────────   │
-│  Total              20.5h                │
-│                                          │
-│  [ This week ▾ ]   May 11 – May 17       │
-└──────────────────────────────────────────┘
+```text
+Tiger of Sweden        Scheduled  Actual
+                         24.5h    22.0h   [Log hours]
+A-hub                     0h       6.5h   [Log hours]
+─────────────────────────────────────────
+Total                    24.5h    28.5h
 ```
 
-- Period selector: **This week / This month / Custom range**.
-- Counts only events from the **Tiger of Sweden** and **A-hub** source calendars (`source = 'job'`).
-- Skipped occurrences (via the existing override system) are excluded from totals.
-- Pure calculation from existing event data — no schema changes, no new tables.
+- **Scheduled** = current calculation from events (unchanged)
+- **Actual** = sum of `work_logs.hours` in the period
+- **[Log hours]** opens a small dialog: pick date → enter hours → optional note → save
+- Same week/month period selector applies to both
+- Toggle to show only Scheduled, only Actual, or both
 
-Open question: do you want **hourly rate × hours = pay** displayed too? If yes, I'll add a small "rates" settings popover (rates stored locally per calendar, only visible to you). If no, I'll skip it for now and you can ask later.
+### 3. Quick-log from day drawer
+When a day with a job shift is open, a "Log actual hours" button pre-fills the date + scheduled hours so I can confirm or adjust in one tap.
 
-## 3. Cloud / data-safety verification
+### 4. Cloud safety
+Same as events — Postgres-backed, RLS, no local-only state.
 
-Quick audit of what's already in place:
+## Out of scope (next prompt)
+- Visual redesign of the tracker card
+- Hourly rate / pay calculation
 
-- ✅ All events live in **Lovable Cloud** (Postgres). Nothing is stored only in the browser.
-- ✅ Soft-delete: deleting an event sets `deleted_at` instead of wiping the row. The audit log (`agent_actions`) records every delete with the full pre-delete row — recoverable.
-- ✅ Row-level security: only your account can read/write your events.
-- ✅ Auth session persists across browser restarts.
+## Files
+- migration: `work_logs` table + RLS
+- new: `src/components/log-hours-dialog.tsx`
+- edit: `src/components/hours-tracker.tsx`, `src/components/day-drawer.tsx`
+- new hook: `src/hooks/use-work-logs.ts`
 
-What I'll add for extra safety:
-- A **"Recently deleted"** view (small link in the source/calendar settings page) showing soft-deleted events from the last 30 days with a one-click **Restore**. So if something disappears by accident — chatbot, you, anything — it's recoverable from the UI, not just the database.
-
-## Technical (skim if not interested)
-
-- `DayDrawer` gets a new `onAdd?: (date: Date) => void` prop wired from `routes/index.tsx` to the existing `openAdd(date)`.
-- New `src/components/hours-tracker.tsx` — pure client component, reads `useEvents(rangeStart, rangeEnd)` for the selected period, filters by `calendar.source === 'job'`, aggregates by calendar.
-- New `src/components/recently-deleted.tsx` — queries events with `deleted_at IS NOT NULL` in the last 30 days, "Restore" sets `deleted_at = null`. Mounted from the existing `/sources` route.
-- No DB migration. No new tables. Recurring-event hour math handled the same way as existing event expansion.
+## Question
+Should A-hub days where I log actual hours **also auto-create a calendar event** on that day (so the calendar visually fills in)? Or keep logged hours purely as numbers in the tracker, separate from the calendar? My default is **keep separate** — simpler and matches your "those days I'll add manually" rule.
