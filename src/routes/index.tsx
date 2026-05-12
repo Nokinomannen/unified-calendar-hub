@@ -248,7 +248,7 @@ function DayCell({
       className={cn(
         "group relative min-h-[124px] cursor-pointer border-b border-r border-border p-2 text-left transition-colors",
         !inMonth && "bg-muted/15",
-        isFree && "bg-emerald-400/[0.04] hover:bg-emerald-400/10",
+        isFree && "bg-success/[0.05] hover:bg-success/10",
         !isFree && "hover:bg-accent/30",
       )}
       onClick={onClick}
