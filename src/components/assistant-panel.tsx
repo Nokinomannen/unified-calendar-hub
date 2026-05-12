@@ -152,7 +152,7 @@ export function AssistantPanel() {
           <div className="flex h-[80vh] w-full max-w-lg flex-col rounded-t-2xl border border-border bg-card shadow-[var(--shadow-elegant)] md:h-[70vh] md:rounded-2xl">
             <header className="flex items-center justify-between border-b border-border/60 px-4 py-3">
               <div className="flex items-center gap-2">
-                <span className="grid h-7 w-7 place-items-center rounded-md bg-[image:var(--gradient-primary)] text-primary-foreground">
+                <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground">
                   <Sparkles className="h-3.5 w-3.5" />
                 </span>
                 <h2 className="font-semibold tracking-tight">Assistant</h2>
