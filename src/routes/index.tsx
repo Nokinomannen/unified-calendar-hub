@@ -256,7 +256,7 @@ function DayCell({
       <div className="mb-1.5 flex items-center justify-between gap-1">
         <span className={cn(
           "inline-grid h-7 w-7 place-items-center rounded-full text-xs font-semibold transition-all",
-          today && "bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)]",
+          today && "bg-primary text-primary-foreground",
           !today && inMonth && "text-foreground",
           !inMonth && "text-muted-foreground/60",
         )}>
