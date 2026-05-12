@@ -1,30 +1,55 @@
-# Theme toggle + UI zoom
+## Calendar reset & import
 
-Two small additions to the app shell. Frontend only, no backend.
+### 1. Reset
+Soft-delete (set `deleted_at = now()`) every event whose `calendar_id` is **not** the School calendar (`d2039ae9…`). This wipes Tiger of Sweden, Personal, and A-hub. School events stay untouched. Personal events you'll paste in next will be added after.
 
-## 1. Light/dark mode toggle
+A-hub source already exists — no schema changes needed. Days you don't add A-hub shifts to stay free, as requested.
 
-- Add `src/hooks/use-theme.tsx`: a `ThemeProvider` + `useTheme()` hook that stores choice (`"light" | "dark" | "system"`) in `localStorage["theme"]`, applies/removes `.dark` on `document.documentElement`, and listens to `prefers-color-scheme` when set to `"system"`.
-- Wrap the app in `__root.tsx`'s `RootComponent` with `<ThemeProvider>`. Remove the hardcoded `className="dark"` from `<html>` in `RootShell` so the provider is the source of truth (provider sets it on mount; SSR ships without the class — acceptable since this is an authed app).
-- Add a theme switcher button in `AppShell` header next to "Sign out": dropdown menu (shadcn `DropdownMenu`) with Sun/Moon/Monitor icons and Light / Dark / System items. Icon swaps based on resolved theme.
-- Audit `:root` (light) palette in `src/styles.css` and lift `--primary` to match the dark violet vibe so light mode also looks polished. Add light variants of `--gradient-primary`, `--shadow-elegant`, `--shadow-glow` so components that use those tokens render correctly in light mode.
+### 2. Tiger of Sweden — Noah Krüeger shifts (2026, full window, break ignored)
 
-## 2. UI zoom controls
+**May**
+- Mon May 11, 09:45–16:00
+- Tue May 12, 09:45–16:00
+- Thu May 14, 09:45–17:00
+- Mon May 18, 09:45–16:00
+- Tue May 19, 14:00–20:10
+- Wed May 27, 12:00–20:10
+- Thu May 28, 09:45–16:00
 
-- Add `src/hooks/use-ui-zoom.tsx`: stores a scale value (0.8 → 1.4, step 0.1) in `localStorage["ui-zoom"]`, default 1. Applies it by setting `document.documentElement.style.fontSize = ${scale * 16}px`. Since the design system uses rem-based Tailwind utilities, this scales the entire UI (text, spacing, sizing) proportionally.
-- Add a small zoom control in `AppShell` header: minus button, current % label, plus button, with a reset on label click. Hidden on small screens (md:flex) to save space; mobile users can pinch-zoom.
-- Keyboard shortcuts: `Ctrl/Cmd +` / `Ctrl/Cmd -` / `Ctrl/Cmd 0` bound globally inside the provider to step the zoom.
+**June**
+- Sat Jun 6, 11:00–16:00
+- Sun Jun 7, 13:00–17:00
+- Mon Jun 8, 12:00–17:00
+- Sat Jun 13, 12:00–20:10
+- Sun Jun 14, 09:45–17:00
+- Sun Jun 21, 09:45–17:00
+- Sat Jun 27, 09:45–17:00
+- Sun Jun 28, 13:30–20:10
+- Mon Jun 29, 12:00–20:10
+- Tue Jun 30, 09:45–17:00
 
-## Files touched
+All Europe/Stockholm timezone.
 
-- `src/hooks/use-theme.tsx` — new
-- `src/hooks/use-ui-zoom.tsx` — new
-- `src/routes/__root.tsx` — wrap providers, drop hardcoded `dark` class
-- `src/components/app-shell.tsx` — add theme switcher + zoom controls in header
-- `src/styles.css` — refresh light palette + add light-mode gradient/shadow tokens
+### 3. DJ Sets → Personal calendar
+No-time gigs default to **19:00–23:59** (your "evening to night" rule). Tentative items get `[tentativ]` prefix in title.
 
-## Out of scope
+- Fri Jun 5, 19:00–23:59 — `[tentativ] Erik Fång student` (note: vill ha mig till 06 ungefär, får höja till ev 4000)
+- Fri Jun 5, 19:00–23:59 — `[tentativ] Bruno (istället för Erik Fång)`
+- Sat Jun 6, 19:00–23:59 — `Marie Liebich` (tid och detaljer oklara)
+- Thu Jun 11, 19:00–23:59 — `Procivitas Lund` (detaljer oklara)
+- Fri Jun 12, 19:00–23:59 — `Isak Berglund Student` (kontaktad om det blir)
+- Sun Aug 9, 19:00–23:59 — `palladium`
+- Sat Aug 29 22:00 → Sun Aug 30 01:00 — `Bistro bro` (kom ihåg att skriva till honom och träffa på öl…)
 
-- Per-component zoom (only global root font-size scaling)
-- Persisting theme/zoom server-side per user
-- Accessibility prefs panel (just the two controls in the header)
+Bruno + Erik Fång are both same evening — kept as two separate tentative entries so you can delete the one that doesn't pan out.
+
+### 4. Personal events
+Waiting on your next message before adding anything to Personal.
+
+### 5. Hours tracker (next step, not in this plan)
+After the reset+import lands, we'll design the A-hub + Tiger hours tracker. I'll ask scope questions then (hourly rate? weekly target? export?).
+
+### Technical
+- One `supabase--migration` doing the soft-delete + all 24 inserts in a single transaction, using your user_id from auth.users.
+- Times stored UTC, converted from Europe/Stockholm (CEST = UTC+2 in May–Aug 2026).
+- No frontend changes.
