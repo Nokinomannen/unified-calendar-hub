@@ -23,6 +23,8 @@ const END_HOUR = 23;
 
 export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: Props) {
   const toggle = useToggleSkip();
+  const [logOpen, setLogOpen] = useState(false);
+  const [logCalendarId, setLogCalendarId] = useState<string | undefined>(undefined);
   if (!date) return null;
   const dk = dateKey(date);
   const skipped = new Set(overrides.filter((o) => o.occurrence_date === dk && o.status === "skipped").map((o) => o.event_id));
