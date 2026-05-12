@@ -19,7 +19,7 @@ const HOUR_PX = 44;
 const START_HOUR = 7;
 const END_HOUR = 23;
 
-export function DayDrawer({ date, events, overrides, onClose, onEdit }: Props) {
+export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: Props) {
   const toggle = useToggleSkip();
   if (!date) return null;
   const dk = dateKey(date);
