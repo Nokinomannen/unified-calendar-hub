@@ -299,7 +299,7 @@ function DayCell({
           <div className="px-1 text-[9px] text-muted-foreground">+{events.length - 4} more</div>
         )}
         {isFree && (
-          <div className="mt-1 text-[10px] font-medium text-emerald-400/70">Free</div>
+          <div className="mt-1 text-[10px] font-medium uppercase tracking-wider text-success/80">Free</div>
         )}
       </div>
 
