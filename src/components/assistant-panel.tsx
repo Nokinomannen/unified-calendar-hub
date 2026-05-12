@@ -141,7 +141,7 @@ export function AssistantPanel() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 left-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background md:bottom-8 md:left-8"
+        className="fixed bottom-20 left-4 z-40 grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background md:bottom-8 md:left-8"
         aria-label="Open assistant"
       >
         <Sparkles className="h-6 w-6" />
