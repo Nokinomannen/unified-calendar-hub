@@ -215,6 +215,8 @@ function SourcesPage() {
           )}
         </section>
 
+        <RecentlyDeleted />
+
         <section className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
           <h2 className="mb-2 font-medium text-foreground">Coming next</h2>
           <ul className="list-disc space-y-1 pl-5">
