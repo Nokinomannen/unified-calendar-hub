@@ -178,7 +178,7 @@ function CalendarPage() {
 
       <FAB onClick={() => openAdd()} />
       <AddEventDialog open={open} onOpenChange={setOpen} defaultStart={defaultStart} event={editing} />
-      <DayDrawer date={drawerDate} events={drawerEvents} overrides={overrides} onClose={() => setDrawerDate(null)} onEdit={openEdit} />
+      <DayDrawer date={drawerDate} events={drawerEvents} overrides={overrides} onClose={() => setDrawerDate(null)} onEdit={openEdit} onAdd={(d) => { setDrawerDate(null); openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0)); }} />
     </AppShell>
   );
 }
