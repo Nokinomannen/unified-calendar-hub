@@ -141,7 +141,7 @@ export function AssistantPanel() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 left-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background md:bottom-8 md:left-8"
+        className="fixed bottom-20 left-4 z-40 grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background md:bottom-8 md:left-8"
         aria-label="Open assistant"
       >
         <Sparkles className="h-6 w-6" />
@@ -152,7 +152,7 @@ export function AssistantPanel() {
           <div className="flex h-[80vh] w-full max-w-lg flex-col rounded-t-2xl border border-border bg-card shadow-[var(--shadow-elegant)] md:h-[70vh] md:rounded-2xl">
             <header className="flex items-center justify-between border-b border-border/60 px-4 py-3">
               <div className="flex items-center gap-2">
-                <span className="grid h-7 w-7 place-items-center rounded-md bg-[image:var(--gradient-primary)] text-primary-foreground">
+                <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground">
                   <Sparkles className="h-3.5 w-3.5" />
                 </span>
                 <h2 className="font-semibold tracking-tight">Assistant</h2>
@@ -170,7 +170,7 @@ export function AssistantPanel() {
             <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
               {messages.map((m, i) => (
                 <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                  <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${m.role === "user" ? "bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)]" : "bg-muted/60 text-foreground"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
                     <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 dark:prose-invert">
                       <ReactMarkdown>{m.content}</ReactMarkdown>
                     </div>

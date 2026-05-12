@@ -126,7 +126,7 @@ export function HoursTracker() {
                     <span className="w-14 text-right text-xs tabular-nums">
                       <span className="font-semibold">{c.actual.toFixed(1)}h</span>
                       {c.actual > 0 && c.scheduled > 0 && (
-                        <span className={cn("ml-1 text-[10px]", diff >= 0 ? "text-emerald-500" : "text-amber-500")}>
+                        <span className={cn("ml-1 text-[10px]", diff >= 0 ? "text-success" : "text-conflict")}>
                           {diff >= 0 ? "+" : ""}{diff.toFixed(1)}
                         </span>
                       )}

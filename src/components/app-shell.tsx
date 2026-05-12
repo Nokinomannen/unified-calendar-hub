@@ -29,7 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2.5 font-semibold">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)]">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
               <CalendarDays className="h-4 w-4" />
             </span>
             <span className="text-base tracking-tight">One</span>
@@ -85,7 +85,7 @@ export function FAB({ onClick }: { onClick: () => void }) {
     <button
       onClick={onClick}
       className={cn(
-        "fixed bottom-20 right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background md:bottom-8 md:right-8",
+        "fixed bottom-20 right-4 z-40 grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background md:bottom-8 md:right-8",
       )}
       aria-label="Add event"
     >

@@ -141,7 +141,7 @@ function CalendarPage() {
           ))}
           <span className="ml-auto inline-flex items-center gap-2 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-400/80" /> free
+              <span className="h-2 w-2 rounded-full bg-success/80" /> free
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-destructive" /> conflict
@@ -248,7 +248,7 @@ function DayCell({
       className={cn(
         "group relative min-h-[124px] cursor-pointer border-b border-r border-border p-2 text-left transition-colors",
         !inMonth && "bg-muted/15",
-        isFree && "bg-emerald-400/[0.04] hover:bg-emerald-400/10",
+        isFree && "bg-success/[0.05] hover:bg-success/10",
         !isFree && "hover:bg-accent/30",
       )}
       onClick={onClick}
@@ -256,7 +256,7 @@ function DayCell({
       <div className="mb-1.5 flex items-center justify-between gap-1">
         <span className={cn(
           "inline-grid h-7 w-7 place-items-center rounded-full text-xs font-semibold transition-all",
-          today && "bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)]",
+          today && "bg-primary text-primary-foreground",
           !today && inMonth && "text-foreground",
           !inMonth && "text-muted-foreground/60",
         )}>
@@ -299,7 +299,7 @@ function DayCell({
           <div className="px-1 text-[9px] text-muted-foreground">+{events.length - 4} more</div>
         )}
         {isFree && (
-          <div className="mt-1 text-[10px] font-medium text-emerald-400/70">Free</div>
+          <div className="mt-1 text-[10px] font-medium uppercase tracking-wider text-success/80">Free</div>
         )}
       </div>
 
