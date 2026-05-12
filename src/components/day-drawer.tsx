@@ -2,7 +2,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { format } from "date-fns";
 import type { ExpandedEvent } from "@/hooks/use-calendar-data";
 import { useToggleSkip, dateKey, type Override } from "@/hooks/use-overrides";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2, Circle, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
   overrides: Override[];
   onClose: () => void;
   onEdit?: (e: ExpandedEvent) => void;
+  onAdd?: (date: Date) => void;
 };
 
 const HOUR_PX = 44;
