@@ -141,7 +141,7 @@ function CalendarPage() {
           ))}
           <span className="ml-auto inline-flex items-center gap-2 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-400/80" /> free
+              <span className="h-2 w-2 rounded-full bg-success/80" /> free
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-destructive" /> conflict
