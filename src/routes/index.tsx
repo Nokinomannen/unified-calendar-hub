@@ -149,6 +149,8 @@ function CalendarPage() {
           </span>
         </div>
 
+        <HoursTracker />
+
         {view === "month" && (
           <MonthGrid cursor={cursor} events={visible} skippedSet={skippedSet}
             onDayClick={(d) => setDrawerDate(d)}
