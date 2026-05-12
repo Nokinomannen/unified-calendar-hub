@@ -171,6 +171,18 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: P
           )}
         </div>
       </SheetContent>
+      <LogHoursDialog
+        open={logOpen}
+        onOpenChange={setLogOpen}
+        defaultDate={date}
+        defaultCalendarId={logCalendarId}
+        defaultHours={(() => {
+          if (!logCalendarId) return undefined;
+          const shifts = events.filter((e) => e.calendar?.id === logCalendarId && !e.all_day);
+          if (shifts.length === 0) return undefined;
+          return shifts.reduce((s, e) => s + (e.occurrence_end.getTime() - e.occurrence_start.getTime()) / 3600_000, 0);
+        })()}
+      />
     </Sheet>
   );
 }
