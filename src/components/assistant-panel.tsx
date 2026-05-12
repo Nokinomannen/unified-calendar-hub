@@ -170,7 +170,7 @@ export function AssistantPanel() {
             <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
               {messages.map((m, i) => (
                 <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                  <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${m.role === "user" ? "bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)]" : "bg-muted/60 text-foreground"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted/60 text-foreground"}`}>
                     <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 dark:prose-invert">
                       <ReactMarkdown>{m.content}</ReactMarkdown>
                     </div>
