@@ -46,7 +46,14 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: P
               {totalHours.toFixed(1)}h booked · {events.length} events
             </span>
           </SheetTitle>
-          <p className="text-[11px] text-muted-foreground">Tip: click any event to edit · or ask the assistant to bulk-fix times.</p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <p className="text-[11px] text-muted-foreground">Tip: click any event to edit.</p>
+            {onAdd && (
+              <Button size="sm" onClick={() => onAdd(date)} className="h-7 gap-1 text-xs">
+                <Plus className="h-3.5 w-3.5" /> Add event
+              </Button>
+            )}
+          </div>
         </SheetHeader>
 
         <div className="px-5 pb-12">
