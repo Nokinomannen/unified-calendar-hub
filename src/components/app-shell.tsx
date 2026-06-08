@@ -56,7 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 pb-24">{children}</main>
+      <main className="mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-4 sm:py-6">{children}</main>
 
       {/* mobile nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/60 bg-background/90 backdrop-blur-xl md:hidden">

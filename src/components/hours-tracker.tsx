@@ -73,14 +73,14 @@ export function HoursTracker() {
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
       >
-        <div className="flex items-center gap-2">
-          <Briefcase className="h-4 w-4 text-primary" />
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Briefcase className="h-4 w-4 shrink-0 text-primary" />
           <span className="text-sm font-semibold">Work hours</span>
-          <span className="text-xs text-muted-foreground">
-            {totalActual.toFixed(1)}h actual · {totalScheduled.toFixed(1)}h scheduled
+          <span className="truncate text-xs text-muted-foreground">
+            {totalActual.toFixed(1)}h / {totalScheduled.toFixed(1)}h
           </span>
         </div>
-        {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        {open ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
       </button>
       {open && (
         <div className="space-y-3 px-4 pb-4">

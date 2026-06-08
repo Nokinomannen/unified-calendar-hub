@@ -100,18 +100,18 @@ function CalendarPage() {
 
   return (
     <AppShell>
-      <div className="space-y-5">
+      <div className="space-y-4 sm:space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Calendar</p>
-            <h1 className="text-3xl font-semibold tracking-tight">{headerLabel}</h1>
+            <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{headerLabel}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <div className="inline-flex rounded-lg border border-border bg-card/60 p-0.5 backdrop-blur">
               {(["month", "week", "day"] as ViewMode[]).map((v) => (
                 <button key={v} onClick={() => setView(v)}
                   className={cn(
-                    "rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-all",
+                    "rounded-md px-2.5 py-1.5 text-xs font-medium capitalize transition-all sm:px-3",
                     view === v
                       ? "bg-primary text-primary-foreground shadow-[var(--shadow-glow)]"
                       : "text-muted-foreground hover:text-foreground",
@@ -119,9 +119,11 @@ function CalendarPage() {
                 >{v}</button>
               ))}
             </div>
-            <Button size="icon" variant="outline" onClick={navPrev}><ChevronLeft className="h-4 w-4" /></Button>
-            <Button size="sm" variant="outline" onClick={() => setCursor(new Date())}>Today</Button>
-            <Button size="icon" variant="outline" onClick={navNext}><ChevronRight className="h-4 w-4" /></Button>
+            <div className="ml-auto flex items-center gap-1.5 sm:ml-0 sm:gap-2">
+              <Button size="icon" variant="outline" onClick={navPrev}><ChevronLeft className="h-4 w-4" /></Button>
+              <Button size="sm" variant="outline" onClick={() => setCursor(new Date())}>Today</Button>
+              <Button size="icon" variant="outline" onClick={navNext}><ChevronRight className="h-4 w-4" /></Button>
+            </div>
           </div>
         </div>
 
@@ -196,8 +198,13 @@ function MonthGrid({ cursor, events, skippedSet, onDayClick, onAdd }: {
   while (d <= gridEnd) { days.push(d); d = addDays(d, 1); }
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elegant)]">
-      <div className="grid grid-cols-7 border-b border-border bg-muted/30 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => <div key={d} className="py-2.5">{d}</div>)}
+      <div className="grid grid-cols-7 border-b border-border bg-muted/30 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[11px]">
+        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => (
+          <div key={d} className="py-2 sm:py-2.5">
+            <span className="sm:hidden">{d[0]}</span>
+            <span className="hidden sm:inline">{d}</span>
+          </div>
+        ))}
       </div>
       <div className="grid grid-cols-7">
         {days.map((d) => (
@@ -246,62 +253,96 @@ function DayCell({
   return (
     <div
       className={cn(
-        "group relative min-h-[124px] cursor-pointer border-b border-r border-border p-2 text-left transition-colors",
+        "group relative min-h-[72px] cursor-pointer border-b border-r border-border p-1 text-left transition-colors sm:min-h-[124px] sm:p-2",
         !inMonth && "bg-muted/15",
         isFree && "bg-success/[0.05] hover:bg-success/10",
         !isFree && "hover:bg-accent/30",
       )}
       onClick={onClick}
     >
-      <div className="mb-1.5 flex items-center justify-between gap-1">
+      <div className="mb-1 flex items-center justify-between gap-1 sm:mb-1.5">
         <span className={cn(
-          "inline-grid h-7 w-7 place-items-center rounded-full text-xs font-semibold transition-all",
+          "inline-grid h-6 w-6 place-items-center rounded-full text-[11px] font-semibold transition-all sm:h-7 sm:w-7 sm:text-xs",
           today && "bg-primary text-primary-foreground",
           !today && inMonth && "text-foreground",
           !inMonth && "text-muted-foreground/60",
         )}>
           {day.getDate()}
         </span>
-        <div className="flex items-center gap-1">
-          {calColors.slice(0, 4).map((c) => (
-            <span key={c} className="h-1.5 w-1.5 rounded-full" style={{ background: c }} />
-          ))}
-          {activeHours > 0 && (
-            <span className="ml-0.5 rounded bg-muted/70 px-1 py-px text-[9px] font-medium tabular-nums text-muted-foreground">
-              {activeHours < 1 ? `${Math.round(activeHours * 60)}m` : `${activeHours.toFixed(activeHours < 10 ? 1 : 0)}h`}
-            </span>
-          )}
-          {conflictIds.size > 0 && <span className="h-2 w-2 rounded-full bg-destructive" title="Conflict" />}
+        <div className="flex items-center gap-0.5 sm:gap-1">
+          {/* Mobile: show max 2 dots, no hour badge */}
+          <span className="flex items-center gap-0.5 sm:hidden">
+            {calColors.slice(0, 2).map((c) => (
+              <span key={c} className="h-1.5 w-1.5 rounded-full" style={{ background: c }} />
+            ))}
+          </span>
+          <span className="hidden items-center gap-1 sm:flex">
+            {calColors.slice(0, 4).map((c) => (
+              <span key={c} className="h-1.5 w-1.5 rounded-full" style={{ background: c }} />
+            ))}
+            {activeHours > 0 && (
+              <span className="ml-0.5 rounded bg-muted/70 px-1 py-px text-[9px] font-medium tabular-nums text-muted-foreground">
+                {activeHours < 1 ? `${Math.round(activeHours * 60)}m` : `${activeHours.toFixed(activeHours < 10 ? 1 : 0)}h`}
+              </span>
+            )}
+          </span>
+          {conflictIds.size > 0 && <span className="h-1.5 w-1.5 rounded-full bg-destructive sm:h-2 sm:w-2" title="Conflict" />}
         </div>
       </div>
 
       <div className="space-y-0.5">
-        {events.slice(0, 4).map((e) => {
+        {events.slice(0, 2).map((e) => {
           const skipped = skippedSet.has(`${e.id}|${dk}`);
           const conflict = conflictIds.has(e.id);
           return (
             <div key={e.id}
               className={cn(
-                "flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1.5 pr-1 py-0.5 text-[10px] leading-tight transition-colors",
+                "flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1 pr-0.5 py-0.5 text-[9px] leading-tight transition-colors sm:pl-1.5 sm:pr-1 sm:text-[10px]",
                 skipped && "opacity-40 line-through",
                 conflict && "ring-1 ring-destructive/40",
               )}
               style={{ borderLeftColor: e.calendar?.color ?? "var(--primary)" }}
             >
               {!e.all_day && (
-                <span className="tabular-nums text-muted-foreground">{format(e.occurrence_start, "HH:mm")}</span>
+                <span className="hidden tabular-nums text-muted-foreground sm:inline">{format(e.occurrence_start, "HH:mm")}</span>
               )}
               <span className="truncate">{e.title}</span>
             </div>
           );
         })}
+        {/* Desktop: show up to 4 */}
+        <div className="hidden sm:block">
+          {events.slice(2, 4).map((e) => {
+            const skipped = skippedSet.has(`${e.id}|${dk}`);
+            const conflict = conflictIds.has(e.id);
+            return (
+              <div key={e.id}
+                className={cn(
+                  "mt-0.5 flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1.5 pr-1 py-0.5 text-[10px] leading-tight transition-colors",
+                  skipped && "opacity-40 line-through",
+                  conflict && "ring-1 ring-destructive/40",
+                )}
+                style={{ borderLeftColor: e.calendar?.color ?? "var(--primary)" }}
+              >
+                {!e.all_day && (
+                  <span className="tabular-nums text-muted-foreground">{format(e.occurrence_start, "HH:mm")}</span>
+                )}
+                <span className="truncate">{e.title}</span>
+              </div>
+            );
+          })}
+        </div>
+        {events.length > 2 && (
+          <div className="px-0.5 text-[9px] text-muted-foreground sm:hidden">+{events.length - 2}</div>
+        )}
         {events.length > 4 && (
-          <div className="px-1 text-[9px] text-muted-foreground">+{events.length - 4} more</div>
+          <div className="hidden px-1 text-[9px] text-muted-foreground sm:block">+{events.length - 4} more</div>
         )}
         {isFree && (
-          <div className="mt-1 text-[10px] font-medium uppercase tracking-wider text-success/80">Free</div>
+          <div className="mt-1 hidden text-[10px] font-medium uppercase tracking-wider text-success/80 sm:block">Free</div>
         )}
       </div>
+
 
       <button
         onClick={(e) => { e.stopPropagation(); onAdd(); }}
