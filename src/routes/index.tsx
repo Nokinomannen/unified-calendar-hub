@@ -100,18 +100,18 @@ function CalendarPage() {
 
   return (
     <AppShell>
-      <div className="space-y-5">
+      <div className="space-y-4 sm:space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Calendar</p>
-            <h1 className="text-3xl font-semibold tracking-tight">{headerLabel}</h1>
+            <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{headerLabel}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <div className="inline-flex rounded-lg border border-border bg-card/60 p-0.5 backdrop-blur">
               {(["month", "week", "day"] as ViewMode[]).map((v) => (
                 <button key={v} onClick={() => setView(v)}
                   className={cn(
-                    "rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-all",
+                    "rounded-md px-2.5 py-1.5 text-xs font-medium capitalize transition-all sm:px-3",
                     view === v
                       ? "bg-primary text-primary-foreground shadow-[var(--shadow-glow)]"
                       : "text-muted-foreground hover:text-foreground",
@@ -119,9 +119,11 @@ function CalendarPage() {
                 >{v}</button>
               ))}
             </div>
-            <Button size="icon" variant="outline" onClick={navPrev}><ChevronLeft className="h-4 w-4" /></Button>
-            <Button size="sm" variant="outline" onClick={() => setCursor(new Date())}>Today</Button>
-            <Button size="icon" variant="outline" onClick={navNext}><ChevronRight className="h-4 w-4" /></Button>
+            <div className="ml-auto flex items-center gap-1.5 sm:ml-0 sm:gap-2">
+              <Button size="icon" variant="outline" onClick={navPrev}><ChevronLeft className="h-4 w-4" /></Button>
+              <Button size="sm" variant="outline" onClick={() => setCursor(new Date())}>Today</Button>
+              <Button size="icon" variant="outline" onClick={navNext}><ChevronRight className="h-4 w-4" /></Button>
+            </div>
           </div>
         </div>
 
