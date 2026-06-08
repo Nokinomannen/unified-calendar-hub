@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AddDjSetDialog } from "@/components/add-dj-set-dialog";
 
-type Period = "week" | "month";
+type Period = "week" | "month" | "all";
 
 const fmtSek = (n: number) =>
   new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 0 }).format(Math.round(n)) + " SEK";
