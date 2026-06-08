@@ -89,7 +89,7 @@ export function HoursTracker() {
         <div className="space-y-4 px-4 pb-4">
           <div className="flex items-center justify-between gap-2">
             <div className="inline-flex rounded-md border border-border bg-background p-0.5">
-              {(["week", "month"] as Period[]).map((p) => (
+              {(["week", "month", "all"] as Period[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPeriod(p)}
@@ -98,12 +98,12 @@ export function HoursTracker() {
                     period === p ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  This {p}
+                  {p === "all" ? "All time" : `This ${p}`}
                 </button>
               ))}
             </div>
             <span className="text-[11px] tabular-nums text-muted-foreground">
-              {format(range.start, "d MMM")} – {format(range.end, "d MMM")}
+              {period === "all" ? "All shifts" : `${format(range.start, "d MMM")} – ${format(range.end, "d MMM")}`}
             </span>
           </div>
 
