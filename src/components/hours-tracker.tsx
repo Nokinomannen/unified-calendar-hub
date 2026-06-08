@@ -24,7 +24,11 @@ export function HoursTracker() {
     if (period === "week") {
       return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
     }
-    return { start: startOfMonth(now), end: endOfMonth(now) };
+    if (period === "month") {
+      return { start: startOfMonth(now), end: endOfMonth(now) };
+    }
+    // all time — wide window covering past + future
+    return { start: new Date(2000, 0, 1), end: new Date(now.getFullYear() + 5, 11, 31) };
   }, [period]);
 
   const { data: events = [] } = useEvents(range.start, range.end);
