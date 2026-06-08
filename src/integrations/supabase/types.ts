@@ -51,6 +51,7 @@ export type Database = {
         Row: {
           color: string
           created_at: string
+          hourly_rate: number | null
           ics_url: string | null
           id: string
           name: string
@@ -62,6 +63,7 @@ export type Database = {
         Insert: {
           color?: string
           created_at?: string
+          hourly_rate?: number | null
           ics_url?: string | null
           id?: string
           name: string
@@ -73,6 +75,7 @@ export type Database = {
         Update: {
           color?: string
           created_at?: string
+          hourly_rate?: number | null
           ics_url?: string | null
           id?: string
           name?: string
@@ -110,6 +113,42 @@ export type Database = {
           tool_call_id?: string | null
           tool_calls?: Json | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      dj_sets: {
+        Row: {
+          amount_sek: number
+          created_at: string
+          duration_hours: number | null
+          id: string
+          notes: string | null
+          set_date: string
+          updated_at: string
+          user_id: string
+          venue: string
+        }
+        Insert: {
+          amount_sek?: number
+          created_at?: string
+          duration_hours?: number | null
+          id?: string
+          notes?: string | null
+          set_date: string
+          updated_at?: string
+          user_id: string
+          venue: string
+        }
+        Update: {
+          amount_sek?: number
+          created_at?: string
+          duration_hours?: number | null
+          id?: string
+          notes?: string | null
+          set_date?: string
+          updated_at?: string
+          user_id?: string
+          venue?: string
         }
         Relationships: []
       }

@@ -2,19 +2,22 @@ import { useMemo, useState } from "react";
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, parseISO, isWithinInterval } from "date-fns";
 import { useEvents } from "@/hooks/use-calendar-data";
 import { useOverrides } from "@/hooks/use-overrides";
-import { useWorkLogs } from "@/hooks/use-work-logs";
-import { Briefcase, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { useDjSets, type DjSet } from "@/hooks/use-dj-sets";
+import { Briefcase, ChevronDown, ChevronUp, Plus, Disc3, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LogHoursDialog } from "@/components/log-hours-dialog";
+import { AddDjSetDialog } from "@/components/add-dj-set-dialog";
 
 type Period = "week" | "month";
+
+const fmtSek = (n: number) =>
+  new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 0 }).format(Math.round(n)) + " SEK";
 
 export function HoursTracker() {
   const [period, setPeriod] = useState<Period>("week");
   const [open, setOpen] = useState(true);
-  const [logOpen, setLogOpen] = useState(false);
-  const [logCalendarId, setLogCalendarId] = useState<string | undefined>(undefined);
+  const [djOpen, setDjOpen] = useState(false);
+  const [editingSet, setEditingSet] = useState<DjSet | null>(null);
 
   const range = useMemo(() => {
     const now = new Date();
@@ -26,7 +29,7 @@ export function HoursTracker() {
 
   const { data: events = [] } = useEvents(range.start, range.end);
   const { data: overrides = [] } = useOverrides();
-  const { data: workLogs = [] } = useWorkLogs();
+  const { data: djSets = [] } = useDjSets();
 
   const skipped = useMemo(() => {
     const s = new Set<string>();
@@ -34,38 +37,34 @@ export function HoursTracker() {
     return s;
   }, [overrides]);
 
-  const rows = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; color: string; scheduled: number; actual: number }>();
-
-    // Seed jobs from events
+  const jobRows = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string; rate: number | null; hours: number }>();
     for (const e of events) {
-      if (e.calendar?.source !== "job") continue;
+      if (e.calendar?.source !== "job" || e.all_day) continue;
       const dk = format(e.occurrence_start, "yyyy-MM-dd");
-      const cur = map.get(e.calendar.id) ?? { id: e.calendar.id, name: e.calendar.name, color: e.calendar.color, scheduled: 0, actual: 0 };
-      if (!skipped.has(`${e.id}|${dk}`)) {
-        cur.scheduled += (e.occurrence_end.getTime() - e.occurrence_start.getTime()) / 3600_000;
-      }
+      if (skipped.has(`${e.id}|${dk}`)) continue;
+      const cur = map.get(e.calendar.id) ?? {
+        id: e.calendar.id,
+        name: e.calendar.name,
+        color: e.calendar.color,
+        rate: (e.calendar as { hourly_rate?: number | null }).hourly_rate ?? null,
+        hours: 0,
+      };
+      cur.hours += (e.occurrence_end.getTime() - e.occurrence_start.getTime()) / 3600_000;
       map.set(e.calendar.id, cur);
     }
+    return Array.from(map.values()).sort((a, b) => b.hours - a.hours);
+  }, [events, skipped]);
 
-    // Add actual from work_logs in range
-    for (const log of workLogs) {
-      const d = parseISO(log.work_date);
-      if (!isWithinInterval(d, { start: range.start, end: range.end })) continue;
-      const cur = map.get(log.calendar_id);
-      if (cur) {
-        cur.actual += Number(log.hours);
-      } else {
-        // Job calendar with no events but logged hours — pull from any log entry
-        map.set(log.calendar_id, { id: log.calendar_id, name: "Work", color: "#10b981", scheduled: 0, actual: Number(log.hours) });
-      }
-    }
+  const totalHours = jobRows.reduce((s, r) => s + r.hours, 0);
+  const totalJobEarnings = jobRows.reduce((s, r) => s + r.hours * (r.rate ?? 0), 0);
 
-    return Array.from(map.values()).sort((a, b) => (b.scheduled + b.actual) - (a.scheduled + a.actual));
-  }, [events, skipped, workLogs, range]);
-
-  const totalScheduled = rows.reduce((s, c) => s + c.scheduled, 0);
-  const totalActual = rows.reduce((s, c) => s + c.actual, 0);
+  const setsInRange = useMemo(
+    () => djSets.filter((s) => isWithinInterval(parseISO(s.set_date), { start: range.start, end: range.end })),
+    [djSets, range],
+  );
+  const totalDjEarnings = setsInRange.reduce((s, x) => s + Number(x.amount_sek), 0);
+  const totalEarnings = totalJobEarnings + totalDjEarnings;
 
   return (
     <div className="rounded-2xl border border-border bg-card/60 backdrop-blur">
@@ -75,15 +74,15 @@ export function HoursTracker() {
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Briefcase className="h-4 w-4 shrink-0 text-primary" />
-          <span className="text-sm font-semibold">Work hours</span>
+          <span className="text-sm font-semibold">Work & earnings</span>
           <span className="truncate text-xs text-muted-foreground">
-            {totalActual.toFixed(1)}h / {totalScheduled.toFixed(1)}h
+            {totalHours.toFixed(1)}h · {fmtSek(totalEarnings)}
           </span>
         </div>
         {open ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
       </button>
       {open && (
-        <div className="space-y-3 px-4 pb-4">
+        <div className="space-y-4 px-4 pb-4">
           <div className="flex items-center justify-between gap-2">
             <div className="inline-flex rounded-md border border-border bg-background p-0.5">
               {(["week", "month"] as Period[]).map((p) => (
@@ -104,56 +103,101 @@ export function HoursTracker() {
             </span>
           </div>
 
-          {rows.length === 0 ? (
-            <p className="py-3 text-center text-xs text-muted-foreground">No work in this period.</p>
-          ) : (
-            <ul className="space-y-2.5">
-              <li className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 text-[10px] uppercase tracking-wide text-muted-foreground">
-                <span>Job</span>
-                <span className="w-14 text-right">Sched.</span>
-                <span className="w-14 text-right">Actual</span>
-                <span className="w-7" />
-              </li>
-              {rows.map((c) => {
-                const diff = c.actual - c.scheduled;
-                return (
-                  <li key={c.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3">
+          {/* Jobs */}
+          <section className="space-y-2">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Jobs</h3>
+            {jobRows.length === 0 ? (
+              <p className="py-2 text-center text-xs text-muted-foreground">No shifts in this period.</p>
+            ) : (
+              <ul className="space-y-2">
+                {jobRows.map((r) => (
+                  <li key={r.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-x-3">
                     <span className="inline-flex items-center gap-1.5 text-xs font-medium">
-                      <span className="h-2 w-2 rounded-full" style={{ background: c.color }} />
-                      <span className="truncate">{c.name}</span>
+                      <span className="h-2 w-2 rounded-full" style={{ background: r.color }} />
+                      <span className="truncate">{r.name}</span>
                     </span>
-                    <span className="w-14 text-right text-xs tabular-nums text-muted-foreground">{c.scheduled.toFixed(1)}h</span>
-                    <span className="w-14 text-right text-xs tabular-nums">
-                      <span className="font-semibold">{c.actual.toFixed(1)}h</span>
-                      {c.actual > 0 && c.scheduled > 0 && (
-                        <span className={cn("ml-1 text-[10px]", diff >= 0 ? "text-success" : "text-conflict")}>
-                          {diff >= 0 ? "+" : ""}{diff.toFixed(1)}
-                        </span>
-                      )}
+                    <span className="text-right text-xs tabular-nums text-muted-foreground">
+                      {r.hours.toFixed(1)}h
+                      {r.rate != null && <span className="ml-1 text-[10px]">× {r.rate}</span>}
                     </span>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={() => { setLogCalendarId(c.id); setLogOpen(true); }}
-                      title="Log actual hours"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
+                    <span className="w-24 text-right text-xs font-semibold tabular-nums">
+                      {r.rate != null ? fmtSek(r.hours * r.rate) : "—"}
+                    </span>
                   </li>
-                );
-              })}
-              <li className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 border-t border-border pt-2 text-xs font-semibold">
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* DJ Sets */}
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <Disc3 className="h-3 w-3" /> DJ Sets
+              </h3>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 gap-1 px-2 text-[11px]"
+                onClick={() => { setEditingSet(null); setDjOpen(true); }}
+              >
+                <Plus className="h-3 w-3" /> Add
+              </Button>
+            </div>
+            {setsInRange.length === 0 ? (
+              <p className="py-2 text-center text-xs text-muted-foreground">No DJ sets in this period.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {setsInRange.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      onClick={() => { setEditingSet(s); setDjOpen(true); }}
+                      className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3 rounded-md px-1 py-1 text-left hover:bg-accent/50"
+                    >
+                      <span className="text-[10px] tabular-nums text-muted-foreground">
+                        {format(parseISO(s.set_date), "d MMM")}
+                      </span>
+                      <span className="truncate text-xs font-medium">
+                        {s.venue}
+                        {s.duration_hours != null && (
+                          <span className="ml-1 text-[10px] text-muted-foreground">· {Number(s.duration_hours)}h</span>
+                        )}
+                      </span>
+                      <span className="text-right text-xs font-semibold tabular-nums">{fmtSek(Number(s.amount_sek))}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* Earnings summary */}
+          <section className="space-y-2 rounded-lg border border-border bg-background/60 p-3">
+            <h3 className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <Wallet className="h-3 w-3" /> Earnings
+            </h3>
+            <ul className="space-y-1">
+              {jobRows.map((r) => (
+                <li key={r.id} className="flex items-center justify-between text-xs">
+                  <span className="truncate">{r.name}</span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {r.rate != null ? fmtSek(r.hours * r.rate) : "no rate"}
+                  </span>
+                </li>
+              ))}
+              <li className="flex items-center justify-between text-xs">
+                <span>DJ Sets <span className="text-[10px] text-muted-foreground">({setsInRange.length})</span></span>
+                <span className="tabular-nums text-muted-foreground">{fmtSek(totalDjEarnings)}</span>
+              </li>
+              <li className="mt-1 flex items-center justify-between border-t border-border pt-1.5 text-sm font-semibold">
                 <span>Total</span>
-                <span className="w-14 text-right tabular-nums text-muted-foreground">{totalScheduled.toFixed(1)}h</span>
-                <span className="w-14 text-right tabular-nums">{totalActual.toFixed(1)}h</span>
-                <span className="w-7" />
+                <span className="tabular-nums">{fmtSek(totalEarnings)}</span>
               </li>
             </ul>
-          )}
+          </section>
         </div>
       )}
-      <LogHoursDialog open={logOpen} onOpenChange={setLogOpen} defaultCalendarId={logCalendarId} />
+      <AddDjSetDialog open={djOpen} onOpenChange={setDjOpen} editing={editingSet} />
     </div>
   );
 }
