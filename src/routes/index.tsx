@@ -198,8 +198,13 @@ function MonthGrid({ cursor, events, skippedSet, onDayClick, onAdd }: {
   while (d <= gridEnd) { days.push(d); d = addDays(d, 1); }
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elegant)]">
-      <div className="grid grid-cols-7 border-b border-border bg-muted/30 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => <div key={d} className="py-2.5">{d}</div>)}
+      <div className="grid grid-cols-7 border-b border-border bg-muted/30 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[11px]">
+        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => (
+          <div key={d} className="py-2 sm:py-2.5">
+            <span className="sm:hidden">{d[0]}</span>
+            <span className="hidden sm:inline">{d}</span>
+          </div>
+        ))}
       </div>
       <div className="grid grid-cols-7">
         {days.map((d) => (
