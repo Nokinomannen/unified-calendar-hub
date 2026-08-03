@@ -12,6 +12,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { AssistantPanel } from "@/components/assistant-panel";
+import { useActiveTimer } from "@/hooks/use-timer";
+import { useCalendars } from "@/hooks/use-calendar-data";
+import { formatElapsed, useNowTick } from "@/components/timer-widget";
+
+function HeaderTimer() {
+  const { data: timer } = useActiveTimer();
+  const { data: calendars = [] } = useCalendars();
+  const now = useNowTick(!!timer);
+  if (!timer) return null;
+  const cal = calendars.find((c) => c.id === timer.calendar_id);
+  return (
+    <Link
+      to="/"
+      className="mr-1 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/60 px-2 py-1 text-xs font-medium"
+      title={`Timer igång · ${cal?.name ?? "Jobb"}`}
+    >
+      <span
+        className="h-1.5 w-1.5 animate-pulse rounded-full"
+        style={{ background: cal?.color ?? "hsl(var(--primary))" }}
+      />
+      <span className="font-mono tabular-nums">{formatElapsed(now - new Date(timer.started_at).getTime())}</span>
+    </Link>
+  );
+}
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
