@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useActiveCalendars, useCreateEvent, useUpdateEvent, useDeleteEvent, type EventRow } from "@/hooks/use-calendar-data";
+import { useCalendars, useCreateEvent, useUpdateEvent, useDeleteEvent, type EventRow } from "@/hooks/use-calendar-data";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 
