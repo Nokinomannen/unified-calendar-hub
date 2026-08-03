@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Sparkles, Trash2 } from "lucide-react";
+import { Sparkles, Trash2, Monitor, Download } from "lucide-react";
 import { format } from "date-fns";
 import { RecentlyDeleted } from "@/components/recently-deleted";
 
@@ -126,13 +126,23 @@ function SourcesPage() {
               <li key={c.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
                 <span className="h-3 w-3 rounded-full" style={{ background: c.color }} />
                 <div className="flex-1">
-                  <div className="font-medium">{c.name}</div>
+                  <div className="font-medium">
+                    {c.name}
+                    {c.archived && (
+                      <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        arkiverad
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground capitalize">{c.source}</div>
                 </div>
               </li>
             ))}
           </ul>
         </section>
+
+        <DesktopAppSection />
+
 
         <section className="rounded-2xl border border-border bg-card p-5">
           <div className="mb-3 flex items-center gap-2">
@@ -232,4 +242,54 @@ function SourcesPage() {
 
 function safeFormat(s: string) {
   try { return format(new Date(s), "EEE d MMM HH:mm"); } catch { return s; }
+}
+
+const DESKTOP_ZIP_URL = "/__l5e/assets-v1/5d6ec685-f7b8-4cca-addd-09fb3522d371/One-darwin-arm64.zip";
+
+function DesktopAppSection() {
+  const [downloading, setDownloading] = useState(false);
+
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch(DESKTOP_ZIP_URL);
+      if (!res.ok) throw new Error(`Nedladdningen misslyckades (${res.status})`);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "One-darwin-arm64.zip";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <Monitor className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-semibold">Desktop-app (macOS, Apple Silicon)</h2>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Kalendern som eget program, med en flytande mini-timer alltid överst och en ikon i menyraden.
+        Timern lever kvar även när du stänger kalenderfönstret. Filen är stor (~345 MB).
+      </p>
+      <Button onClick={download} disabled={downloading}>
+        <Download className="mr-2 h-4 w-4" />
+        {downloading ? "Laddar ner…" : "Ladda ner appen"}
+      </Button>
+      <ol className="mt-4 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
+        <li>Packa upp zip-filen.</li>
+        <li>Dra <span className="font-medium text-foreground">One.app</span> till Program.</li>
+        <li>Första starten: högerklicka på appen → Öppna → Öppna (den är inte signerad).</li>
+        <li>Klicka på menyradsikonen för att visa/dölja mini-timern.</li>
+      </ol>
+      <p className="mt-3 text-xs text-muted-foreground">
+        Appen laddar den publicerade versionen av kalendern, så publicera projektet innan du använder den.
+      </p>
+    </section>
+  );
 }

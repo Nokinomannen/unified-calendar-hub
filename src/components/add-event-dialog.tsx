@@ -28,7 +28,10 @@ export function AddEventDialog({
   defaultStart?: Date;
   event?: EventRow | null;
 }) {
-  const { data: calendars } = useCalendars();
+  const { data: allCalendars = [] } = useCalendars();
+  // Archived calendars aren't offered for new events, but stay selectable when editing an old one.
+  const calendars = allCalendars.filter((c) => !c.archived || c.id === event?.calendar_id);
+
   const create = useCreateEvent();
   const update = useUpdateEvent();
   const del = useDeleteEvent();

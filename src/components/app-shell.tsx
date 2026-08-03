@@ -12,30 +12,42 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { AssistantPanel } from "@/components/assistant-panel";
-import { useActiveTimer } from "@/hooks/use-timer";
+import { useActiveTimer, usePauseTimer, useResumeTimer, timerNetMs } from "@/hooks/use-timer";
 import { useCalendars } from "@/hooks/use-calendar-data";
 import { formatElapsed, useNowTick } from "@/components/timer-widget";
+import { Pause, Play } from "lucide-react";
 
 function HeaderTimer() {
   const { data: timer } = useActiveTimer();
   const { data: calendars = [] } = useCalendars();
+  const pause = usePauseTimer();
+  const resume = useResumeTimer();
   const now = useNowTick(!!timer);
   if (!timer) return null;
   const cal = calendars.find((c) => c.id === timer.calendar_id);
+  const paused = !!timer.paused_at;
   return (
-    <Link
-      to="/"
-      className="mr-1 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/60 px-2 py-1 text-xs font-medium"
-      title={`Timer igång · ${cal?.name ?? "Jobb"}`}
-    >
-      <span
-        className="h-1.5 w-1.5 animate-pulse rounded-full"
-        style={{ background: cal?.color ?? "hsl(var(--primary))" }}
-      />
-      <span className="font-mono tabular-nums">{formatElapsed(now - new Date(timer.started_at).getTime())}</span>
-    </Link>
+    <div className="mr-1 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/60 py-1 pl-2 pr-1 text-xs font-medium">
+      <Link to="/" className="inline-flex items-center gap-1.5" title={`Timer ${paused ? "pausad" : "igång"} · ${cal?.name ?? "Jobb"}`}>
+        <span
+          className={cn("h-1.5 w-1.5 rounded-full", !paused && "animate-pulse")}
+          style={{ background: paused ? "hsl(var(--muted-foreground))" : cal?.color ?? "hsl(var(--primary))" }}
+        />
+        <span className={cn("font-mono tabular-nums", paused && "text-muted-foreground")}>
+          {formatElapsed(timerNetMs(timer, now))}
+        </span>
+      </Link>
+      <button
+        onClick={() => (paused ? resume.mutate(timer) : pause.mutate(timer))}
+        className="grid h-5 w-5 place-items-center rounded-full hover:bg-accent"
+        aria-label={paused ? "Fortsätt timern" : "Pausa timern"}
+      >
+        {paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+      </button>
+    </div>
   );
 }
+
 
 
 export function AppShell({ children }: { children: React.ReactNode }) {

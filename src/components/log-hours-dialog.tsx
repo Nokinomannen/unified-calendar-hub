@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useCalendars } from "@/hooks/use-calendar-data";
+import { useActiveCalendars } from "@/hooks/use-calendar-data";
 import { useUpsertWorkLog, useWorkLogs } from "@/hooks/use-work-logs";
 import { dateKey } from "@/hooks/use-overrides";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ type Props = {
 };
 
 export function LogHoursDialog({ open, onOpenChange, defaultDate, defaultCalendarId, defaultHours }: Props) {
-  const { data: calendars = [] } = useCalendars();
+  const { data: calendars = [] } = useActiveCalendars();
   const { data: logs = [] } = useWorkLogs();
   const jobs = calendars.filter((c) => c.source === "job");
   const upsert = useUpsertWorkLog();
