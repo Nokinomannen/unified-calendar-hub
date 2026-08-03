@@ -7,6 +7,7 @@ import { Briefcase, ChevronDown, ChevronUp, Plus, Disc3, Wallet } from "lucide-r
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AddDjSetDialog } from "@/components/add-dj-set-dialog";
+import { TimerWidget } from "@/components/timer-widget";
 
 type Period = "week" | "month" | "all";
 
