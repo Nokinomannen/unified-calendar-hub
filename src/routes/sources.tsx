@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Sparkles, Trash2, Monitor, Download } from "lucide-react";
 import { format } from "date-fns";
 import { RecentlyDeleted } from "@/components/recently-deleted";
+import { CalendarColorSettings } from "@/components/calendar-colors";
 
 export const Route = createFileRoute("/sources")({
   component: SourcesPage,
