@@ -126,13 +126,23 @@ function SourcesPage() {
               <li key={c.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
                 <span className="h-3 w-3 rounded-full" style={{ background: c.color }} />
                 <div className="flex-1">
-                  <div className="font-medium">{c.name}</div>
+                  <div className="font-medium">
+                    {c.name}
+                    {c.archived && (
+                      <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        arkiverad
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground capitalize">{c.source}</div>
                 </div>
               </li>
             ))}
           </ul>
         </section>
+
+        <DesktopAppSection />
+
 
         <section className="rounded-2xl border border-border bg-card p-5">
           <div className="mb-3 flex items-center gap-2">
