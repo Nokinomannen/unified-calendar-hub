@@ -20,6 +20,8 @@ export type Database = {
           created_at: string
           id: string
           note: string | null
+          paused_at: string | null
+          paused_ms: number
           started_at: string
           updated_at: string
           user_id: string
@@ -29,6 +31,8 @@ export type Database = {
           created_at?: string
           id?: string
           note?: string | null
+          paused_at?: string | null
+          paused_ms?: number
           started_at?: string
           updated_at?: string
           user_id: string
@@ -38,6 +42,8 @@ export type Database = {
           created_at?: string
           id?: string
           note?: string | null
+          paused_at?: string | null
+          paused_ms?: number
           started_at?: string
           updated_at?: string
           user_id?: string
@@ -87,6 +93,7 @@ export type Database = {
       }
       calendars: {
         Row: {
+          archived: boolean
           color: string
           created_at: string
           hourly_rate: number | null
@@ -99,6 +106,7 @@ export type Database = {
           visible: boolean
         }
         Insert: {
+          archived?: boolean
           color?: string
           created_at?: string
           hourly_rate?: number | null
@@ -111,6 +119,7 @@ export type Database = {
           visible?: boolean
         }
         Update: {
+          archived?: boolean
           color?: string
           created_at?: string
           hourly_rate?: number | null
