@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
-import { Play, Square, Timer as TimerIcon } from "lucide-react";
+import { Play, Pause, Square, Timer as TimerIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useCalendars } from "@/hooks/use-calendar-data";
-import { useActiveTimer, useStartTimer } from "@/hooks/use-timer";
+import { useActiveCalendars } from "@/hooks/use-calendar-data";
+import {
+  useActiveTimer,
+  useStartTimer,
+  usePauseTimer,
+  useResumeTimer,
+  timerNetMs,
+  timerPausedMs,
+} from "@/hooks/use-timer";
 import { StopTimerDialog } from "@/components/stop-timer-dialog";
 
 export function formatElapsed(ms: number) {
@@ -24,10 +31,12 @@ export function useNowTick(active: boolean) {
 }
 
 export function TimerWidget({ className }: { className?: string }) {
-  const { data: calendars = [] } = useCalendars();
+  const { data: calendars = [] } = useActiveCalendars();
   const jobs = calendars.filter((c) => c.source === "job");
   const { data: timer } = useActiveTimer();
   const start = useStartTimer();
+  const pause = usePauseTimer();
+  const resume = useResumeTimer();
   const [jobId, setJobId] = useState<string>("");
   const [stoppedAt, setStoppedAt] = useState<Date | null>(null);
 
@@ -37,12 +46,29 @@ export function TimerWidget({ className }: { className?: string }) {
 
   const now = useNowTick(!!timer);
   const activeCal = timer ? calendars.find((c) => c.id === timer.calendar_id) : null;
+  const paused = !!timer?.paused_at;
+  const pausedMs = timer ? timerPausedMs(timer, now) : 0;
 
   const handleStart = async () => {
     if (!jobId) return;
     try {
       await start.mutateAsync({ calendar_id: jobId });
       toast.success("Timer igång");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const togglePause = async () => {
+    if (!timer) return;
+    try {
+      if (paused) {
+        await resume.mutateAsync(timer);
+        toast.success("Timer fortsätter");
+      } else {
+        await pause.mutateAsync(timer);
+        toast.success("Timer pausad");
+      }
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -59,13 +85,28 @@ export function TimerWidget({ className }: { className?: string }) {
       {timer ? (
         <>
           <span
-            className="h-2 w-2 shrink-0 animate-pulse rounded-full"
-            style={{ background: activeCal?.color ?? "hsl(var(--primary))" }}
+            className={cn("h-2 w-2 shrink-0 rounded-full", !paused && "animate-pulse")}
+            style={{ background: paused ? "hsl(var(--muted-foreground))" : activeCal?.color ?? "hsl(var(--primary))" }}
           />
           <span className="text-sm font-medium">{activeCal?.name ?? "Jobb"}</span>
-          <span className="ml-auto font-mono text-sm tabular-nums">
-            {formatElapsed(now - new Date(timer.started_at).getTime())}
+          {pausedMs > 1000 && (
+            <span className="text-[11px] text-muted-foreground">
+              {paused ? "pausad · " : "paus "}
+              {formatElapsed(pausedMs)}
+            </span>
+          )}
+          <span className={cn("ml-auto font-mono text-sm tabular-nums", paused && "text-muted-foreground")}>
+            {formatElapsed(timerNetMs(timer, now))}
           </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1 text-xs"
+            onClick={togglePause}
+            disabled={pause.isPending || resume.isPending}
+          >
+            {paused ? <><Play className="h-3 w-3" /> Fortsätt</> : <><Pause className="h-3 w-3" /> Paus</>}
+          </Button>
           <Button size="sm" variant="secondary" className="h-7 gap-1 text-xs" onClick={() => setStoppedAt(new Date())}>
             <Square className="h-3 w-3" /> Stoppa
           </Button>
