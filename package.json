@@ -90,5 +90,9 @@
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1"
   },
-  "main": "electron/main.cjs"
+  "main": "electron/main.cjs",
+  "overrides": {
+    "seroval": "^1.6.0",
+    "seroval-plugins": "^1.6.0"
+  }
 }
