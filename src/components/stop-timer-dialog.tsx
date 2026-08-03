@@ -110,7 +110,9 @@ export function StopTimerDialog({ timer, calendarName, stoppedAt, onOpenChange }
           </div>
           <p className="text-[11px] text-muted-foreground">
             Längd: <span className="font-medium tabular-nums text-foreground">{hours.toFixed(2)}h</span>
+            {pausedMs > 60000 && <> · pausad tid {fmtDuration(pausedMs)} (avdragen)</>}
           </p>
+
         </div>
         <DialogFooter className="gap-2 sm:justify-between">
           <Button variant="ghost" onClick={handleDiscard} disabled={cancel.isPending}>Kasta</Button>
