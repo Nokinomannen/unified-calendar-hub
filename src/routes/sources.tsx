@@ -119,27 +119,8 @@ function SourcesPage() {
           <p className="text-sm text-muted-foreground">Your calendars and ways to pull events in.</p>
         </div>
 
-        <section>
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wide">Your calendars</h2>
-          <ul className="space-y-2">
-            {calendars.map((c) => (
-              <li key={c.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-                <span className="h-3 w-3 rounded-full" style={{ background: c.color }} />
-                <div className="flex-1">
-                  <div className="font-medium">
-                    {c.name}
-                    {c.archived && (
-                      <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                        arkiverad
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground capitalize">{c.source}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <CalendarColorSettings />
+
 
         <DesktopAppSection />
 
