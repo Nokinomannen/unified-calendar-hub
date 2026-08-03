@@ -47,7 +47,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           <div className="flex items-center gap-1">
+            <HeaderTimer />
             <ZoomControls />
+
             <ThemeToggle />
             <Button size="sm" variant="ghost" onClick={async () => { await signOut(); router.navigate({ to: "/auth" }); }}>
               <LogOut className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Sign out</span>
