@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { useSaveTimer, useCancelTimer, type ActiveTimer } from "@/hooks/use-timer";
+import { useSaveTimer, useCancelTimer, timerNetMs, timerPausedMs, type ActiveTimer } from "@/hooks/use-timer";
 
 type Props = {
   timer: ActiveTimer | null;
@@ -19,19 +19,30 @@ function toLocalInput(d: Date) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+function fmtDuration(ms: number) {
+  const m = Math.round(ms / 60000);
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
+}
+
 export function StopTimerDialog({ timer, calendarName, stoppedAt, onOpenChange }: Props) {
   const save = useSaveTimer();
   const cancel = useCancelTimer();
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [note, setNote] = useState("");
+  const [pausedMs, setPausedMs] = useState(0);
 
   const open = !!timer && !!stoppedAt;
 
   useEffect(() => {
     if (!open || !timer || !stoppedAt) return;
+    const at = stoppedAt.getTime();
+    const paused = timerPausedMs(timer, at);
+    const net = timerNetMs(timer, at);
+    setPausedMs(paused);
     setStart(toLocalInput(new Date(timer.started_at)));
-    setEnd(toLocalInput(stoppedAt));
+    // Default end excludes paused time so the saved shift matches the net hours.
+    setEnd(toLocalInput(new Date(new Date(timer.started_at).getTime() + net)));
     setNote("");
   }, [open, timer?.id, stoppedAt?.getTime()]);
 
@@ -41,6 +52,7 @@ export function StopTimerDialog({ timer, calendarName, stoppedAt, onOpenChange }
     startDate && endDate && endDate > startDate
       ? (endDate.getTime() - startDate.getTime()) / 3600_000
       : 0;
+
 
   const handleSave = async () => {
     if (!timer || !startDate || !endDate) return;
