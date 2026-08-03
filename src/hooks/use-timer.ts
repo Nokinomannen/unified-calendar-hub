@@ -6,10 +6,25 @@ export type ActiveTimer = {
   user_id: string;
   calendar_id: string;
   started_at: string;
+  paused_at: string | null;
+  paused_ms: number;
   note: string | null;
   created_at: string;
   updated_at: string;
 };
+
+/** Net worked milliseconds at `now`, excluding paused time. */
+export function timerNetMs(timer: ActiveTimer, now: number) {
+  const elapsed = now - new Date(timer.started_at).getTime();
+  const pausedNow = timer.paused_at ? now - new Date(timer.paused_at).getTime() : 0;
+  return Math.max(0, elapsed - (timer.paused_ms ?? 0) - pausedNow);
+}
+
+/** Total paused milliseconds at `now`. */
+export function timerPausedMs(timer: ActiveTimer, now: number) {
+  const pausedNow = timer.paused_at ? now - new Date(timer.paused_at).getTime() : 0;
+  return Math.max(0, (timer.paused_ms ?? 0) + pausedNow);
+}
 
 export function useActiveTimer() {
   return useQuery({
@@ -34,10 +49,43 @@ export function useStartTimer() {
           user_id: u.user.id,
           calendar_id: input.calendar_id,
           started_at: input.started_at ?? new Date().toISOString(),
+          paused_at: null,
+          paused_ms: 0,
           note: null,
         },
         { onConflict: "user_id" },
       );
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["active_timer"] }),
+  });
+}
+
+export function usePauseTimer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (timer: ActiveTimer) => {
+      if (timer.paused_at) return;
+      const { error } = await supabase
+        .from("active_timers")
+        .update({ paused_at: new Date().toISOString() })
+        .eq("id", timer.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["active_timer"] }),
+  });
+}
+
+export function useResumeTimer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (timer: ActiveTimer) => {
+      if (!timer.paused_at) return;
+      const extra = Date.now() - new Date(timer.paused_at).getTime();
+      const { error } = await supabase
+        .from("active_timers")
+        .update({ paused_at: null, paused_ms: Math.max(0, (timer.paused_ms ?? 0) + extra) })
+        .eq("id", timer.id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["active_timer"] }),
