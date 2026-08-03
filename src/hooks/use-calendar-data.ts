@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
-import { RRule } from "rrule";
+import rrulePkg from "rrule";
+// `rrule` is CommonJS; named ESM imports break under SSR.
+const { RRule } = rrulePkg as unknown as typeof import("rrule");
 
 export type CalendarRow = Tables<"calendars">;
 export type EventRow = Tables<"events">;
