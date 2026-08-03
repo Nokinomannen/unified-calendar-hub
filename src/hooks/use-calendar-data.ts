@@ -1,7 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
-import { RRule } from "rrule";
+// `rrule` is CommonJS; a namespace import works in both SSR and the browser.
+import * as rrulePkg from "rrule";
+const RRule = (rrulePkg as { RRule?: typeof import("rrule").RRule; default?: { RRule: typeof import("rrule").RRule } })
+  .RRule ?? (rrulePkg as unknown as { default: { RRule: typeof import("rrule").RRule } }).default.RRule;
 
 export type CalendarRow = Tables<"calendars">;
 export type EventRow = Tables<"events">;

@@ -7,6 +7,7 @@ import { Briefcase, ChevronDown, ChevronUp, Plus, Disc3, Wallet } from "lucide-r
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AddDjSetDialog } from "@/components/add-dj-set-dialog";
+import { TimerWidget } from "@/components/timer-widget";
 
 type Period = "week" | "month" | "all";
 
@@ -87,7 +88,9 @@ export function HoursTracker() {
       </button>
       {open && (
         <div className="space-y-4 px-4 pb-4">
+          <TimerWidget />
           <div className="flex items-center justify-between gap-2">
+
             <div className="inline-flex rounded-md border border-border bg-background p-0.5">
               {(["week", "month", "all"] as Period[]).map((p) => (
                 <button
