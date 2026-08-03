@@ -26,6 +26,12 @@ export function useCalendars() {
   });
 }
 
+/** Calendars you can still pick for new events / hours (archived ones excluded). */
+export function useActiveCalendars() {
+  const q = useCalendars();
+  return { ...q, data: (q.data ?? []).filter((c) => !c.archived) };
+}
+
 export function useEvents(rangeStart: Date, rangeEnd: Date) {
   return useQuery({
     queryKey: ["events", rangeStart.toISOString(), rangeEnd.toISOString()],
