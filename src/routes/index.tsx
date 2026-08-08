@@ -303,6 +303,7 @@ function DayCell({
           {day.getDate()}
         </span>
         <div className="flex items-center gap-0.5 sm:gap-1">
+          {weather && <WeatherBadge day={weather} className="hidden sm:inline-flex" />}
           {/* Mobile: show max 2 dots, no hour badge */}
           <span className="flex items-center gap-0.5 sm:hidden">
             {calColors.slice(0, 2).map((c) => (
@@ -328,19 +329,21 @@ function DayCell({
           const skipped = skippedSet.has(`${e.id}|${dk}`);
           const conflict = conflictIds.has(e.id);
           return (
-            <div key={e.id}
-              className={cn(
-                "flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1 pr-0.5 py-0.5 text-[9px] leading-tight transition-colors sm:pl-1.5 sm:pr-1 sm:text-[10px]",
-                skipped && "opacity-40 line-through",
-                conflict && "ring-1 ring-destructive/40",
-              )}
-              style={{ borderLeftColor: e.calendar?.color ?? "var(--primary)" }}
-            >
-              {!e.all_day && (
-                <span className="hidden tabular-nums text-muted-foreground sm:inline">{format(e.occurrence_start, "HH:mm")}</span>
-              )}
-              <span className="truncate">{e.title}</span>
-            </div>
+            <EventContextMenu key={e.id} event={e} onEdit={onEdit} onConvert={onConvert}>
+              <div
+                className={cn(
+                  "flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1 pr-0.5 py-0.5 text-[9px] leading-tight transition-colors sm:pl-1.5 sm:pr-1 sm:text-[10px]",
+                  skipped && "opacity-40 line-through",
+                  conflict && "ring-1 ring-destructive/40",
+                )}
+                style={{ borderLeftColor: e.calendar?.color ?? "var(--primary)" }}
+              >
+                {!e.all_day && (
+                  <span className="hidden tabular-nums text-muted-foreground sm:inline">{format(e.occurrence_start, "HH:mm")}</span>
+                )}
+                <span className="truncate">{e.title}</span>
+              </div>
+            </EventContextMenu>
           );
         })}
         {/* Desktop: show up to 4 */}
@@ -349,19 +352,21 @@ function DayCell({
             const skipped = skippedSet.has(`${e.id}|${dk}`);
             const conflict = conflictIds.has(e.id);
             return (
-              <div key={e.id}
-                className={cn(
-                  "mt-0.5 flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1.5 pr-1 py-0.5 text-[10px] leading-tight transition-colors",
-                  skipped && "opacity-40 line-through",
-                  conflict && "ring-1 ring-destructive/40",
-                )}
-                style={{ borderLeftColor: e.calendar?.color ?? "var(--primary)" }}
-              >
-                {!e.all_day && (
-                  <span className="tabular-nums text-muted-foreground">{format(e.occurrence_start, "HH:mm")}</span>
-                )}
-                <span className="truncate">{e.title}</span>
-              </div>
+              <EventContextMenu key={e.id} event={e} onEdit={onEdit} onConvert={onConvert}>
+                <div
+                  className={cn(
+                    "mt-0.5 flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1.5 pr-1 py-0.5 text-[10px] leading-tight transition-colors",
+                    skipped && "opacity-40 line-through",
+                    conflict && "ring-1 ring-destructive/40",
+                  )}
+                  style={{ borderLeftColor: e.calendar?.color ?? "var(--primary)" }}
+                >
+                  {!e.all_day && (
+                    <span className="tabular-nums text-muted-foreground">{format(e.occurrence_start, "HH:mm")}</span>
+                  )}
+                  <span className="truncate">{e.title}</span>
+                </div>
+              </EventContextMenu>
             );
           })}
         </div>
