@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as MiniTimerRouteImport } from './routes/mini-timer'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as BackendAccessRouteImport } from './routes/backend-access'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -24,6 +25,11 @@ const SourcesRoute = SourcesRouteImport.update({
 const MiniTimerRoute = MiniTimerRouteImport.update({
   id: '/mini-timer',
   path: '/mini-timer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalendarRoute = CalendarRouteImport.update({
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
+  '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
   '/sources': typeof SourcesRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
+  '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
   '/sources': typeof SourcesRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
+  '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
   '/sources': typeof SourcesRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/backend-access'
     | '/calendar'
+    | '/dashboard'
     | '/mini-timer'
     | '/sources'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/backend-access'
     | '/calendar'
+    | '/dashboard'
     | '/mini-timer'
     | '/sources'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/backend-access'
     | '/calendar'
+    | '/dashboard'
     | '/mini-timer'
     | '/sources'
   fileRoutesById: FileRoutesById
@@ -104,6 +116,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   BackendAccessRoute: typeof BackendAccessRoute
   CalendarRoute: typeof CalendarRoute
+  DashboardRoute: typeof DashboardRoute
   MiniTimerRoute: typeof MiniTimerRoute
   SourcesRoute: typeof SourcesRoute
 }
@@ -122,6 +135,13 @@ declare module '@tanstack/react-router' {
       path: '/mini-timer'
       fullPath: '/mini-timer'
       preLoaderRoute: typeof MiniTimerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calendar': {
@@ -160,19 +180,10 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   BackendAccessRoute: BackendAccessRoute,
   CalendarRoute: CalendarRoute,
+  DashboardRoute: DashboardRoute,
   MiniTimerRoute: MiniTimerRoute,
   SourcesRoute: SourcesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
