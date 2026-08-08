@@ -156,7 +156,21 @@ export function AddEventDialog({
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={allDay} onCheckedChange={(v) => setAllDay(!!v)} /> All day
           </label>
-          <div><Label>Location</Label><Input value={location} onChange={(e) => setLocation(e.target.value)} /></div>
+          <div><Label>{isDj ? "Venue" : "Location"}</Label><Input value={location} onChange={(e) => setLocation(e.target.value)} /></div>
+          {isDj && (
+            <div>
+              <Label>Fee (SEK)</Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                value={fee}
+                onChange={(e) => setFee(e.target.value)}
+                placeholder={suggestedFee != null ? `Last time: ${suggestedFee}` : "e.g. 4000"}
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">Saved as a DJ set and counted in earnings.</p>
+            </div>
+          )}
           <div><Label>Notes</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} /></div>
 
           <div>
