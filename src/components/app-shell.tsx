@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { AssistantPanel } from "@/components/assistant-panel";
+import { CommandPalette } from "@/components/command-palette";
 import { useActiveTimer, usePauseTimer, useResumeTimer, timerNetMs } from "@/hooks/use-timer";
 import { useCalendars } from "@/hooks/use-calendar-data";
 import { formatElapsed, useNowTick } from "@/components/timer-widget";
