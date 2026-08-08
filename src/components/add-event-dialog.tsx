@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCalendars, useCreateEvent, useUpdateEvent, useDeleteEvent, type EventRow } from "@/hooks/use-calendar-data";
+import { useFeeSuggestion, useUpsertDjSet } from "@/hooks/use-dj-sets";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 
@@ -14,6 +16,11 @@ const WEEKDAYS = [
   { v: "MO", l: "Mon" }, { v: "TU", l: "Tue" }, { v: "WE", l: "Wed" },
   { v: "TH", l: "Thu" }, { v: "FR", l: "Fri" }, { v: "SA", l: "Sat" }, { v: "SU", l: "Sun" },
 ];
+
+async function djSetIdForEvent(eventId: string) {
+  const { data } = await supabase.from("dj_sets").select("id").eq("event_id", eventId).maybeSingle();
+  return data?.id;
+}
 
 function localDateTimeValue(d: Date) {
   const p = (n: number) => String(n).padStart(2, "0");
@@ -48,6 +55,8 @@ export function AddEventDialog({
   const [byDays, setByDays] = useState<string[]>([]);
   const [until, setUntil] = useState("");
   const [reminder, setReminder] = useState<string>("30");
+  const [fee, setFee] = useState("");
+  const upsertDj = useUpsertDjSet();
 
   useEffect(() => {
     if (!open) return;
@@ -73,6 +82,19 @@ export function AddEventDialog({
   }, [open, event, defaultStart]);
 
   const cal = calId || calendars?.[0]?.id || "";
+  const isDj = allCalendars.find((c) => c.id === cal)?.kind === "dj";
+  const suggestedFee = useFeeSuggestion(isDj ? location : "");
+
+  // Load the linked DJ set (fee) when editing an event in the DJ calendar.
+  useEffect(() => {
+    if (!open || !event) { setFee(""); return; }
+    let cancelled = false;
+    supabase.from("dj_sets").select("amount_sek").eq("event_id", event.id).maybeSingle().then(({ data }) => {
+      if (!cancelled) setFee(data ? String(data.amount_sek) : "");
+    });
+    return () => { cancelled = true; };
+  }, [open, event]);
+
 
   async function submit() {
     if (!title.trim() || !cal) { toast.error("Title and calendar required"); return; }
@@ -99,12 +121,29 @@ export function AddEventDialog({
         rrule,
         reminder_minutes: reminder ? parseInt(reminder) : null,
       };
+      let eventId = event?.id ?? null;
       if (editing && event) {
         await update.mutateAsync({ id: event.id, ...payload });
         toast.success("Event updated");
       } else {
-        await create.mutateAsync(payload);
+        const created = await create.mutateAsync(payload);
+        eventId = created.id;
         toast.success("Event added");
+      }
+      // DJ calendar events double as DJ sets, so keep the fee entry in sync.
+      if (isDj && eventId) {
+        const s = new Date(start);
+        const e2 = new Date(end);
+        const p = (n: number) => String(n).padStart(2, "0");
+        await upsertDj.mutateAsync({
+          event_id: eventId,
+          id: await djSetIdForEvent(eventId),
+          set_date: `${s.getFullYear()}-${p(s.getMonth() + 1)}-${p(s.getDate())}`,
+          venue: location || title.replace(/^DJ · /, ""),
+          amount_sek: fee ? Number(fee) : 0,
+          duration_hours: Math.round(((e2.getTime() - s.getTime()) / 3600_000) * 100) / 100,
+          notes: description || null,
+        });
       }
       onOpenChange(false);
     } catch (e) {
@@ -156,7 +195,21 @@ export function AddEventDialog({
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={allDay} onCheckedChange={(v) => setAllDay(!!v)} /> All day
           </label>
-          <div><Label>Location</Label><Input value={location} onChange={(e) => setLocation(e.target.value)} /></div>
+          <div><Label>{isDj ? "Venue" : "Location"}</Label><Input value={location} onChange={(e) => setLocation(e.target.value)} /></div>
+          {isDj && (
+            <div>
+              <Label>Fee (SEK)</Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                value={fee}
+                onChange={(e) => setFee(e.target.value)}
+                placeholder={suggestedFee != null ? `Last time: ${suggestedFee}` : "e.g. 4000"}
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">Saved as a DJ set and counted in earnings.</p>
+            </div>
+          )}
           <div><Label>Notes</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} /></div>
 
           <div>
