@@ -94,25 +94,27 @@ export function WeekView({ weekStart, events, overrides, onEdit, onAdd, onConver
                 const isConflict = conflictIds.has(event.id);
                 const w = 100 / colCount;
                 return (
-                  <div key={`${event.id}-${col}`}
-                    onClick={() => onEdit(event)}
-                    className={cn(
-                      "absolute cursor-pointer overflow-hidden rounded-sm border-l-[3px] bg-card/95 px-1 py-0.5 text-[10px] leading-tight shadow-sm hover:bg-accent",
-                      isSkip && "opacity-40 line-through",
-                      isConflict && "ring-1 ring-destructive/50",
-                    )}
-                    style={{
-                      top, height,
-                      left: `calc(${col * w}% + 1px)`,
-                      width: `calc(${w}% - 2px)`,
-                      borderLeftColor: event.calendar?.color ?? "#6366f1",
-                    }}
-                  >
-                    <div className="truncate font-medium">{event.title}</div>
-                    <div className="truncate text-[9px] text-muted-foreground tabular-nums">
-                      {format(event.occurrence_start, "HH:mm")}–{format(event.occurrence_end, "HH:mm")}
+                  <EventContextMenu key={`${event.id}-${col}`} event={event} onEdit={onEdit} onConvert={onConvert} asChild>
+                    <div
+                      onClick={() => onEdit(event)}
+                      className={cn(
+                        "absolute cursor-pointer overflow-hidden rounded-sm border-l-[3px] bg-card/95 px-1 py-0.5 text-[10px] leading-tight shadow-sm hover:bg-accent",
+                        isSkip && "opacity-40 line-through",
+                        isConflict && "ring-1 ring-destructive/50",
+                      )}
+                      style={{
+                        top, height,
+                        left: `calc(${col * w}% + 1px)`,
+                        width: `calc(${w}% - 2px)`,
+                        borderLeftColor: event.calendar?.color ?? "#6366f1",
+                      }}
+                    >
+                      <div className="truncate font-medium">{event.title}</div>
+                      <div className="truncate text-[9px] text-muted-foreground tabular-nums">
+                        {format(event.occurrence_start, "HH:mm")}–{format(event.occurrence_end, "HH:mm")}
+                      </div>
                     </div>
-                  </div>
+                  </EventContextMenu>
                 );
               })}
             </div>
