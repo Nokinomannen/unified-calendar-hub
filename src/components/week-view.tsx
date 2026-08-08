@@ -2,6 +2,9 @@ import { useMemo } from "react";
 import { addDays, format, isSameDay, isToday, startOfWeek } from "date-fns";
 import type { ExpandedEvent } from "@/hooks/use-calendar-data";
 import { dateKey, type Override } from "@/hooks/use-overrides";
+import { EventContextMenu, type LogDraft } from "@/components/event-context-menu";
+import { WeatherBadge } from "@/components/weather-badge";
+import type { WeatherDay } from "@/hooks/use-weather";
 import { cn } from "@/lib/utils";
 
 const HOUR_PX = 40;
@@ -14,9 +17,11 @@ type Props = {
   overrides: Override[];
   onEdit: (e: ExpandedEvent) => void;
   onAdd: (when: Date) => void;
+  onConvert?: (d: LogDraft) => void;
+  weather?: Map<string, WeatherDay>;
 };
 
-export function WeekView({ weekStart, events, overrides, onEdit, onAdd }: Props) {
+export function WeekView({ weekStart, events, overrides, onEdit, onAdd, onConvert, weather }: Props) {
   const monday = startOfWeek(weekStart, { weekStartsOn: 1 });
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
   const skipped = useMemo(() => {
