@@ -64,9 +64,11 @@ export function EventContextMenu({
             <Pencil className="mr-2 h-4 w-4" /> Edit event
           </ContextMenuItem>
         )}
-        <ContextMenuItem onSelect={() => onConvert(eventToLogDraft(event))}>
-          <Clock className="mr-2 h-4 w-4" /> Convert to logged hours
-        </ContextMenuItem>
+        {onConvert && (
+          <ContextMenuItem onSelect={() => onConvert(eventToLogDraft(event))}>
+            <Clock className="mr-2 h-4 w-4" /> Convert to logged hours
+          </ContextMenuItem>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );
