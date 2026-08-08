@@ -168,17 +168,25 @@ function DashboardPage() {
               {gran === "week" ? "Last 12 weeks" : "Last 12 months"}
             </h1>
           </div>
-          <div className="inline-flex rounded-lg border border-border bg-card/60 p-0.5 backdrop-blur">
-            {(["week", "month"] as Granularity[]).map((g) => (
-              <button key={g} onClick={() => setGran(g)}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-all",
-                  gran === g ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >{g === "week" ? "Weekly" : "Monthly"}</button>
-            ))}
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setExportOpen(true)}>
+              <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Fakturaunderlag
+            </Button>
+            <div className="inline-flex rounded-lg border border-border bg-card/60 p-0.5 backdrop-blur">
+              {(["week", "month"] as Granularity[]).map((g) => (
+                <button key={g} onClick={() => setGran(g)}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-all",
+                    gran === g ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >{g === "week" ? "Weekly" : "Monthly"}</button>
+              ))}
+            </div>
           </div>
         </div>
+
+        <MoneyOverview />
+        <ExportHoursDialog open={exportOpen} onOpenChange={setExportOpen} />
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi icon={Clock} label="Scheduled" value={`${totals.scheduled.toFixed(1)}h`} />
