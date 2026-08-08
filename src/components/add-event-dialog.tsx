@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { NOTIFY_OPTIONS, EMAIL_OPTIONS } from "@/hooks/use-reminders";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCalendars, useCreateEvent, useUpdateEvent, useDeleteEvent, type EventRow } from "@/hooks/use-calendar-data";
 import { useFeeSuggestion, useUpsertDjSet } from "@/hooks/use-dj-sets";
