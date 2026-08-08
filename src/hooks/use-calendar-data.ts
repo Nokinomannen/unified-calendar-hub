@@ -139,7 +139,10 @@ export function useDeleteEvent() {
       });
       if (ae) console.error("audit insert failed", ae.message);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["dj_sets"] });
+    },
   });
 }
 
