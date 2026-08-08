@@ -123,7 +123,8 @@ export function AddEventDialog({
         description: description || null,
         all_day: allDay,
         rrule,
-        reminder_minutes: reminder ? parseInt(reminder) : null,
+        reminder_minutes: reminder === "default" ? null : reminder === "off" ? -1 : parseInt(reminder),
+        email_reminder: emailRem === "default" ? null : emailRem,
       };
       let eventId = event?.id ?? null;
       if (editing && event) {
