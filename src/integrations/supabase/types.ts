@@ -99,6 +99,7 @@ export type Database = {
           hourly_rate: number | null
           ics_url: string | null
           id: string
+          kind: string
           name: string
           source: string
           updated_at: string
@@ -112,6 +113,7 @@ export type Database = {
           hourly_rate?: number | null
           ics_url?: string | null
           id?: string
+          kind?: string
           name: string
           source?: string
           updated_at?: string
@@ -125,6 +127,7 @@ export type Database = {
           hourly_rate?: number | null
           ics_url?: string | null
           id?: string
+          kind?: string
           name?: string
           source?: string
           updated_at?: string
@@ -168,6 +171,7 @@ export type Database = {
           amount_sek: number
           created_at: string
           duration_hours: number | null
+          event_id: string | null
           id: string
           notes: string | null
           set_date: string
@@ -179,6 +183,7 @@ export type Database = {
           amount_sek?: number
           created_at?: string
           duration_hours?: number | null
+          event_id?: string | null
           id?: string
           notes?: string | null
           set_date: string
@@ -190,6 +195,7 @@ export type Database = {
           amount_sek?: number
           created_at?: string
           duration_hours?: number | null
+          event_id?: string | null
           id?: string
           notes?: string | null
           set_date?: string
@@ -197,7 +203,15 @@ export type Database = {
           user_id?: string
           venue?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "dj_sets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_overrides: {
         Row: {
