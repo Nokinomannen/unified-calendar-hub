@@ -50,6 +50,8 @@ export function AddEventDialog({
   const [byDays, setByDays] = useState<string[]>([]);
   const [until, setUntil] = useState("");
   const [reminder, setReminder] = useState<string>("30");
+  const [fee, setFee] = useState("");
+  const upsertDj = useUpsertDjSet();
 
   useEffect(() => {
     if (!open) return;
