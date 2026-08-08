@@ -54,6 +54,12 @@ function CalendarPage() {
   useEffect(() => { try { localStorage.setItem("cal-view", view); } catch { /* noop */ } }, [view]);
 
   const [cursor, setCursor] = useState(new Date());
+  const searchDay = Route.useSearch().d;
+  useEffect(() => {
+    if (!searchDay) return;
+    const d = new Date(`${searchDay}T12:00:00`);
+    if (!Number.isNaN(d.getTime())) setCursor(d);
+  }, [searchDay]);
   const [open, setOpen] = useState(false);
   const [defaultStart, setDefaultStart] = useState<Date | undefined>();
   const [editing, setEditing] = useState<EventRow | null>(null);
