@@ -239,8 +239,11 @@ function MonthGrid({ cursor, events, skippedSet, weather, onDayClick, onAdd, onE
           <DayCell key={d.toISOString()} day={d} cursor={cursor}
             events={events.filter((e) => isSameDay(e.occurrence_start, d))}
             skippedSet={skippedSet}
+            weather={weather.get(dateKey(d))}
             onClick={() => onDayClick(d)}
             onAdd={() => onAdd(d)}
+            onEdit={onEdit}
+            onConvert={onConvert}
           />
         ))}
       </div>
