@@ -121,6 +121,7 @@ function SourcesPage() {
         </div>
 
         <CalendarColorSettings />
+        <ReminderSettings />
 
 
         <DesktopAppSection />
