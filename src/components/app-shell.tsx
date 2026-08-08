@@ -128,6 +128,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
 
       <AssistantPanel />
+      <CommandPalette />
     </div>
   );
 }
