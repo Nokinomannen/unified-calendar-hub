@@ -1,9 +1,15 @@
+import * as React from "react";
+import { render } from "@react-email/render";
 import { createFileRoute } from "@tanstack/react-router";
+import { EventReminderEmail } from "@/lib/email-templates/event-reminder";
+
+const SITE_NAME = "Unified Calendar Hub";
+const SENDER_DOMAIN = "notify.noahkruegers.com";
+const FROM_DOMAIN = "notify.noahkruegers.com";
 
 /**
- * Cron endpoint: sends queued email reminders that are due.
- * Called by pg_cron every 15 minutes. Notification/log reminders are handled
- * in the app itself; only the `email` channel is processed here.
+ * Cron endpoint: renders and enqueues due email reminders.
+ * Called by pg_cron; notification/log reminders inside the app are handled client-side.
  */
 export const Route = createFileRoute("/api/public/hooks/send-reminders")({
   server: {
@@ -15,14 +21,13 @@ export const Route = createFileRoute("/api/public/hooks/send-reminders")({
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const nowIso = new Date().toISOString();
 
         const { data: due, error } = await supabaseAdmin
           .from("event_reminders")
-          .select("id, user_id, scheduled_at, event:events(title, start_at, end_at, location, description)")
+          .select("id, user_id, channel, event:events(title, start_at, location, description, calendar:calendars(name))")
           .eq("channel", "email")
           .eq("status", "pending")
-          .lte("scheduled_at", nowIso)
+          .lte("scheduled_at", new Date().toISOString())
           .order("scheduled_at")
           .limit(50);
 
@@ -32,29 +37,40 @@ export const Route = createFileRoute("/api/public/hooks/send-reminders")({
         }
         if (!due?.length) return json({ processed: 0 });
 
-        const apiKey = process.env["RESEND_API_KEY"];
-        const from = process.env["REMINDER_FROM_EMAIL"];
-
-        // No email infrastructure yet — park the rows instead of losing them.
-        if (!apiKey || !from) {
-          await supabaseAdmin
-            .from("event_reminders")
-            .update({ status: "failed", error: "email_not_configured" })
-            .in("id", due.map((r) => r.id));
-          return json({ processed: 0, skipped: due.length, reason: "email_not_configured" });
-        }
-
-        let sent = 0;
+        let queued = 0;
         for (const r of due) {
           const ev = r.event as unknown as
-            | { title: string; start_at: string; end_at: string; location: string | null; description: string | null }
+            | { title: string; start_at: string; location: string | null; description: string | null; calendar: { name: string } | null }
             | null;
-          if (!ev) continue;
+          if (!ev) {
+            await fail(supabaseAdmin, r.id, "event_missing");
+            continue;
+          }
 
           const { data: userRes } = await supabaseAdmin.auth.admin.getUserById(r.user_id);
           const to = userRes?.user?.email;
-          if (!to) {
-            await supabaseAdmin.from("event_reminders").update({ status: "failed", error: "no_recipient" }).eq("id", r.id);
+          if (!to) { await fail(supabaseAdmin, r.id, "no_recipient"); continue; }
+
+          const normalized = to.toLowerCase();
+          const { data: suppressed } = await supabaseAdmin
+            .from("suppressed_emails").select("id").eq("email", normalized).maybeSingle();
+          if (suppressed) { await fail(supabaseAdmin, r.id, "suppressed"); continue; }
+
+          // One unsubscribe token per address.
+          let unsubscribeToken: string | null = null;
+          const { data: existing } = await supabaseAdmin
+            .from("email_unsubscribe_tokens").select("token, used_at").eq("email", normalized).maybeSingle();
+          if (existing && !existing.used_at) {
+            unsubscribeToken = existing.token;
+          } else if (!existing) {
+            const t = randomToken();
+            await supabaseAdmin.from("email_unsubscribe_tokens")
+              .upsert({ token: t, email: normalized }, { onConflict: "email", ignoreDuplicates: true });
+            const { data: stored } = await supabaseAdmin
+              .from("email_unsubscribe_tokens").select("token").eq("email", normalized).maybeSingle();
+            unsubscribeToken = stored?.token ?? t;
+          } else {
+            await fail(supabaseAdmin, r.id, "unsubscribed");
             continue;
           }
 
@@ -62,50 +78,79 @@ export const Route = createFileRoute("/api/public/hooks/send-reminders")({
             weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
             timeZone: "Europe/Stockholm",
           });
+          const data = {
+            title: ev.title,
+            when,
+            location: ev.location,
+            notes: ev.description,
+            calendarName: ev.calendar?.name ?? null,
+            isLogReminder: false,
+          };
+          const element = React.createElement(EventReminderEmail, data);
+          const html = await render(element);
+          const text = await render(element, { plainText: true });
+          const messageId = crypto.randomUUID();
 
-          try {
-            const res = await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                from,
-                to,
-                subject: `Påminnelse: ${ev.title} — ${when}`,
-                html: `<div style="font-family:ui-sans-serif,system-ui,sans-serif;line-height:1.5">
-                  <h2 style="margin:0 0 8px">${escapeHtml(ev.title)}</h2>
-                  <p style="margin:0 0 4px">${escapeHtml(when)}</p>
-                  ${ev.location ? `<p style="margin:0 0 4px;color:#666">${escapeHtml(ev.location)}</p>` : ""}
-                  ${ev.description ? `<p style="margin:12px 0 0">${escapeHtml(ev.description)}</p>` : ""}
-                </div>`,
-              }),
+          await supabaseAdmin.from("email_send_log").insert({
+            message_id: messageId,
+            template_name: "event-reminder",
+            recipient_email: to,
+            status: "pending",
+          });
+
+          const { error: enqErr } = await supabaseAdmin.rpc("enqueue_email", {
+            queue_name: "transactional_emails",
+            payload: {
+              message_id: messageId,
+              to,
+              from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+              sender_domain: SENDER_DOMAIN,
+              subject: `Påminnelse: ${ev.title} — ${when}`,
+              html,
+              text,
+              purpose: "transactional",
+              label: "event-reminder",
+              idempotency_key: `reminder-${r.id}`,
+              unsubscribe_token: unsubscribeToken,
+              queued_at: new Date().toISOString(),
+            },
+          });
+
+          if (enqErr) {
+            console.error("enqueue failed", enqErr.message);
+            await supabaseAdmin.from("email_send_log").insert({
+              message_id: messageId,
+              template_name: "event-reminder",
+              recipient_email: to,
+              status: "failed",
+              error_message: "Failed to enqueue email",
             });
-            if (!res.ok) {
-              const body = await res.text();
-              console.error(`resend failed [${res.status}]: ${body}`);
-              await supabaseAdmin.from("event_reminders")
-                .update({ status: "failed", error: `resend_${res.status}` }).eq("id", r.id);
-              continue;
-            }
-            await supabaseAdmin.from("event_reminders")
-              .update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", r.id);
-            sent++;
-          } catch (e) {
-            console.error("resend threw", e);
-            await supabaseAdmin.from("event_reminders")
-              .update({ status: "failed", error: "network" }).eq("id", r.id);
+            await fail(supabaseAdmin, r.id, "enqueue_failed");
+            continue;
           }
+
+          await supabaseAdmin.from("event_reminders")
+            .update({ status: "sent", sent_at: new Date().toISOString() })
+            .eq("id", r.id);
+          queued++;
         }
 
-        return json({ processed: sent, considered: due.length });
+        return json({ processed: queued, considered: due.length });
       },
     },
   },
 });
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+async function fail(db: { from: (t: string) => any }, id: string, reason: string) {
+  await db.from("event_reminders").update({ status: "failed", error: reason }).eq("id", id);
 }
 
-function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+function randomToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
