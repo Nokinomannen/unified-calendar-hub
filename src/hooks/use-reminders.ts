@@ -47,8 +47,8 @@ export function reminderTimes(ev: ExpandedEvent) {
   const logMin = cal?.log_reminder_minutes ?? null;
 
   const out: { channel: ReminderChannel; at: Date }[] = [];
-  if (notifyMin !== null) out.push({ channel: "notify", at: new Date(ev.occurrence_start.getTime() - notifyMin * 60_000) });
-  if (logMin !== null) out.push({ channel: "log", at: new Date(ev.occurrence_end.getTime() + logMin * 60_000) });
+  if (notifyMin !== null && notifyMin >= 0) out.push({ channel: "notify", at: new Date(ev.occurrence_start.getTime() - notifyMin * 60_000) });
+  if (logMin !== null && logMin >= 0) out.push({ channel: "log", at: new Date(ev.occurrence_end.getTime() + logMin * 60_000) });
   if (emailMode === "day_before") {
     const d = startOfDay(addDays(ev.occurrence_start, -1));
     out.push({ channel: "email", at: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 18, 0) });
