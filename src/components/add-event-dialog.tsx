@@ -240,9 +240,27 @@ export function AddEventDialog({
           {repeat !== "none" && (
             <div><Label>Until (optional)</Label><Input type="date" value={until} onChange={(e) => setUntil(e.target.value)} /></div>
           )}
-          <div>
-            <Label>Remind me before (minutes)</Label>
-            <Input type="number" value={reminder} onChange={(e) => setReminder(e.target.value)} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Notis</Label>
+              <Select value={reminder} onValueChange={setReminder}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Kalenderns standard</SelectItem>
+                  {NOTIFY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Mejlpåminnelse</Label>
+              <Select value={emailRem} onValueChange={setEmailRem}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Kalenderns standard</SelectItem>
+                  {EMAIL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
         <DialogFooter className="gap-2 sm:justify-between">
