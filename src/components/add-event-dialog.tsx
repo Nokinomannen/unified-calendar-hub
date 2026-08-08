@@ -73,6 +73,19 @@ export function AddEventDialog({
   }, [open, event, defaultStart]);
 
   const cal = calId || calendars?.[0]?.id || "";
+  const isDj = allCalendars.find((c) => c.id === cal)?.kind === "dj";
+  const suggestedFee = useFeeSuggestion(isDj ? location : "");
+
+  // Load the linked DJ set (fee) when editing an event in the DJ calendar.
+  useEffect(() => {
+    if (!open || !event) { setFee(""); return; }
+    let cancelled = false;
+    supabase.from("dj_sets").select("amount_sek").eq("event_id", event.id).maybeSingle().then(({ data }) => {
+      if (!cancelled) setFee(data ? String(data.amount_sek) : "");
+    });
+    return () => { cancelled = true; };
+  }, [open, event]);
+
 
   async function submit() {
     if (!title.trim() || !cal) { toast.error("Title and calendar required"); return; }
