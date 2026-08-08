@@ -125,6 +125,9 @@ export function useDeleteEvent() {
         .update({ deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
+      // A DJ event and its fee entry are one thing — remove both.
+      const { error: de } = await supabase.from("dj_sets").delete().eq("event_id", id);
+      if (de) console.error("failed to remove linked dj set", de.message);
       // Best-effort audit log; don't block the UI on failure.
       const { error: ae } = await supabase.from("agent_actions").insert({
         user_id: u.user.id,
