@@ -116,12 +116,29 @@ export function AddEventDialog({
         rrule,
         reminder_minutes: reminder ? parseInt(reminder) : null,
       };
+      let eventId = event?.id ?? null;
       if (editing && event) {
         await update.mutateAsync({ id: event.id, ...payload });
         toast.success("Event updated");
       } else {
-        await create.mutateAsync(payload);
+        const created = await create.mutateAsync(payload);
+        eventId = created.id;
         toast.success("Event added");
+      }
+      // DJ calendar events double as DJ sets, so keep the fee entry in sync.
+      if (isDj && eventId) {
+        const s = new Date(start);
+        const e2 = new Date(end);
+        const p = (n: number) => String(n).padStart(2, "0");
+        await upsertDj.mutateAsync({
+          event_id: eventId,
+          id: await djSetIdForEvent(eventId),
+          set_date: `${s.getFullYear()}-${p(s.getMonth() + 1)}-${p(s.getDate())}`,
+          venue: location || title.replace(/^DJ · /, ""),
+          amount_sek: fee ? Number(fee) : 0,
+          duration_hours: Math.round(((e2.getTime() - s.getTime()) / 3600_000) * 100) / 100,
+          notes: description || null,
+        });
       }
       onOpenChange(false);
     } catch (e) {
