@@ -2,6 +2,9 @@ import { useMemo } from "react";
 import { addDays, format, isSameDay, isToday, startOfWeek } from "date-fns";
 import type { ExpandedEvent } from "@/hooks/use-calendar-data";
 import { dateKey, type Override } from "@/hooks/use-overrides";
+import { EventContextMenu, type LogDraft } from "@/components/event-context-menu";
+import { WeatherBadge } from "@/components/weather-badge";
+import type { WeatherDay } from "@/hooks/use-weather";
 import { cn } from "@/lib/utils";
 
 const HOUR_PX = 40;
@@ -14,9 +17,11 @@ type Props = {
   overrides: Override[];
   onEdit: (e: ExpandedEvent) => void;
   onAdd: (when: Date) => void;
+  onConvert?: (d: LogDraft) => void;
+  weather?: Map<string, WeatherDay>;
 };
 
-export function WeekView({ weekStart, events, overrides, onEdit, onAdd }: Props) {
+export function WeekView({ weekStart, events, overrides, onEdit, onAdd, onConvert, weather }: Props) {
   const monday = startOfWeek(weekStart, { weekStartsOn: 1 });
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
   const skipped = useMemo(() => {
@@ -34,7 +39,10 @@ export function WeekView({ weekStart, events, overrides, onEdit, onAdd }: Props)
             "border-b border-l border-border px-2 py-2 text-xs",
             isToday(d) && "bg-primary/10",
           )}>
-            <div className="font-medium">{format(d, "EEE")}</div>
+            <div className="flex items-center justify-between gap-1">
+              <span className="font-medium">{format(d, "EEE")}</span>
+              {weather?.get(dateKey(d)) && <WeatherBadge day={weather.get(dateKey(d))!} />}
+            </div>
             <div className={cn("text-muted-foreground", isToday(d) && "font-semibold text-primary")}>{format(d, "d MMM")}</div>
           </div>
         ))}
@@ -86,25 +94,27 @@ export function WeekView({ weekStart, events, overrides, onEdit, onAdd }: Props)
                 const isConflict = conflictIds.has(event.id);
                 const w = 100 / colCount;
                 return (
-                  <div key={`${event.id}-${col}`}
-                    onClick={() => onEdit(event)}
-                    className={cn(
-                      "absolute cursor-pointer overflow-hidden rounded-sm border-l-[3px] bg-card/95 px-1 py-0.5 text-[10px] leading-tight shadow-sm hover:bg-accent",
-                      isSkip && "opacity-40 line-through",
-                      isConflict && "ring-1 ring-destructive/50",
-                    )}
-                    style={{
-                      top, height,
-                      left: `calc(${col * w}% + 1px)`,
-                      width: `calc(${w}% - 2px)`,
-                      borderLeftColor: event.calendar?.color ?? "#6366f1",
-                    }}
-                  >
-                    <div className="truncate font-medium">{event.title}</div>
-                    <div className="truncate text-[9px] text-muted-foreground tabular-nums">
-                      {format(event.occurrence_start, "HH:mm")}–{format(event.occurrence_end, "HH:mm")}
+                  <EventContextMenu key={`${event.id}-${col}`} event={event} onEdit={onEdit} onConvert={onConvert} asChild>
+                    <div
+                      onClick={() => onEdit(event)}
+                      className={cn(
+                        "absolute cursor-pointer overflow-hidden rounded-sm border-l-[3px] bg-card/95 px-1 py-0.5 text-[10px] leading-tight shadow-sm hover:bg-accent",
+                        isSkip && "opacity-40 line-through",
+                        isConflict && "ring-1 ring-destructive/50",
+                      )}
+                      style={{
+                        top, height,
+                        left: `calc(${col * w}% + 1px)`,
+                        width: `calc(${w}% - 2px)`,
+                        borderLeftColor: event.calendar?.color ?? "#6366f1",
+                      }}
+                    >
+                      <div className="truncate font-medium">{event.title}</div>
+                      <div className="truncate text-[9px] text-muted-foreground tabular-nums">
+                        {format(event.occurrence_start, "HH:mm")}–{format(event.occurrence_end, "HH:mm")}
+                      </div>
                     </div>
-                  </div>
+                  </EventContextMenu>
                 );
               })}
             </div>

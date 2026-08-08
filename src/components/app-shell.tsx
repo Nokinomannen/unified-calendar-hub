@@ -1,5 +1,6 @@
-import { Link, useRouter } from "@tanstack/react-router";
-import { CalendarDays, Layers, LogOut, Plus, Sun, Moon, Monitor, Minus } from "lucide-react";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { motion } from "framer-motion";
+import { CalendarDays, Layers, LogOut, Plus, Sun, Moon, Monitor, Minus, BarChart3 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { useUiZoom } from "@/hooks/use-ui-zoom";
@@ -53,11 +54,13 @@ function HeaderTimer() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
   const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   if (!user) return <>{children}</>;
 
   const items = [
     { to: "/", label: "Calendar", icon: CalendarDays },
+    { to: "/dashboard", label: "Insights", icon: BarChart3 },
     { to: "/sources", label: "Sources", icon: Layers },
   ] as const;
 
@@ -95,7 +98,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-4 sm:py-6">{children}</main>
+      <main className="mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-4 sm:py-6">
+        <motion.div
+          key={pathname}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {children}
+        </motion.div>
+      </main>
 
       {/* mobile nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/60 bg-background/90 backdrop-blur-xl md:hidden">

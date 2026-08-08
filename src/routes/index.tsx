@@ -1,5 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell, FAB } from "@/components/app-shell";
 import { AddEventDialog } from "@/components/add-event-dialog";
@@ -8,6 +9,12 @@ import { useOverrides, dateKey } from "@/hooks/use-overrides";
 import { DayDrawer } from "@/components/day-drawer";
 import { WeekView } from "@/components/week-view";
 import { HoursTracker } from "@/components/hours-tracker";
+import { QuickAddBar } from "@/components/quick-add-bar";
+import { EventContextMenu, LogDraftDialog, type LogDraft } from "@/components/event-context-menu";
+import { LogTimeDropZone } from "@/components/log-time-dropzone";
+import { useWeatherMap } from "@/hooks/use-weather";
+import { WeatherBadge } from "@/components/weather-badge";
+import type { WeatherDay } from "@/hooks/use-weather";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths,
   addWeeks, subWeeks, format, isSameMonth, isSameDay, isToday, isWeekend,
@@ -41,6 +48,8 @@ function CalendarPage() {
   const [defaultStart, setDefaultStart] = useState<Date | undefined>();
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [drawerDate, setDrawerDate] = useState<Date | null>(null);
+  const [logDraft, setLogDraft] = useState<LogDraft | null>(null);
+  const weather = useWeatherMap("malmo");
 
   const range = useMemo(() => {
     if (view === "month") {
@@ -151,43 +160,62 @@ function CalendarPage() {
           </span>
         </div>
 
+        <QuickAddBar />
+
         <HoursTracker />
 
-        {view === "month" && (
-          <MonthGrid cursor={cursor} events={visible} skippedSet={skippedSet}
-            onDayClick={(d) => setDrawerDate(d)}
-            onAdd={(d) => openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0))}
-          />
-        )}
-        {view === "week" && (
-          <WeekView weekStart={cursor} events={visible} overrides={overrides}
-            onEdit={openEdit} onAdd={openAdd}
-          />
-        )}
-        {view === "day" && (
-          <div className="rounded-2xl border border-border bg-card p-2">
-            <button onClick={() => setDrawerDate(cursor)} className="w-full rounded-md bg-muted/40 p-3 text-sm text-muted-foreground hover:bg-muted">
-              Open day details for {format(cursor, "EEE d MMM")}
-            </button>
-            <div className="mt-2">
-              <WeekView weekStart={cursor} events={visible.filter((e) => isSameDay(e.occurrence_start, cursor))} overrides={overrides}
-                onEdit={openEdit} onAdd={openAdd}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {view === "month" && (
+              <MonthGrid cursor={cursor} events={visible} skippedSet={skippedSet} weather={weather}
+                onDayClick={(d) => setDrawerDate(d)}
+                onAdd={(d) => openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0))}
+                onEdit={openEdit}
+                onConvert={setLogDraft}
               />
-            </div>
-          </div>
-        )}
+            )}
+            {view === "week" && (
+              <WeekView weekStart={cursor} events={visible} overrides={overrides}
+                onEdit={openEdit} onAdd={openAdd} onConvert={setLogDraft} weather={weather}
+              />
+            )}
+            {view === "day" && (
+              <div className="rounded-2xl border border-border bg-card p-2">
+                <button onClick={() => setDrawerDate(cursor)} className="w-full rounded-md bg-muted/40 p-3 text-sm text-muted-foreground hover:bg-muted">
+                  Open day details for {format(cursor, "EEE d MMM")}
+                </button>
+                <div className="mt-2">
+                  <WeekView weekStart={cursor} events={visible.filter((e) => isSameDay(e.occurrence_start, cursor))} overrides={overrides}
+                    onEdit={openEdit} onAdd={openAdd} onConvert={setLogDraft} weather={weather}
+                  />
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <FAB onClick={() => openAdd()} />
       <AddEventDialog open={open} onOpenChange={setOpen} defaultStart={defaultStart} event={editing} />
       <DayDrawer date={drawerDate} events={drawerEvents} overrides={overrides} onClose={() => setDrawerDate(null)} onEdit={openEdit} onAdd={(d) => { setDrawerDate(null); openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0)); }} />
+      <LogTimeDropZone onDrop={setLogDraft} />
+      <LogDraftDialog draft={logDraft} onClose={() => setLogDraft(null)} />
     </AppShell>
   );
 }
 
-function MonthGrid({ cursor, events, skippedSet, onDayClick, onAdd }: {
+
+function MonthGrid({ cursor, events, skippedSet, weather, onDayClick, onAdd, onEdit, onConvert }: {
   cursor: Date; events: ExpandedEvent[]; skippedSet: Set<string>;
+  weather: Map<string, WeatherDay>;
   onDayClick: (d: Date) => void; onAdd: (d: Date) => void;
+  onEdit: (e: ExpandedEvent) => void; onConvert: (d: LogDraft) => void;
 }) {
   const monthStart = startOfMonth(cursor);
   const monthEnd = endOfMonth(cursor);
@@ -211,8 +239,11 @@ function MonthGrid({ cursor, events, skippedSet, onDayClick, onAdd }: {
           <DayCell key={d.toISOString()} day={d} cursor={cursor}
             events={events.filter((e) => isSameDay(e.occurrence_start, d))}
             skippedSet={skippedSet}
+            weather={weather.get(dateKey(d))}
             onClick={() => onDayClick(d)}
             onAdd={() => onAdd(d)}
+            onEdit={onEdit}
+            onConvert={onConvert}
           />
         ))}
       </div>
@@ -221,10 +252,12 @@ function MonthGrid({ cursor, events, skippedSet, onDayClick, onAdd }: {
 }
 
 function DayCell({
-  day, cursor, events, skippedSet, onClick, onAdd,
+  day, cursor, events, skippedSet, weather, onClick, onAdd, onEdit, onConvert,
 }: {
   day: Date; cursor: Date; events: ExpandedEvent[]; skippedSet: Set<string>;
+  weather?: WeatherDay;
   onClick: () => void; onAdd: () => void;
+  onEdit: (e: ExpandedEvent) => void; onConvert: (d: LogDraft) => void;
 }) {
   const dk = dateKey(day);
   const inMonth = isSameMonth(day, cursor);
@@ -270,6 +303,7 @@ function DayCell({
           {day.getDate()}
         </span>
         <div className="flex items-center gap-0.5 sm:gap-1">
+          {weather && <WeatherBadge day={weather} className="hidden sm:inline-flex" />}
           {/* Mobile: show max 2 dots, no hour badge */}
           <span className="flex items-center gap-0.5 sm:hidden">
             {calColors.slice(0, 2).map((c) => (
@@ -295,19 +329,21 @@ function DayCell({
           const skipped = skippedSet.has(`${e.id}|${dk}`);
           const conflict = conflictIds.has(e.id);
           return (
-            <div key={e.id}
-              className={cn(
-                "flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1 pr-0.5 py-0.5 text-[9px] leading-tight transition-colors sm:pl-1.5 sm:pr-1 sm:text-[10px]",
-                skipped && "opacity-40 line-through",
-                conflict && "ring-1 ring-destructive/40",
-              )}
-              style={{ borderLeftColor: e.calendar?.color ?? "var(--primary)" }}
-            >
-              {!e.all_day && (
-                <span className="hidden tabular-nums text-muted-foreground sm:inline">{format(e.occurrence_start, "HH:mm")}</span>
-              )}
-              <span className="truncate">{e.title}</span>
-            </div>
+            <EventContextMenu key={e.id} event={e} onEdit={onEdit} onConvert={onConvert}>
+              <div
+                className={cn(
+                  "flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1 pr-0.5 py-0.5 text-[9px] leading-tight transition-colors sm:pl-1.5 sm:pr-1 sm:text-[10px]",
+                  skipped && "opacity-40 line-through",
+                  conflict && "ring-1 ring-destructive/40",
+                )}
+                style={{ borderLeftColor: e.calendar?.color ?? "var(--primary)" }}
+              >
+                {!e.all_day && (
+                  <span className="hidden tabular-nums text-muted-foreground sm:inline">{format(e.occurrence_start, "HH:mm")}</span>
+                )}
+                <span className="truncate">{e.title}</span>
+              </div>
+            </EventContextMenu>
           );
         })}
         {/* Desktop: show up to 4 */}
@@ -316,19 +352,21 @@ function DayCell({
             const skipped = skippedSet.has(`${e.id}|${dk}`);
             const conflict = conflictIds.has(e.id);
             return (
-              <div key={e.id}
-                className={cn(
-                  "mt-0.5 flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1.5 pr-1 py-0.5 text-[10px] leading-tight transition-colors",
-                  skipped && "opacity-40 line-through",
-                  conflict && "ring-1 ring-destructive/40",
-                )}
-                style={{ borderLeftColor: e.calendar?.color ?? "var(--primary)" }}
-              >
-                {!e.all_day && (
-                  <span className="tabular-nums text-muted-foreground">{format(e.occurrence_start, "HH:mm")}</span>
-                )}
-                <span className="truncate">{e.title}</span>
-              </div>
+              <EventContextMenu key={e.id} event={e} onEdit={onEdit} onConvert={onConvert}>
+                <div
+                  className={cn(
+                    "mt-0.5 flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1.5 pr-1 py-0.5 text-[10px] leading-tight transition-colors",
+                    skipped && "opacity-40 line-through",
+                    conflict && "ring-1 ring-destructive/40",
+                  )}
+                  style={{ borderLeftColor: e.calendar?.color ?? "var(--primary)" }}
+                >
+                  {!e.all_day && (
+                    <span className="tabular-nums text-muted-foreground">{format(e.occurrence_start, "HH:mm")}</span>
+                  )}
+                  <span className="truncate">{e.title}</span>
+                </div>
+              </EventContextMenu>
             );
           })}
         </div>
