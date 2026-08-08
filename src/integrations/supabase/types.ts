@@ -96,11 +96,14 @@ export type Database = {
           archived: boolean
           color: string
           created_at: string
+          email_reminder: string
           hourly_rate: number | null
           ics_url: string | null
           id: string
           kind: string
+          log_reminder_minutes: number | null
           name: string
+          reminder_minutes: number | null
           source: string
           updated_at: string
           user_id: string
@@ -110,11 +113,14 @@ export type Database = {
           archived?: boolean
           color?: string
           created_at?: string
+          email_reminder?: string
           hourly_rate?: number | null
           ics_url?: string | null
           id?: string
           kind?: string
+          log_reminder_minutes?: number | null
           name: string
+          reminder_minutes?: number | null
           source?: string
           updated_at?: string
           user_id: string
@@ -124,11 +130,14 @@ export type Database = {
           archived?: boolean
           color?: string
           created_at?: string
+          email_reminder?: string
           hourly_rate?: number | null
           ics_url?: string | null
           id?: string
           kind?: string
+          log_reminder_minutes?: number | null
           name?: string
+          reminder_minutes?: number | null
           source?: string
           updated_at?: string
           user_id?: string
@@ -248,6 +257,56 @@ export type Database = {
           },
         ]
       }
+      event_reminders: {
+        Row: {
+          channel: string
+          created_at: string
+          error: string | null
+          event_id: string
+          id: string
+          occurrence_date: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          error?: string | null
+          event_id: string
+          id?: string
+          occurrence_date: string
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          error?: string | null
+          event_id?: string
+          id?: string
+          occurrence_date?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_reminders_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           all_day: boolean
@@ -255,6 +314,7 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           description: string | null
+          email_reminder: string | null
           end_at: string
           external_id: string | null
           id: string
@@ -272,6 +332,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           description?: string | null
+          email_reminder?: string | null
           end_at: string
           external_id?: string | null
           id?: string
@@ -289,6 +350,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           description?: string | null
+          email_reminder?: string | null
           end_at?: string
           external_id?: string | null
           id?: string
