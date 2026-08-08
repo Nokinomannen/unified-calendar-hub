@@ -21,6 +21,11 @@ export const Route = createFileRoute("/api/public/hooks/send-reminders")({
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        // Email infra tables are managed outside the generated schema types.
+        const db = supabaseAdmin as unknown as {
+          from: (t: string) => any;
+          rpc: (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+        };
 
         const { data: due, error } = await supabaseAdmin
           .from("event_reminders")
@@ -52,19 +57,19 @@ export const Route = createFileRoute("/api/public/hooks/send-reminders")({
           if (!to) { await fail(supabaseAdmin, r.id, "no_recipient"); continue; }
 
           const normalized = to.toLowerCase();
-          const { data: suppressed } = await supabaseAdmin
+          const { data: suppressed } = await db
             .from("suppressed_emails").select("id").eq("email", normalized).maybeSingle();
           if (suppressed) { await fail(supabaseAdmin, r.id, "suppressed"); continue; }
 
           // One unsubscribe token per address.
           let unsubscribeToken: string | null = null;
-          const { data: existing } = await supabaseAdmin
+          const { data: existing } = await db
             .from("email_unsubscribe_tokens").select("token, used_at").eq("email", normalized).maybeSingle();
           if (existing && !existing.used_at) {
             unsubscribeToken = existing.token;
           } else if (!existing) {
             const t = randomToken();
-            await supabaseAdmin.from("email_unsubscribe_tokens")
+            await db.from("email_unsubscribe_tokens")
               .upsert({ token: t, email: normalized }, { onConflict: "email", ignoreDuplicates: true });
             const { data: stored } = await supabaseAdmin
               .from("email_unsubscribe_tokens").select("token").eq("email", normalized).maybeSingle();
@@ -91,14 +96,14 @@ export const Route = createFileRoute("/api/public/hooks/send-reminders")({
           const text = await render(element, { plainText: true });
           const messageId = crypto.randomUUID();
 
-          await supabaseAdmin.from("email_send_log").insert({
+          await db.from("email_send_log").insert({
             message_id: messageId,
             template_name: "event-reminder",
             recipient_email: to,
             status: "pending",
           });
 
-          const { error: enqErr } = await supabaseAdmin.rpc("enqueue_email", {
+          const { error: enqErr } = await db.rpc("enqueue_email", {
             queue_name: "transactional_emails",
             payload: {
               message_id: messageId,
@@ -118,7 +123,7 @@ export const Route = createFileRoute("/api/public/hooks/send-reminders")({
 
           if (enqErr) {
             console.error("enqueue failed", enqErr.message);
-            await supabaseAdmin.from("email_send_log").insert({
+            await db.from("email_send_log").insert({
               message_id: messageId,
               template_name: "event-reminder",
               recipient_email: to,
