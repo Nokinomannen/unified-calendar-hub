@@ -71,7 +71,7 @@ export const Route = createFileRoute("/api/public/hooks/send-reminders")({
             const t = randomToken();
             await db.from("email_unsubscribe_tokens")
               .upsert({ token: t, email: normalized }, { onConflict: "email", ignoreDuplicates: true });
-            const { data: stored } = await supabaseAdmin
+            const { data: stored } = await db
               .from("email_unsubscribe_tokens").select("token").eq("email", normalized).maybeSingle();
             unsubscribeToken = stored?.token ?? t;
           } else {
