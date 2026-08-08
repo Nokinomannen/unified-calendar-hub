@@ -211,9 +211,11 @@ function CalendarPage() {
 }
 
 
-function MonthGrid({ cursor, events, skippedSet, onDayClick, onAdd }: {
+function MonthGrid({ cursor, events, skippedSet, weather, onDayClick, onAdd, onEdit, onConvert }: {
   cursor: Date; events: ExpandedEvent[]; skippedSet: Set<string>;
+  weather: Map<string, WeatherDay>;
   onDayClick: (d: Date) => void; onAdd: (d: Date) => void;
+  onEdit: (e: ExpandedEvent) => void; onConvert: (d: LogDraft) => void;
 }) {
   const monthStart = startOfMonth(cursor);
   const monthEnd = endOfMonth(cursor);
