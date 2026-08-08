@@ -46,6 +46,7 @@ function DashboardPage() {
   useEffect(() => { if (!loading && !user) router.navigate({ to: "/auth" }); }, [user, loading, router]);
 
   const [gran, setGran] = useState<Granularity>("week");
+  const [exportOpen, setExportOpen] = useState(false);
 
   const now = new Date();
   const range = useMemo(() => {
