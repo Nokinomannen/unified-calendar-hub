@@ -54,7 +54,8 @@ export function AddEventDialog({
   const [repeat, setRepeat] = useState<"none" | "DAILY" | "WEEKLY">("none");
   const [byDays, setByDays] = useState<string[]>([]);
   const [until, setUntil] = useState("");
-  const [reminder, setReminder] = useState<string>("30");
+  const [reminder, setReminder] = useState<string>("default");
+  const [emailRem, setEmailRem] = useState<string>("default");
   const [fee, setFee] = useState("");
   const upsertDj = useUpsertDjSet();
 
