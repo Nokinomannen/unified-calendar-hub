@@ -73,7 +73,7 @@ export function AddEventDialog({
       setRepeat(r.includes("FREQ=WEEKLY") ? "WEEKLY" : r.includes("FREQ=DAILY") ? "DAILY" : "none");
       const m = r.match(/BYDAY=([^;]+)/);
       setByDays(m ? m[1].split(",") : []);
-      setReminder(String(event.reminder_minutes ?? 30));
+      
       setReminder(event.reminder_minutes === null ? "default" : event.reminder_minutes < 0 ? "off" : String(event.reminder_minutes));
       setEmailRem(event.email_reminder ?? "default");
     } else {
