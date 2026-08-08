@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCalendars, useCreateEvent, useUpdateEvent, useDeleteEvent, type EventRow } from "@/hooks/use-calendar-data";
+import { useFeeSuggestion, useUpsertDjSet } from "@/hooks/use-dj-sets";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 
