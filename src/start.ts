@@ -3,7 +3,10 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
-const errorMiddleware = createMiddleware().server(async ({ next }) => {
+const errorMiddleware = createMiddleware().server(async ({ next, request }) => {
+  // Email queue/webhook routes authenticate themselves — let them through untouched.
+  const p = new URL(request.url).pathname;
+  if (p.startsWith("/lovable/") || p === "/email/unsubscribe") return next();
   try {
     return await next();
   } catch (error) {
