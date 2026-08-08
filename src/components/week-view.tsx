@@ -39,7 +39,10 @@ export function WeekView({ weekStart, events, overrides, onEdit, onAdd, onConver
             "border-b border-l border-border px-2 py-2 text-xs",
             isToday(d) && "bg-primary/10",
           )}>
-            <div className="font-medium">{format(d, "EEE")}</div>
+            <div className="flex items-center justify-between gap-1">
+              <span className="font-medium">{format(d, "EEE")}</span>
+              {weather?.get(dateKey(d)) && <WeatherBadge day={weather.get(dateKey(d))!} />}
+            </div>
             <div className={cn("text-muted-foreground", isToday(d) && "font-semibold text-primary")}>{format(d, "d MMM")}</div>
           </div>
         ))}
