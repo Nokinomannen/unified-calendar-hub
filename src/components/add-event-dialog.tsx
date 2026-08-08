@@ -17,13 +17,12 @@ const WEEKDAYS = [
   { v: "TH", l: "Thu" }, { v: "FR", l: "Fri" }, { v: "SA", l: "Sat" }, { v: "SU", l: "Sun" },
 ];
 
-function localDateTimeValue(d: Date) {
-
 async function djSetIdForEvent(eventId: string) {
   const { data } = await supabase.from("dj_sets").select("id").eq("event_id", eventId).maybeSingle();
   return data?.id;
 }
 
+function localDateTimeValue(d: Date) {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
