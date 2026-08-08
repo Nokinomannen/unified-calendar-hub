@@ -74,11 +74,14 @@ export function AddEventDialog({
       const m = r.match(/BYDAY=([^;]+)/);
       setByDays(m ? m[1].split(",") : []);
       setReminder(String(event.reminder_minutes ?? 30));
+      setReminder(event.reminder_minutes === null ? "default" : event.reminder_minutes < 0 ? "off" : String(event.reminder_minutes));
+      setEmailRem(event.email_reminder ?? "default");
     } else {
       const s0 = defaultStart ?? new Date(Math.ceil(Date.now() / 1800000) * 1800000);
       const e0 = new Date(s0.getTime() + 60 * 60 * 1000);
       setTitle(""); setCalId(""); setStart(localDateTimeValue(s0)); setEnd(localDateTimeValue(e0));
-      setLocation(""); setDescription(""); setAllDay(false); setRepeat("none"); setByDays([]); setUntil(""); setReminder("30");
+      setLocation(""); setDescription(""); setAllDay(false); setRepeat("none"); setByDays([]); setUntil("");
+      setReminder("default"); setEmailRem("default");
     }
   }, [open, event, defaultStart]);
 
