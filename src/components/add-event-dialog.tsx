@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { NOTIFY_OPTIONS, EMAIL_OPTIONS } from "@/hooks/use-reminders";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCalendars, useCreateEvent, useUpdateEvent, useDeleteEvent, type EventRow } from "@/hooks/use-calendar-data";
 import { useFeeSuggestion, useUpsertDjSet } from "@/hooks/use-dj-sets";
@@ -54,7 +55,8 @@ export function AddEventDialog({
   const [repeat, setRepeat] = useState<"none" | "DAILY" | "WEEKLY">("none");
   const [byDays, setByDays] = useState<string[]>([]);
   const [until, setUntil] = useState("");
-  const [reminder, setReminder] = useState<string>("30");
+  const [reminder, setReminder] = useState<string>("default");
+  const [emailRem, setEmailRem] = useState<string>("default");
   const [fee, setFee] = useState("");
   const upsertDj = useUpsertDjSet();
 
@@ -72,12 +74,15 @@ export function AddEventDialog({
       setRepeat(r.includes("FREQ=WEEKLY") ? "WEEKLY" : r.includes("FREQ=DAILY") ? "DAILY" : "none");
       const m = r.match(/BYDAY=([^;]+)/);
       setByDays(m ? m[1].split(",") : []);
-      setReminder(String(event.reminder_minutes ?? 30));
+      
+      setReminder(event.reminder_minutes === null ? "default" : event.reminder_minutes < 0 ? "off" : String(event.reminder_minutes));
+      setEmailRem(event.email_reminder ?? "default");
     } else {
       const s0 = defaultStart ?? new Date(Math.ceil(Date.now() / 1800000) * 1800000);
       const e0 = new Date(s0.getTime() + 60 * 60 * 1000);
       setTitle(""); setCalId(""); setStart(localDateTimeValue(s0)); setEnd(localDateTimeValue(e0));
-      setLocation(""); setDescription(""); setAllDay(false); setRepeat("none"); setByDays([]); setUntil(""); setReminder("30");
+      setLocation(""); setDescription(""); setAllDay(false); setRepeat("none"); setByDays([]); setUntil("");
+      setReminder("default"); setEmailRem("default");
     }
   }, [open, event, defaultStart]);
 
@@ -119,7 +124,8 @@ export function AddEventDialog({
         description: description || null,
         all_day: allDay,
         rrule,
-        reminder_minutes: reminder ? parseInt(reminder) : null,
+        reminder_minutes: reminder === "default" ? null : reminder === "off" ? -1 : parseInt(reminder),
+        email_reminder: emailRem === "default" ? null : emailRem,
       };
       let eventId = event?.id ?? null;
       if (editing && event) {
@@ -236,9 +242,27 @@ export function AddEventDialog({
           {repeat !== "none" && (
             <div><Label>Until (optional)</Label><Input type="date" value={until} onChange={(e) => setUntil(e.target.value)} /></div>
           )}
-          <div>
-            <Label>Remind me before (minutes)</Label>
-            <Input type="number" value={reminder} onChange={(e) => setReminder(e.target.value)} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Notis</Label>
+              <Select value={reminder} onValueChange={setReminder}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Kalenderns standard</SelectItem>
+                  {NOTIFY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Mejlpåminnelse</Label>
+              <Select value={emailRem} onValueChange={setEmailRem}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Kalenderns standard</SelectItem>
+                  {EMAIL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
         <DialogFooter className="gap-2 sm:justify-between">

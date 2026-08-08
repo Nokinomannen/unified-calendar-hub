@@ -10,6 +10,8 @@ import { DayDrawer } from "@/components/day-drawer";
 import { WeekView } from "@/components/week-view";
 import { HoursTracker } from "@/components/hours-tracker";
 import { QuickAddBar } from "@/components/quick-add-bar";
+import { UpcomingPanel } from "@/components/upcoming-panel";
+import { useReminderSync, useReminderScheduler } from "@/hooks/use-reminders";
 import { EventContextMenu, LogDraftDialog, type LogDraft } from "@/components/event-context-menu";
 import { LogTimeDropZone } from "@/components/log-time-dropzone";
 import { useWeatherMap } from "@/hooks/use-weather";
@@ -33,6 +35,10 @@ function CalendarPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   useEffect(() => { if (!loading && !user) router.navigate({ to: "/auth" }); }, [user, loading, router]);
+
+  // Queue upcoming reminders and fire due notifications while the app is open.
+  useReminderSync();
+  useReminderScheduler();
 
   const [view, setView] = useState<ViewMode>("month");
   useEffect(() => {
@@ -163,6 +169,10 @@ function CalendarPage() {
         <QuickAddBar />
 
         <HoursTracker />
+
+        <UpcomingPanel
+          onEdit={(ev) => { setEditing(ev); setOpen(true); }}
+        />
 
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
