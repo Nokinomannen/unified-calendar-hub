@@ -36,6 +36,10 @@ function CalendarPage() {
   const router = useRouter();
   useEffect(() => { if (!loading && !user) router.navigate({ to: "/auth" }); }, [user, loading, router]);
 
+  // Queue upcoming reminders and fire due notifications while the app is open.
+  useReminderSync();
+  useReminderScheduler();
+
   const [view, setView] = useState<ViewMode>("month");
   useEffect(() => {
     try {
