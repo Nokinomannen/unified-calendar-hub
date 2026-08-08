@@ -164,6 +164,10 @@ function CalendarPage() {
 
         <HoursTracker />
 
+        <UpcomingPanel
+          onEdit={(ev) => { setEditing(ev); setOpen(true); }}
+        />
+
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={view}
