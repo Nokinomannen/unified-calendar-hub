@@ -31,27 +31,30 @@ export function EventContextMenu({
   event,
   onEdit,
   onConvert,
+  asChild,
   children,
 }: {
   event: ExpandedEvent;
   onEdit?: (e: ExpandedEvent) => void;
-  onConvert: (d: LogDraft) => void;
-  children: React.ReactNode;
+  onConvert?: (d: LogDraft) => void;
+  asChild?: boolean;
+  children: React.ReactElement | React.ReactNode;
 }) {
+  const dragProps = {
+    draggable: true,
+    onDragStart: (ev: React.DragEvent) => {
+      ev.dataTransfer.effectAllowed = "copy";
+      ev.dataTransfer.setData("application/x-one-event", JSON.stringify(eventToLogDraft(event)));
+      window.dispatchEvent(new CustomEvent("one:event-drag", { detail: true }));
+    },
+    onDragEnd: () => window.dispatchEvent(new CustomEvent("one:event-drag", { detail: false })),
+  };
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div
-          draggable
-          onDragStart={(ev) => {
-            ev.dataTransfer.effectAllowed = "copy";
-            ev.dataTransfer.setData("application/x-one-event", JSON.stringify(eventToLogDraft(event)));
-            window.dispatchEvent(new CustomEvent("one:event-drag", { detail: true }));
-          }}
-          onDragEnd={() => window.dispatchEvent(new CustomEvent("one:event-drag", { detail: false }))}
-        >
-          {children}
-        </div>
+        {asChild && isValidElement(children)
+          ? cloneElement(children as React.ReactElement<Record<string, unknown>>, dragProps)
+          : <div {...dragProps}>{children}</div>}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
         <ContextMenuLabel className="truncate">{event.title}</ContextMenuLabel>
