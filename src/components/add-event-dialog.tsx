@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { NOTIFY_OPTIONS, EMAIL_OPTIONS } from "@/hooks/use-reminders";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useCalendars, useCreateEvent, useUpdateEvent, useDeleteEvent, type EventRow } from "@/hooks/use-calendar-data";
+import { useCalendars, useCreateEvent, useUpdateEvent, useDeleteEvent, useEvents, type EventRow } from "@/hooks/use-calendar-data";
 import { useFeeSuggestion, useUpsertDjSet } from "@/hooks/use-dj-sets";
+import { findConflicts, formatDuration } from "@/lib/conflicts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { AlertTriangle, Trash2 } from "lucide-react";
 
 const WEEKDAYS = [
   { v: "MO", l: "Mon" }, { v: "TU", l: "Tue" }, { v: "WE", l: "Wed" },
@@ -89,6 +90,21 @@ export function AddEventDialog({
   const cal = calId || calendars?.[0]?.id || "";
   const isDj = allCalendars.find((c) => c.id === cal)?.kind === "dj";
   const suggestedFee = useFeeSuggestion(isDj ? location : "");
+
+  // Overlap detection against everything already in the calendar that day.
+  const startDate = useMemo(() => new Date(start), [start]);
+  const endDate = useMemo(() => new Date(end), [end]);
+  const validRange = !Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate > startDate;
+  const dayStart = useMemo(
+    () => (validRange ? new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()) : new Date()),
+    [validRange, startDate],
+  );
+  const dayEnd = useMemo(() => new Date(dayStart.getTime() + 86_400_000), [dayStart]);
+  const { data: dayEvents = [] } = useEvents(dayStart, dayEnd);
+  const conflicts = useMemo(
+    () => (open && validRange && !allDay ? findConflicts(dayEvents, startDate, endDate, event?.id ?? null) : []),
+    [open, validRange, allDay, dayEvents, startDate, endDate, event?.id],
+  );
 
   // Load the linked DJ set (fee) when editing an event in the DJ calendar.
   useEffect(() => {
@@ -198,6 +214,25 @@ export function AddEventDialog({
             <div><Label>Start</Label><Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></div>
             <div><Label>End</Label><Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
           </div>
+          {conflicts.length > 0 && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Krockar med {conflicts.length} {conflicts.length === 1 ? "event" : "event"}
+              </div>
+              <ul className="mt-1.5 space-y-1">
+                {conflicts.slice(0, 4).map((c) => (
+                  <li key={`${c.event.id}-${c.event.occurrence_start.toISOString()}`}
+                    className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ background: c.event.calendar?.color ?? "currentColor" }} />
+                    <span className="truncate">{c.event.title}</span>
+                    <span className="ml-auto shrink-0 tabular-nums">{formatDuration(c.overlapMinutes)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={allDay} onCheckedChange={(v) => setAllDay(!!v)} /> All day
           </label>

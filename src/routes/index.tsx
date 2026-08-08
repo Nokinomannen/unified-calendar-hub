@@ -28,6 +28,10 @@ import { cn } from "@/lib/utils";
 type ViewMode = "month" | "week" | "day";
 
 export const Route = createFileRoute("/")({
+  // `?d=YYYY-MM-DD` lets the command palette and links jump to a specific day.
+  validateSearch: (search: Record<string, unknown>) => ({
+    d: typeof search.d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.d) ? search.d : undefined,
+  }),
   component: CalendarPage,
 });
 
@@ -50,6 +54,12 @@ function CalendarPage() {
   useEffect(() => { try { localStorage.setItem("cal-view", view); } catch { /* noop */ } }, [view]);
 
   const [cursor, setCursor] = useState(new Date());
+  const searchDay = Route.useSearch().d;
+  useEffect(() => {
+    if (!searchDay) return;
+    const d = new Date(`${searchDay}T12:00:00`);
+    if (!Number.isNaN(d.getTime())) setCursor(d);
+  }, [searchDay]);
   const [open, setOpen] = useState(false);
   const [defaultStart, setDefaultStart] = useState<Date | undefined>();
   const [editing, setEditing] = useState<EventRow | null>(null);
