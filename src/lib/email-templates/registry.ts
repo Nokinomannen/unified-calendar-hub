@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react'
+import { template as eventReminderTemplate } from './event-reminder'
 
 export interface TemplateEntry {
   component: ComponentType<any>
