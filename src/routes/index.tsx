@@ -252,10 +252,12 @@ function MonthGrid({ cursor, events, skippedSet, weather, onDayClick, onAdd, onE
 }
 
 function DayCell({
-  day, cursor, events, skippedSet, onClick, onAdd,
+  day, cursor, events, skippedSet, weather, onClick, onAdd, onEdit, onConvert,
 }: {
   day: Date; cursor: Date; events: ExpandedEvent[]; skippedSet: Set<string>;
+  weather?: WeatherDay;
   onClick: () => void; onAdd: () => void;
+  onEdit: (e: ExpandedEvent) => void; onConvert: (d: LogDraft) => void;
 }) {
   const dk = dateKey(day);
   const inMonth = isSameMonth(day, cursor);
