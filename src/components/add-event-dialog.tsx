@@ -214,6 +214,25 @@ export function AddEventDialog({
             <div><Label>Start</Label><Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></div>
             <div><Label>End</Label><Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
           </div>
+          {conflicts.length > 0 && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Krockar med {conflicts.length} {conflicts.length === 1 ? "event" : "event"}
+              </div>
+              <ul className="mt-1.5 space-y-1">
+                {conflicts.slice(0, 4).map((c) => (
+                  <li key={`${c.event.id}-${c.event.occurrence_start.toISOString()}`}
+                    className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ background: c.event.calendar?.color ?? "currentColor" }} />
+                    <span className="truncate">{c.event.title}</span>
+                    <span className="ml-auto shrink-0 tabular-nums">{formatDuration(c.overlapMinutes)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={allDay} onCheckedChange={(v) => setAllDay(!!v)} /> All day
           </label>
