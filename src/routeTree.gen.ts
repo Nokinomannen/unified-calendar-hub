@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as MiniTimerRouteImport } from './routes/mini-timer'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -23,6 +24,11 @@ import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/l
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicHooksSendRemindersRouteImport } from './routes/api/public/hooks/send-reminders'
 
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SourcesRoute = SourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
   '/sources': typeof SourcesRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
   '/sources': typeof SourcesRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
   '/sources': typeof SourcesRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/mini-timer'
     | '/sources'
+    | '/unsubscribe'
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/send-reminders'
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/mini-timer'
     | '/sources'
+    | '/unsubscribe'
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/send-reminders'
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/mini-timer'
     | '/sources'
+    | '/unsubscribe'
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/send-reminders'
@@ -195,6 +207,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   MiniTimerRoute: typeof MiniTimerRoute
   SourcesRoute: typeof SourcesRoute
+  UnsubscribeRoute: typeof UnsubscribeRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicHooksSendRemindersRoute: typeof ApiPublicHooksSendRemindersRoute
@@ -205,6 +218,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sources': {
       id: '/sources'
       path: '/sources'
@@ -307,6 +327,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   MiniTimerRoute: MiniTimerRoute,
   SourcesRoute: SourcesRoute,
+  UnsubscribeRoute: UnsubscribeRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicHooksSendRemindersRoute: ApiPublicHooksSendRemindersRoute,
