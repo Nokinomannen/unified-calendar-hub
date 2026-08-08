@@ -91,6 +91,21 @@ export function AddEventDialog({
   const isDj = allCalendars.find((c) => c.id === cal)?.kind === "dj";
   const suggestedFee = useFeeSuggestion(isDj ? location : "");
 
+  // Overlap detection against everything already in the calendar that day.
+  const startDate = useMemo(() => new Date(start), [start]);
+  const endDate = useMemo(() => new Date(end), [end]);
+  const validRange = !Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate > startDate;
+  const dayStart = useMemo(
+    () => (validRange ? new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()) : new Date()),
+    [validRange, startDate],
+  );
+  const dayEnd = useMemo(() => new Date(dayStart.getTime() + 86_400_000), [dayStart]);
+  const { data: dayEvents = [] } = useEvents(dayStart, dayEnd);
+  const conflicts = useMemo(
+    () => (open && validRange && !allDay ? findConflicts(dayEvents, startDate, endDate, event?.id ?? null) : []),
+    [open, validRange, allDay, dayEvents, startDate, endDate, event?.id],
+  );
+
   // Load the linked DJ set (fee) when editing an event in the DJ calendar.
   useEffect(() => {
     if (!open || !event) { setFee(""); return; }
