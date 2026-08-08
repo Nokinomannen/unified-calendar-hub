@@ -16,7 +16,10 @@ import { useEvents, useCalendars } from "@/hooks/use-calendar-data";
 import { useWorkLogs } from "@/hooks/use-work-logs";
 import { useDjSets } from "@/hooks/use-dj-sets";
 import { cn } from "@/lib/utils";
-import { TrendingUp, Clock, Wallet, Disc3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MoneyOverview } from "@/components/money-overview";
+import { ExportHoursDialog } from "@/components/export-hours";
+import { TrendingUp, Clock, Wallet, Disc3, FileSpreadsheet } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
