@@ -10,6 +10,8 @@ import { DayDrawer } from "@/components/day-drawer";
 import { WeekView } from "@/components/week-view";
 import { HoursTracker } from "@/components/hours-tracker";
 import { QuickAddBar } from "@/components/quick-add-bar";
+import { UpcomingPanel } from "@/components/upcoming-panel";
+import { useReminderSync, useReminderScheduler } from "@/hooks/use-reminders";
 import { EventContextMenu, LogDraftDialog, type LogDraft } from "@/components/event-context-menu";
 import { LogTimeDropZone } from "@/components/log-time-dropzone";
 import { useWeatherMap } from "@/hooks/use-weather";
