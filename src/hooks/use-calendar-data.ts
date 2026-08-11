@@ -43,6 +43,29 @@ export function useEvents(rangeStart: Date, rangeEnd: Date) {
         .is("deleted_at", null)
         .lte("start_at", rangeEnd.toISOString());
       if (error) throw error;
+      // Per-occurrence edits ("bara detta tillfälle") live in event_overrides.
+      const { data: ovr } = await supabase
+        .from("event_overrides")
+        .select("*")
+        .eq("status", "modified");
+      const edits = new Map<string, { title?: string | null; start_at?: string | null; end_at?: string | null; location?: string | null }>();
+      for (const o of (ovr ?? []) as { event_id: string; occurrence_date: string }[]) {
+        edits.set(`${o.event_id}|${o.occurrence_date}`, o as never);
+      }
+      const applyEdit = (ev: ExpandedEvent): ExpandedEvent => {
+        const p = (n: number) => String(n).padStart(2, "0");
+        const d = ev.occurrence_start;
+        const key = `${ev.id}|${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+        const edit = edits.get(key);
+        if (!edit) return ev;
+        return {
+          ...ev,
+          title: edit.title ?? ev.title,
+          location: edit.location ?? ev.location,
+          occurrence_start: edit.start_at ? new Date(edit.start_at) : ev.occurrence_start,
+          occurrence_end: edit.end_at ? new Date(edit.end_at) : ev.occurrence_end,
+        };
+      };
       const expanded: ExpandedEvent[] = [];
       for (const ev of data as (EventRow & { calendar: CalendarRow })[]) {
         const start = new Date(ev.start_at);
@@ -55,19 +78,19 @@ export function useEvents(rangeStart: Date, rangeEnd: Date) {
             );
             const occs = rule.between(rangeStart, rangeEnd, true);
             for (const occ of occs) {
-              expanded.push({
+              expanded.push(applyEdit({
                 ...ev,
                 occurrence_start: occ,
                 occurrence_end: new Date(occ.getTime() + dur),
-              });
+              }));
             }
           } catch {
             if (end >= rangeStart && start <= rangeEnd) {
-              expanded.push({ ...ev, occurrence_start: start, occurrence_end: end });
+              expanded.push(applyEdit({ ...ev, occurrence_start: start, occurrence_end: end }));
             }
           }
         } else if (end >= rangeStart && start <= rangeEnd) {
-          expanded.push({ ...ev, occurrence_start: start, occurrence_end: end });
+          expanded.push(applyEdit({ ...ev, occurrence_start: start, occurrence_end: end }));
         }
       }
       expanded.sort((a, b) => a.occurrence_start.getTime() - b.occurrence_start.getTime());
