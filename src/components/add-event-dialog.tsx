@@ -9,6 +9,9 @@ import { NOTIFY_OPTIONS, EMAIL_OPTIONS } from "@/hooks/use-reminders";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCalendars, useCreateEvent, useUpdateEvent, useDeleteEvent, useEvents, type EventRow } from "@/hooks/use-calendar-data";
 import { useFeeSuggestion, useUpsertDjSet } from "@/hooks/use-dj-sets";
+import { useSaveOccurrence, useToggleSkip, endSeriesBefore, dateKey } from "@/hooks/use-overrides";
+
+type Scope = "one" | "future" | "all";
 import { findConflicts, formatDuration } from "@/lib/conflicts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
