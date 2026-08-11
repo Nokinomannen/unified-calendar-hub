@@ -1,7 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type Override = { id: string; event_id: string; occurrence_date: string; status: string };
+export type Override = {
+  id: string;
+  event_id: string;
+  occurrence_date: string;
+  status: string;
+  /** Set when a single occurrence has been edited away from the series. */
+  title?: string | null;
+  start_at?: string | null;
+  end_at?: string | null;
+  location?: string | null;
+};
 
 export function useOverrides() {
   return useQuery({
