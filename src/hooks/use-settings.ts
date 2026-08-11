@@ -45,6 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   density: "comfortable",
   showHours: true,
   showUpcoming: true,
+  viewFilters: {},
   currency: "SEK",
   taxRate: 30,
   weeklyHoursGoal: 40,
