@@ -55,3 +55,55 @@ export function dateKey(d: Date) {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
+/** Save an edit that should only affect one occurrence of a recurring series. */
+export function useSaveOccurrence() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      eventId: string;
+      date: string;
+      title?: string | null;
+      start_at?: string | null;
+      end_at?: string | null;
+      location?: string | null;
+    }) => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("not signed in");
+      const { error } = await supabase.from("event_overrides").upsert(
+        {
+          user_id: u.user.id,
+          event_id: input.eventId,
+          occurrence_date: input.date,
+          status: "modified",
+          title: input.title ?? null,
+          start_at: input.start_at ?? null,
+          end_at: input.end_at ?? null,
+          location: input.location ?? null,
+        } as never,
+        { onConflict: "event_id,occurrence_date" },
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["overrides"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+    },
+  });
+}
+
+function icsUntil(d: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}T235959Z`;
+}
+
+/** Put an UNTIL on the existing series the day before `from`, so it stops there. */
+export function endSeriesBefore(rrule: string, from: Date) {
+  const stop = new Date(from.getTime() - 86_400_000);
+  const parts = rrule
+    .replace(/^RRULE:/, "")
+    .split(";")
+    .filter((p) => p && !p.startsWith("UNTIL="));
+  parts.push(`UNTIL=${icsUntil(stop)}`);
+  return parts.join(";");
+}
