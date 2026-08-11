@@ -76,13 +76,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "One — your unified calendar" },
-      { name: "description", content: "School, work and life — one calendar to rule them all." },
-      { property: "og:title", content: "One — your unified calendar" },
-      { property: "og:description", content: "School, work and life — one calendar to rule them all." },
+      { title: "One — private calendar" },
+      { name: "description", content: "A private, personal calendar and time tracker." },
+      // Private app: keep it out of search engines and AI crawlers entirely.
+      { name: "robots", content: "noindex, nofollow, noarchive, nosnippet, noimageindex" },
+      { name: "googlebot", content: "noindex, nofollow" },
+      { property: "og:title", content: "One — private calendar" },
+      { property: "og:description", content: "A private, personal calendar and time tracker." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
+
     links: [
       {
         rel: "stylesheet",
