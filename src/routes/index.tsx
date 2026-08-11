@@ -216,20 +216,31 @@ function CalendarPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {calendars.map((c) => (
-            <button key={c.id}
-              onClick={() => update.mutate({ id: c.id, visible: !c.visible })}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all",
-                c.visible ? "bg-card/60 hover:bg-card" : "opacity-40 hover:opacity-70",
-              )}
-              style={{ borderColor: c.color }}
-            >
-              <span className="h-2 w-2 rounded-full" style={{ background: c.color }} />
-              {c.name}
-            </button>
-          ))}
+          {calendars.map((c) => {
+            const on = c.visible !== false && !hiddenIds.has(c.id);
+            return (
+              <button key={c.id}
+                onClick={() => toggleCalendar(c.id)}
+                title={`Visa/dölj ${c.name} i ${filterKey === "compact" ? "kompakt läge" : filterKey === "month" ? "månadsvyn" : filterKey === "week" ? "veckovyn" : "dagsvyn"}`}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all",
+                  on ? "bg-card/60 hover:bg-card" : "opacity-40 hover:opacity-70",
+                )}
+                style={{ borderColor: c.color }}
+              >
+                <span className="h-2 w-2 rounded-full" style={{ background: on ? c.color : "transparent", boxShadow: `inset 0 0 0 1px ${c.color}` }} />
+                {c.name}
+              </button>
+            );
+          })}
+          <div className="flex items-center gap-1">
+            <button onClick={() => setAll(true)} className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground">Alla</button>
+            <button onClick={() => setAll(false)} className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground">Inga</button>
+          </div>
           <span className="ml-auto inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="hidden sm:inline">
+              Filter sparas för {filterKey === "compact" ? "kompakt" : filterKey === "month" ? "månad" : filterKey === "week" ? "vecka" : "dag"}
+            </span>
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-success/80" /> free
             </span>
@@ -238,6 +249,7 @@ function CalendarPage() {
             </span>
           </span>
         </div>
+
 
         {settings.showQuickAdd && <QuickAddBar />}
 
