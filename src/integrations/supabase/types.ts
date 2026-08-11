@@ -93,6 +93,7 @@ export type Database = {
       }
       calendars: {
         Row: {
+          aliases: string[]
           archived: boolean
           color: string
           created_at: string
@@ -110,6 +111,7 @@ export type Database = {
           visible: boolean
         }
         Insert: {
+          aliases?: string[]
           archived?: boolean
           color?: string
           created_at?: string
@@ -127,6 +129,7 @@ export type Database = {
           visible?: boolean
         }
         Update: {
+          aliases?: string[]
           archived?: boolean
           color?: string
           created_at?: string
@@ -513,6 +516,27 @@ export type Database = {
           id?: string
           metadata?: Json | null
           reason?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          prefs: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          prefs?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          prefs?: Json
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

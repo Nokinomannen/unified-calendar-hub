@@ -15,6 +15,8 @@ import { useReminderSync, useReminderScheduler } from "@/hooks/use-reminders";
 import { EventContextMenu, LogDraftDialog, type LogDraft } from "@/components/event-context-menu";
 import { LogTimeDropZone } from "@/components/log-time-dropzone";
 import { useWeatherMap } from "@/hooks/use-weather";
+import { useSettings } from "@/hooks/use-settings";
+
 import { WeatherBadge } from "@/components/weather-badge";
 import type { WeatherDay } from "@/hooks/use-weather";
 import {
@@ -43,14 +45,21 @@ function CalendarPage() {
   useReminderSync();
   useReminderScheduler();
 
+  const { settings } = useSettings();
+  const wso = settings.weekStartsOn;
+
   const [view, setView] = useState<ViewMode>("month");
+  const [viewLoaded, setViewLoaded] = useState(false);
   useEffect(() => {
     try {
       const stored = localStorage.getItem("cal-view") as ViewMode | null;
       if (stored === "month" || stored === "week" || stored === "day") setView(stored);
+      else setView(settings.defaultView);
     } catch { /* noop */ }
-  }, []);
-  useEffect(() => { try { localStorage.setItem("cal-view", view); } catch { /* noop */ } }, [view]);
+    setViewLoaded(true);
+    // Only run on mount / once settings arrive.
+  }, [settings.defaultView]);
+  useEffect(() => { if (viewLoaded) { try { localStorage.setItem("cal-view", view); } catch { /* noop */ } } }, [view, viewLoaded]);
 
   const [cursor, setCursor] = useState(new Date());
   const searchDay = Route.useSearch().d;
@@ -64,19 +73,24 @@ function CalendarPage() {
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [drawerDate, setDrawerDate] = useState<Date | null>(null);
   const [logDraft, setLogDraft] = useState<LogDraft | null>(null);
-  const weather = useWeatherMap("malmo");
+  const weatherAll = useWeatherMap("malmo");
+  const weather = useMemo(
+    () => (settings.showWeather ? weatherAll : new Map<string, WeatherDay>()),
+    [settings.showWeather, weatherAll],
+  );
 
   const range = useMemo(() => {
     if (view === "month") {
       const ms = startOfMonth(cursor), me = endOfMonth(cursor);
-      return { start: startOfWeek(ms, { weekStartsOn: 1 }), end: endOfWeek(me, { weekStartsOn: 1 }) };
+      return { start: startOfWeek(ms, { weekStartsOn: wso }), end: endOfWeek(me, { weekStartsOn: wso }) };
     }
     if (view === "week") {
-      const s = startOfWeek(cursor, { weekStartsOn: 1 });
+      const s = startOfWeek(cursor, { weekStartsOn: wso });
       return { start: s, end: addDays(s, 6) };
     }
     return { start: cursor, end: cursor };
-  }, [view, cursor]);
+  }, [view, cursor, wso]);
+
 
   const { data: calendars = [] } = useCalendars();
   const update = useUpdateCalendar();
@@ -91,7 +105,36 @@ function CalendarPage() {
 
   const visible = events.filter((e) => e.calendar?.visible !== false);
 
+  // Keyboard shortcuts — inert while typing in a field or dialog.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(input|textarea|select)$/i.test(t.tagName))) return;
+      const step = (dir: -1 | 1) =>
+        setCursor((c) => (view === "month" ? addMonths(c, dir) : view === "week" ? addWeeks(c, dir) : addDays(c, dir)));
+      switch (e.key.toLowerCase()) {
+        case "q": {
+          e.preventDefault();
+          document.getElementById("quick-add-input")?.focus();
+          break;
+        }
+        case "n": e.preventDefault(); setEditing(null); setDefaultStart(undefined); setOpen(true); break;
+        case "t": e.preventDefault(); setCursor(new Date()); break;
+        case "1": setView("month"); break;
+        case "2": setView("week"); break;
+        case "3": setView("day"); break;
+        case "arrowleft": step(-1); break;
+        case "arrowright": step(1); break;
+        default: break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [view]);
+
   if (loading || !user) return null;
+
 
   const drawerEvents = drawerDate ? visible.filter((e) => isSameDay(e.occurrence_start, drawerDate)) : [];
 
@@ -119,8 +162,9 @@ function CalendarPage() {
   const headerLabel = view === "month"
     ? format(cursor, "MMMM yyyy")
     : view === "week"
-      ? `Week of ${format(startOfWeek(cursor, { weekStartsOn: 1 }), "d MMM")}`
+      ? `Week of ${format(startOfWeek(cursor, { weekStartsOn: wso }), "d MMM")}`
       : format(cursor, "EEEE d MMM yyyy");
+
 
   return (
     <AppShell>
@@ -175,13 +219,15 @@ function CalendarPage() {
           </span>
         </div>
 
-        <QuickAddBar />
+        {settings.showQuickAdd && <QuickAddBar />}
 
-        <HoursTracker />
+        {settings.showHours && <HoursTracker />}
 
-        <UpcomingPanel
-          onEdit={(ev) => { setEditing(ev); setOpen(true); }}
-        />
+        {settings.showUpcoming && (
+          <UpcomingPanel
+            onEdit={(ev) => { setEditing(ev); setOpen(true); }}
+          />
+        )}
 
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -193,16 +239,22 @@ function CalendarPage() {
           >
             {view === "month" && (
               <MonthGrid cursor={cursor} events={visible} skippedSet={skippedSet} weather={weather}
+                weekStartsOn={wso}
+                compact={settings.density === "compact"}
+                showConflicts={settings.showConflicts}
                 onDayClick={(d) => setDrawerDate(d)}
                 onAdd={(d) => openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0))}
                 onEdit={openEdit}
                 onConvert={setLogDraft}
               />
             )}
+
             {view === "week" && (
               <WeekView weekStart={cursor} events={visible} overrides={overrides}
                 onEdit={openEdit} onAdd={openAdd} onConvert={setLogDraft} weather={weather}
+                weekStartsOn={wso}
               />
+
             )}
             {view === "day" && (
               <div className="rounded-2xl border border-border bg-card p-2">
@@ -230,23 +282,27 @@ function CalendarPage() {
 }
 
 
-function MonthGrid({ cursor, events, skippedSet, weather, onDayClick, onAdd, onEdit, onConvert }: {
+function MonthGrid({ cursor, events, skippedSet, weather, weekStartsOn, compact, showConflicts, onDayClick, onAdd, onEdit, onConvert }: {
   cursor: Date; events: ExpandedEvent[]; skippedSet: Set<string>;
   weather: Map<string, WeatherDay>;
+  weekStartsOn: 0 | 1; compact: boolean; showConflicts: boolean;
   onDayClick: (d: Date) => void; onAdd: (d: Date) => void;
   onEdit: (e: ExpandedEvent) => void; onConvert: (d: LogDraft) => void;
 }) {
   const monthStart = startOfMonth(cursor);
   const monthEnd = endOfMonth(cursor);
-  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const gridStart = startOfWeek(monthStart, { weekStartsOn });
+  const gridEnd = endOfWeek(monthEnd, { weekStartsOn });
   const days: Date[] = [];
   let d = gridStart;
   while (d <= gridEnd) { days.push(d); d = addDays(d, 1); }
+  const labels = weekStartsOn === 1
+    ? ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    : ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elegant)]">
       <div className="grid grid-cols-7 border-b border-border bg-muted/30 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[11px]">
-        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => (
+        {labels.map((d) => (
           <div key={d} className="py-2 sm:py-2.5">
             <span className="sm:hidden">{d[0]}</span>
             <span className="hidden sm:inline">{d}</span>
@@ -259,6 +315,8 @@ function MonthGrid({ cursor, events, skippedSet, weather, onDayClick, onAdd, onE
             events={events.filter((e) => isSameDay(e.occurrence_start, d))}
             skippedSet={skippedSet}
             weather={weather.get(dateKey(d))}
+            compact={compact}
+            showConflicts={showConflicts}
             onClick={() => onDayClick(d)}
             onAdd={() => onAdd(d)}
             onEdit={onEdit}
@@ -270,11 +328,12 @@ function MonthGrid({ cursor, events, skippedSet, weather, onDayClick, onAdd, onE
   );
 }
 
+
 function DayCell({
-  day, cursor, events, skippedSet, weather, onClick, onAdd, onEdit, onConvert,
+  day, cursor, events, skippedSet, weather, compact, showConflicts, onClick, onAdd, onEdit, onConvert,
 }: {
   day: Date; cursor: Date; events: ExpandedEvent[]; skippedSet: Set<string>;
-  weather?: WeatherDay;
+  weather?: WeatherDay; compact: boolean; showConflicts: boolean;
   onClick: () => void; onAdd: () => void;
   onEdit: (e: ExpandedEvent) => void; onConvert: (d: LogDraft) => void;
 }) {
@@ -284,16 +343,19 @@ function DayCell({
 
   const timed = events.filter((e) => !e.all_day);
   const conflictIds = new Set<string>();
-  for (let i = 0; i < timed.length; i++) {
-    for (let j = i + 1; j < timed.length; j++) {
-      const a = timed[i], b = timed[j];
-      if (a.occurrence_start < b.occurrence_end && b.occurrence_start < a.occurrence_end) {
-        if (!skippedSet.has(`${a.id}|${dk}`) && !skippedSet.has(`${b.id}|${dk}`)) {
-          conflictIds.add(a.id); conflictIds.add(b.id);
+  if (showConflicts) {
+    for (let i = 0; i < timed.length; i++) {
+      for (let j = i + 1; j < timed.length; j++) {
+        const a = timed[i], b = timed[j];
+        if (a.occurrence_start < b.occurrence_end && b.occurrence_start < a.occurrence_end) {
+          if (!skippedSet.has(`${a.id}|${dk}`) && !skippedSet.has(`${b.id}|${dk}`)) {
+            conflictIds.add(a.id); conflictIds.add(b.id);
+          }
         }
       }
     }
   }
+
 
   const activeHours = timed
     .filter((e) => !skippedSet.has(`${e.id}|${dk}`))
@@ -305,7 +367,9 @@ function DayCell({
   return (
     <div
       className={cn(
-        "group relative min-h-[72px] cursor-pointer border-b border-r border-border p-1 text-left transition-colors sm:min-h-[124px] sm:p-2",
+        "group relative cursor-pointer border-b border-r border-border p-1 text-left transition-colors sm:p-2",
+        compact ? "min-h-[60px] sm:min-h-[96px]" : "min-h-[72px] sm:min-h-[124px]",
+
         !inMonth && "bg-muted/15",
         isFree && "bg-success/[0.05] hover:bg-success/10",
         !isFree && "hover:bg-accent/30",

@@ -6,8 +6,24 @@ export type QuickParseResult = {
   start: Date;
   end: Date;
   calendarHint: string | null;
+  /** Resolved calendar id when a name/alias matched the text. */
+  calendarId: string | null;
+  location: string | null;
+  allDay: boolean;
   confident: boolean;
 };
+
+export type QuickParseCalendar = { id: string; name: string; aliases?: string[] | null };
+
+export type QuickParseOptions = {
+  now?: Date;
+  calendars?: QuickParseCalendar[];
+  /** Fallback duration in minutes when the text has no range or duration. */
+  defaultMinutes?: number;
+  /** Round a guessed start time to this many minutes. */
+  roundTo?: number;
+};
+
 
 const WEEKDAYS: Record<string, number> = {
   monday: 1, mon: 1, måndag: 1, mandag: 1, mån: 1,
@@ -52,20 +68,74 @@ function stripAll(text: string, matches: string[]) {
  * line still returns a sane default (today, next full hour, 1h) with
  * `confident: false` so the UI can offer the AI assistant instead.
  */
-export function quickParse(input: string, now: Date = new Date()): QuickParseResult {
+export function quickParse(input: string, opts: QuickParseOptions | Date = {}): QuickParseResult {
+  const o: QuickParseOptions = opts instanceof Date ? { now: opts } : opts;
+  const now = o.now ?? new Date();
+  const defaultMinutes = o.defaultMinutes ?? 60;
+  const roundTo = Math.max(1, o.roundTo ?? 15);
   const raw = input.trim();
   let rest = ` ${raw} `;
   const consumed: string[] = [];
   let sawDate = false;
   let sawTime = false;
 
-  // --- calendar hint: @name or #name (last token wins) ---
+  // --- calendar: @name/#name, or a plain calendar name/alias in the text ---
   let calendarHint: string | null = null;
+  let calendarId: string | null = null;
   const hint = rest.match(/[@#]([\p{L}\d-]+)/u);
   if (hint) {
     calendarHint = hint[1];
     consumed.push(hint[0]);
+    rest = rest.replace(hint[0], " ");
   }
+
+  const norm = (s: string) => s.toLowerCase().replace(/[\s_.-]+/g, "");
+  for (const cal of o.calendars ?? []) {
+    const names = [cal.name, ...(cal.aliases ?? [])].filter(Boolean);
+    // Longest first so "a-hub" wins over "hub".
+    names.sort((a, b) => b.length - a.length);
+    let hit = false;
+    if (calendarHint) {
+      const h = norm(calendarHint);
+      if (names.some((n) => norm(n) === h || norm(n).startsWith(h))) hit = true;
+    }
+    if (!hit) {
+      for (const n of names) {
+        // Match the name even when written with different separators (a-hub / a hub / ahub).
+        const pattern = n
+          .trim()
+          .split(/[\s_.-]+/)
+          .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+          .join("[\\s_.-]*");
+        const re = new RegExp(`(^|\\s)(${pattern})(?=\\s|$)`, "iu");
+        const m = rest.match(re);
+        if (m) {
+          rest = rest.replace(m[0], " ");
+          hit = true;
+          calendarHint = calendarHint ?? n;
+          break;
+        }
+      }
+    }
+    if (hit) { calendarId = cal.id; break; }
+  }
+
+  // --- all day ---
+  let allDay = false;
+  const allDayM = rest.match(/\b(heldag|hela dagen|all[- ]?day)\b/iu);
+  if (allDayM) {
+    allDay = true;
+    consumed.push(allDayM[0]);
+  }
+
+  // --- location: "på X" / "i X" at the end, or "@X" already consumed as hint ---
+  let location: string | null = null;
+  const locM = rest.match(/\s(?:på|hos|at|in)\s+([\p{Lu}][\p{L}\d&'’ -]{1,30})\s*$/u);
+  if (locM) {
+    location = locM[1].trim();
+    consumed.push(locM[0]);
+  }
+
 
   // --- date ---
   let day = atMidnight(now);
@@ -129,7 +199,7 @@ export function quickParse(input: string, now: Date = new Date()): QuickParseRes
   // --- time range "13-15" / "13:00-15:30" ---
   let startH = 9;
   let startM = 0;
-  let durMin = 60;
+  let durMin = defaultMinutes;
 
   const range = rest.match(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|–|—|till|to)\s*(\d{1,2})(?:[:.](\d{2}))?\b/);
   const single = rest.match(/\b(?:at|kl|kl\.|klockan)?\s*(\d{1,2})[:.](\d{2})\b/);
@@ -155,9 +225,11 @@ export function quickParse(input: string, now: Date = new Date()): QuickParseRes
     consumed.push(bareHour[0]);
     sawTime = true;
   } else {
-    const next = new Date(now.getTime() + 60 * 60_000);
-    startH = next.getHours();
-    startM = 0;
+    // No time given: next slot rounded up to the user's preferred increment.
+    const next = new Date(now.getTime() + 30 * 60_000);
+    const mins = Math.ceil((next.getHours() * 60 + next.getMinutes()) / roundTo) * roundTo;
+    startH = Math.min(23, Math.floor(mins / 60));
+    startM = mins % 60;
   }
 
   if (dur && !range) {
@@ -171,21 +243,29 @@ export function quickParse(input: string, now: Date = new Date()): QuickParseRes
   // --- title = whatever is left ---
   rest = stripAll(rest, consumed);
   const title = rest
-    .replace(/\b(on|at|the|kl|kl\.|klockan|for|i|under|till|to|från|from)\b/gi, " ")
+    .replace(/\b(on|at|the|kl|kl\.|klockan|for|i|under|till|to|från|from|på|hos)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 
-  const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), startH, startM, 0, 0);
-  const end = new Date(start.getTime() + durMin * 60_000);
+  const start = allDay
+    ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0)
+    : new Date(day.getFullYear(), day.getMonth(), day.getDate(), startH, startM, 0, 0);
+  const end = allDay
+    ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 0, 0)
+    : new Date(start.getTime() + durMin * 60_000);
 
   return {
     title: title || "Untitled",
     start,
     end,
     calendarHint,
-    confident: Boolean(title) && (sawDate || sawTime),
+    calendarId,
+    location,
+    allDay,
+    confident: Boolean(title) && (sawDate || sawTime || allDay),
   };
 }
+
 
 function addDays(d: Date, n: number) {
   const c = new Date(d);

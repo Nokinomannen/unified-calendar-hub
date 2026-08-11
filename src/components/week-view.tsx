@@ -19,10 +19,12 @@ type Props = {
   onAdd: (when: Date) => void;
   onConvert?: (d: LogDraft) => void;
   weather?: Map<string, WeatherDay>;
+  weekStartsOn?: 0 | 1;
 };
 
-export function WeekView({ weekStart, events, overrides, onEdit, onAdd, onConvert, weather }: Props) {
-  const monday = startOfWeek(weekStart, { weekStartsOn: 1 });
+export function WeekView({ weekStart, events, overrides, onEdit, onAdd, onConvert, weather, weekStartsOn = 1 }: Props) {
+  const monday = startOfWeek(weekStart, { weekStartsOn });
+
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
   const skipped = useMemo(() => {
     const s = new Set<string>();

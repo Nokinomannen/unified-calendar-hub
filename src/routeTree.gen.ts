@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as SourcesRouteImport } from './routes/sources'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MiniTimerRouteImport } from './routes/mini-timer'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CalendarRouteImport } from './routes/calendar'
@@ -32,6 +33,11 @@ const UnsubscribeRoute = UnsubscribeRouteImport.update({
 const SourcesRoute = SourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MiniTimerRoute = MiniTimerRouteImport.update({
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
+  '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
+  '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
+  '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/mini-timer'
+    | '/settings'
     | '/sources'
     | '/unsubscribe'
     | '/email/unsubscribe'
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/mini-timer'
+    | '/settings'
     | '/sources'
     | '/unsubscribe'
     | '/email/unsubscribe'
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/mini-timer'
+    | '/settings'
     | '/sources'
     | '/unsubscribe'
     | '/email/unsubscribe'
@@ -206,6 +218,7 @@ export interface RootRouteChildren {
   CalendarRoute: typeof CalendarRoute
   DashboardRoute: typeof DashboardRoute
   MiniTimerRoute: typeof MiniTimerRoute
+  SettingsRoute: typeof SettingsRoute
   SourcesRoute: typeof SourcesRoute
   UnsubscribeRoute: typeof UnsubscribeRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
@@ -230,6 +243,13 @@ declare module '@tanstack/react-router' {
       path: '/sources'
       fullPath: '/sources'
       preLoaderRoute: typeof SourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mini-timer': {
@@ -326,6 +346,7 @@ const rootRouteChildren: RootRouteChildren = {
   CalendarRoute: CalendarRoute,
   DashboardRoute: DashboardRoute,
   MiniTimerRoute: MiniTimerRoute,
+  SettingsRoute: SettingsRoute,
   SourcesRoute: SourcesRoute,
   UnsubscribeRoute: UnsubscribeRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
@@ -338,13 +359,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
