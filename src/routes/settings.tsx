@@ -7,6 +7,7 @@ import { CalendarColorSettings } from "@/components/calendar-colors";
 import { ReminderSettings } from "@/components/reminder-settings";
 import { RecentlyDeleted } from "@/components/recently-deleted";
 import { ExportHoursDialog } from "@/components/export-hours";
+import { BackupExport } from "@/components/backup-export";
 import { useSettings, useUpdateSettings, type ViewMode } from "@/hooks/use-settings";
 import { useActiveCalendars } from "@/hooks/use-calendar-data";
 import { useTheme } from "@/hooks/use-theme";
@@ -222,6 +223,7 @@ function SettingsPage() {
           <Button variant="outline" onClick={() => setExportOpen(true)}>
             <Download className="mr-2 h-4 w-4" /> Exportera timmar (CSV)
           </Button>
+          <BackupExport />
           <RecentlyDeleted />
         </Section>
 

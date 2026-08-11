@@ -9,6 +9,9 @@ import { NOTIFY_OPTIONS, EMAIL_OPTIONS } from "@/hooks/use-reminders";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCalendars, useCreateEvent, useUpdateEvent, useDeleteEvent, useEvents, type EventRow } from "@/hooks/use-calendar-data";
 import { useFeeSuggestion, useUpsertDjSet } from "@/hooks/use-dj-sets";
+import { useSaveOccurrence, useToggleSkip, endSeriesBefore, dateKey } from "@/hooks/use-overrides";
+
+type Scope = "one" | "future" | "all";
 import { findConflicts, formatDuration } from "@/lib/conflicts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -30,12 +33,14 @@ function localDateTimeValue(d: Date) {
 }
 
 export function AddEventDialog({
-  open, onOpenChange, defaultStart, event,
+  open, onOpenChange, defaultStart, event, occurrence,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   defaultStart?: Date;
   event?: EventRow | null;
+  /** The clicked occurrence of a recurring event, so edits can be scoped to it. */
+  occurrence?: { start: Date; end: Date } | null;
 }) {
   const { data: allCalendars = [] } = useCalendars();
   // Archived calendars aren't offered for new events, but stay selectable when editing an old one.
@@ -59,15 +64,21 @@ export function AddEventDialog({
   const [reminder, setReminder] = useState<string>("default");
   const [emailRem, setEmailRem] = useState<string>("default");
   const [fee, setFee] = useState("");
+  const [scope, setScope] = useState<Scope>("one");
   const upsertDj = useUpsertDjSet();
+  const saveOccurrence = useSaveOccurrence();
+  const toggleSkip = useToggleSkip();
+
+  // A recurring event opened from a specific day can be edited per occurrence.
+  const isSeries = !!(event?.rrule && occurrence);
 
   useEffect(() => {
     if (!open) return;
     if (event) {
       setTitle(event.title);
       setCalId(event.calendar_id);
-      setStart(localDateTimeValue(new Date(event.start_at)));
-      setEnd(localDateTimeValue(new Date(event.end_at)));
+      setStart(localDateTimeValue(occurrence?.start ?? new Date(event.start_at)));
+      setEnd(localDateTimeValue(occurrence?.end ?? new Date(event.end_at)));
       setLocation(event.location ?? "");
       setDescription(event.description ?? "");
       setAllDay(event.all_day);
@@ -75,7 +86,7 @@ export function AddEventDialog({
       setRepeat(r.includes("FREQ=WEEKLY") ? "WEEKLY" : r.includes("FREQ=DAILY") ? "DAILY" : "none");
       const m = r.match(/BYDAY=([^;]+)/);
       setByDays(m ? m[1].split(",") : []);
-      
+      setScope("one");
       setReminder(event.reminder_minutes === null ? "default" : event.reminder_minutes < 0 ? "off" : String(event.reminder_minutes));
       setEmailRem(event.email_reminder ?? "default");
     } else {
@@ -83,9 +94,9 @@ export function AddEventDialog({
       const e0 = new Date(s0.getTime() + 60 * 60 * 1000);
       setTitle(""); setCalId(""); setStart(localDateTimeValue(s0)); setEnd(localDateTimeValue(e0));
       setLocation(""); setDescription(""); setAllDay(false); setRepeat("none"); setByDays([]); setUntil("");
-      setReminder("default"); setEmailRem("default");
+      setReminder("default"); setEmailRem("default"); setScope("one");
     }
-  }, [open, event, defaultStart]);
+  }, [open, event, defaultStart, occurrence]);
 
   const cal = calId || calendars?.[0]?.id || "";
   const isDj = allCalendars.find((c) => c.id === cal)?.kind === "dj";
@@ -143,6 +154,44 @@ export function AddEventDialog({
         reminder_minutes: reminder === "default" ? null : reminder === "off" ? -1 : parseInt(reminder),
         email_reminder: emailRem === "default" ? null : emailRem,
       };
+      // Recurring series: the chosen scope decides what actually changes.
+      if (editing && event && isSeries && occurrence) {
+        const s = new Date(start);
+        const e2 = new Date(end);
+        if (scope === "one") {
+          await saveOccurrence.mutateAsync({
+            eventId: event.id,
+            date: dateKey(occurrence.start),
+            title,
+            start_at: s.toISOString(),
+            end_at: e2.toISOString(),
+            location: location || null,
+          });
+          toast.success("Tillfället uppdaterat");
+          onOpenChange(false);
+          return;
+        }
+        if (scope === "future") {
+          await update.mutateAsync({ id: event.id, rrule: endSeriesBefore(event.rrule!, occurrence.start) });
+          await create.mutateAsync({ ...payload, rrule: rrule ?? event.rrule });
+          toast.success("Serien delad — ändringen gäller från och med detta datum");
+          onOpenChange(false);
+          return;
+        }
+        // scope === "all": keep the series start date, move the time of day.
+        const master = new Date(event.start_at);
+        master.setHours(s.getHours(), s.getMinutes(), 0, 0);
+        const masterEnd = new Date(master.getTime() + (e2.getTime() - s.getTime()));
+        await update.mutateAsync({
+          id: event.id,
+          ...payload,
+          start_at: master.toISOString(),
+          end_at: masterEnd.toISOString(),
+        });
+        toast.success("Hela serien uppdaterad");
+        onOpenChange(false);
+        return;
+      }
       let eventId = event?.id ?? null;
       if (editing && event) {
         await update.mutateAsync({ id: event.id, ...payload });
@@ -175,6 +224,28 @@ export function AddEventDialog({
 
   async function handleDelete() {
     if (!event) return;
+    if (isSeries && occurrence && scope === "one") {
+      if (!confirm(`Ta bort bara detta tillfälle av "${event.title}"?`)) return;
+      try {
+        await toggleSkip.mutateAsync({ eventId: event.id, date: dateKey(occurrence.start), skip: true });
+        toast.success("Tillfället borttaget");
+        onOpenChange(false);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed");
+      }
+      return;
+    }
+    if (isSeries && occurrence && scope === "future") {
+      if (!confirm(`Avsluta serien "${event.title}" från och med detta datum?`)) return;
+      try {
+        await update.mutateAsync({ id: event.id, rrule: endSeriesBefore(event.rrule!, occurrence.start) });
+        toast.success("Serien avslutad");
+        onOpenChange(false);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed");
+      }
+      return;
+    }
     if (!confirm(`Delete "${event.title}"?`)) return;
     try {
       await del.mutateAsync(event.id);
@@ -190,6 +261,22 @@ export function AddEventDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader><DialogTitle>{editing ? "Edit event" : "New event"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
+          {isSeries && (
+            <div className="rounded-lg border border-border bg-muted/30 p-2.5">
+              <div className="mb-1.5 text-xs font-medium">Återkommande event — vad ska ändras?</div>
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  { v: "one", l: "Bara detta tillfälle" },
+                  { v: "future", l: "Detta och framåt" },
+                  { v: "all", l: "Hela serien" },
+                ] as const).map((o) => (
+                  <button key={o.v} type="button" onClick={() => setScope(o.v)}
+                    className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${scope === o.v ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-accent"}`}
+                  >{o.l}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />

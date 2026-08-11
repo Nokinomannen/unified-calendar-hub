@@ -72,6 +72,7 @@ function CalendarPage() {
   const [open, setOpen] = useState(false);
   const [defaultStart, setDefaultStart] = useState<Date | undefined>();
   const [editing, setEditing] = useState<EventRow | null>(null);
+  const [editingOccurrence, setEditingOccurrence] = useState<{ start: Date; end: Date } | null>(null);
   const [drawerDate, setDrawerDate] = useState<Date | null>(null);
   const [logDraft, setLogDraft] = useState<LogDraft | null>(null);
   const weatherAll = useWeatherMap("malmo");
@@ -160,10 +161,12 @@ function CalendarPage() {
   function openEdit(e: ExpandedEvent) {
     const { occurrence_start: _s, occurrence_end: _e, calendar: _c, ...row } = e as any;
     setEditing(row as EventRow);
+    setEditingOccurrence(e.rrule ? { start: e.occurrence_start, end: e.occurrence_end } : null);
     setOpen(true);
   }
   function openAdd(when?: Date) {
     setEditing(null);
+    setEditingOccurrence(null);
     setDefaultStart(when);
     setOpen(true);
   }
@@ -304,7 +307,7 @@ function CalendarPage() {
       </div>
 
       <FAB onClick={() => openAdd()} />
-      <AddEventDialog open={open} onOpenChange={setOpen} defaultStart={defaultStart} event={editing} />
+      <AddEventDialog open={open} onOpenChange={setOpen} defaultStart={defaultStart} event={editing} occurrence={editingOccurrence} />
       <DayDrawer date={drawerDate} events={drawerEvents} overrides={overrides} onClose={() => setDrawerDate(null)} onEdit={openEdit} onAdd={(d) => { setDrawerDate(null); openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0)); }} />
       <LogTimeDropZone onDrop={setLogDraft} />
       <LogDraftDialog draft={logDraft} onClose={() => setLogDraft(null)} />
