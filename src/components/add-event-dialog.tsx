@@ -224,6 +224,28 @@ export function AddEventDialog({
 
   async function handleDelete() {
     if (!event) return;
+    if (isSeries && occurrence && scope === "one") {
+      if (!confirm(`Ta bort bara detta tillfälle av "${event.title}"?`)) return;
+      try {
+        await toggleSkip.mutateAsync({ eventId: event.id, date: dateKey(occurrence.start), skip: true });
+        toast.success("Tillfället borttaget");
+        onOpenChange(false);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed");
+      }
+      return;
+    }
+    if (isSeries && occurrence && scope === "future") {
+      if (!confirm(`Avsluta serien "${event.title}" från och med detta datum?`)) return;
+      try {
+        await update.mutateAsync({ id: event.id, rrule: endSeriesBefore(event.rrule!, occurrence.start) });
+        toast.success("Serien avslutad");
+        onOpenChange(false);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed");
+      }
+      return;
+    }
     if (!confirm(`Delete "${event.title}"?`)) return;
     try {
       await del.mutateAsync(event.id);
