@@ -43,14 +43,21 @@ function CalendarPage() {
   useReminderSync();
   useReminderScheduler();
 
+  const { settings } = useSettings();
+  const wso = settings.weekStartsOn;
+
   const [view, setView] = useState<ViewMode>("month");
+  const [viewLoaded, setViewLoaded] = useState(false);
   useEffect(() => {
     try {
       const stored = localStorage.getItem("cal-view") as ViewMode | null;
       if (stored === "month" || stored === "week" || stored === "day") setView(stored);
+      else setView(settings.defaultView);
     } catch { /* noop */ }
-  }, []);
-  useEffect(() => { try { localStorage.setItem("cal-view", view); } catch { /* noop */ } }, [view]);
+    setViewLoaded(true);
+    // Only run on mount / once settings arrive.
+  }, [settings.defaultView]);
+  useEffect(() => { if (viewLoaded) { try { localStorage.setItem("cal-view", view); } catch { /* noop */ } } }, [view, viewLoaded]);
 
   const [cursor, setCursor] = useState(new Date());
   const searchDay = Route.useSearch().d;
@@ -64,19 +71,24 @@ function CalendarPage() {
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [drawerDate, setDrawerDate] = useState<Date | null>(null);
   const [logDraft, setLogDraft] = useState<LogDraft | null>(null);
-  const weather = useWeatherMap("malmo");
+  const weatherAll = useWeatherMap("malmo");
+  const weather = useMemo(
+    () => (settings.showWeather ? weatherAll : new Map<string, WeatherDay>()),
+    [settings.showWeather, weatherAll],
+  );
 
   const range = useMemo(() => {
     if (view === "month") {
       const ms = startOfMonth(cursor), me = endOfMonth(cursor);
-      return { start: startOfWeek(ms, { weekStartsOn: 1 }), end: endOfWeek(me, { weekStartsOn: 1 }) };
+      return { start: startOfWeek(ms, { weekStartsOn: wso }), end: endOfWeek(me, { weekStartsOn: wso }) };
     }
     if (view === "week") {
-      const s = startOfWeek(cursor, { weekStartsOn: 1 });
+      const s = startOfWeek(cursor, { weekStartsOn: wso });
       return { start: s, end: addDays(s, 6) };
     }
     return { start: cursor, end: cursor };
-  }, [view, cursor]);
+  }, [view, cursor, wso]);
+
 
   const { data: calendars = [] } = useCalendars();
   const update = useUpdateCalendar();
