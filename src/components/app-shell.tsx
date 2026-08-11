@@ -63,7 +63,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { to: "/", label: "Calendar", icon: CalendarDays },
     { to: "/dashboard", label: "Insights", icon: BarChart3 },
     { to: "/sources", label: "Sources", icon: Layers },
+    { to: "/settings", label: "Settings", icon: SlidersHorizontal },
   ] as const;
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
