@@ -162,8 +162,9 @@ function CalendarPage() {
   const headerLabel = view === "month"
     ? format(cursor, "MMMM yyyy")
     : view === "week"
-      ? `Week of ${format(startOfWeek(cursor, { weekStartsOn: 1 }), "d MMM")}`
+      ? `Week of ${format(startOfWeek(cursor, { weekStartsOn: wso }), "d MMM")}`
       : format(cursor, "EEEE d MMM yyyy");
+
 
   return (
     <AppShell>
@@ -220,11 +221,13 @@ function CalendarPage() {
 
         <QuickAddBar />
 
-        <HoursTracker />
+        {settings.showHours && <HoursTracker />}
 
-        <UpcomingPanel
-          onEdit={(ev) => { setEditing(ev); setOpen(true); }}
-        />
+        {settings.showUpcoming && (
+          <UpcomingPanel
+            onEdit={(ev) => { setEditing(ev); setOpen(true); }}
+          />
+        )}
 
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -236,12 +239,16 @@ function CalendarPage() {
           >
             {view === "month" && (
               <MonthGrid cursor={cursor} events={visible} skippedSet={skippedSet} weather={weather}
+                weekStartsOn={wso}
+                compact={settings.density === "compact"}
+                showConflicts={settings.showConflicts}
                 onDayClick={(d) => setDrawerDate(d)}
                 onAdd={(d) => openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0))}
                 onEdit={openEdit}
                 onConvert={setLogDraft}
               />
             )}
+
             {view === "week" && (
               <WeekView weekStart={cursor} events={visible} overrides={overrides}
                 onEdit={openEdit} onAdd={openAdd} onConvert={setLogDraft} weather={weather}
