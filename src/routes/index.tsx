@@ -103,7 +103,26 @@ function CalendarPage() {
     return s;
   }, [overrides]);
 
-  const visible = events.filter((e) => e.calendar?.visible !== false);
+  // Filters are remembered per view — month, week, day and compact each keep their own set.
+  const filterKey = settings.density === "compact" ? "compact" : view;
+  const hiddenIds = useMemo(
+    () => new Set(settings.viewFilters?.[filterKey] ?? []),
+    [settings.viewFilters, filterKey],
+  );
+  const toggleCalendar = (id: string) => {
+    const next = new Set(hiddenIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    update2.mutate({ viewFilters: { ...(settings.viewFilters ?? {}), [filterKey]: [...next] } });
+  };
+  const setAll = (show: boolean) =>
+    update2.mutate({
+      viewFilters: {
+        ...(settings.viewFilters ?? {}),
+        [filterKey]: show ? [] : calendars.map((c) => c.id),
+      },
+    });
+
+  const visible = events.filter((e) => e.calendar?.visible !== false && !hiddenIds.has(e.calendar_id));
 
   // Keyboard shortcuts — inert while typing in a field or dialog.
   useEffect(() => {
