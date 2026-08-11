@@ -280,23 +280,27 @@ function CalendarPage() {
 }
 
 
-function MonthGrid({ cursor, events, skippedSet, weather, onDayClick, onAdd, onEdit, onConvert }: {
+function MonthGrid({ cursor, events, skippedSet, weather, weekStartsOn, compact, showConflicts, onDayClick, onAdd, onEdit, onConvert }: {
   cursor: Date; events: ExpandedEvent[]; skippedSet: Set<string>;
   weather: Map<string, WeatherDay>;
+  weekStartsOn: 0 | 1; compact: boolean; showConflicts: boolean;
   onDayClick: (d: Date) => void; onAdd: (d: Date) => void;
   onEdit: (e: ExpandedEvent) => void; onConvert: (d: LogDraft) => void;
 }) {
   const monthStart = startOfMonth(cursor);
   const monthEnd = endOfMonth(cursor);
-  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const gridStart = startOfWeek(monthStart, { weekStartsOn });
+  const gridEnd = endOfWeek(monthEnd, { weekStartsOn });
   const days: Date[] = [];
   let d = gridStart;
   while (d <= gridEnd) { days.push(d); d = addDays(d, 1); }
+  const labels = weekStartsOn === 1
+    ? ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    : ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elegant)]">
       <div className="grid grid-cols-7 border-b border-border bg-muted/30 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-[11px]">
-        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => (
+        {labels.map((d) => (
           <div key={d} className="py-2 sm:py-2.5">
             <span className="sm:hidden">{d[0]}</span>
             <span className="hidden sm:inline">{d}</span>
@@ -309,6 +313,8 @@ function MonthGrid({ cursor, events, skippedSet, weather, onDayClick, onAdd, onE
             events={events.filter((e) => isSameDay(e.occurrence_start, d))}
             skippedSet={skippedSet}
             weather={weather.get(dateKey(d))}
+            compact={compact}
+            showConflicts={showConflicts}
             onClick={() => onDayClick(d)}
             onAdd={() => onAdd(d)}
             onEdit={onEdit}
@@ -319,6 +325,7 @@ function MonthGrid({ cursor, events, skippedSet, weather, onDayClick, onAdd, onE
     </div>
   );
 }
+
 
 function DayCell({
   day, cursor, events, skippedSet, weather, onClick, onAdd, onEdit, onConvert,
