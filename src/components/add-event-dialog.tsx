@@ -30,12 +30,14 @@ function localDateTimeValue(d: Date) {
 }
 
 export function AddEventDialog({
-  open, onOpenChange, defaultStart, event,
+  open, onOpenChange, defaultStart, event, occurrence,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   defaultStart?: Date;
   event?: EventRow | null;
+  /** The clicked occurrence of a recurring event, so edits can be scoped to it. */
+  occurrence?: { start: Date; end: Date } | null;
 }) {
   const { data: allCalendars = [] } = useCalendars();
   // Archived calendars aren't offered for new events, but stay selectable when editing an old one.
