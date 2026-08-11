@@ -307,7 +307,7 @@ function CalendarPage() {
       </div>
 
       <FAB onClick={() => openAdd()} />
-      <AddEventDialog open={open} onOpenChange={setOpen} defaultStart={defaultStart} event={editing} />
+      <AddEventDialog open={open} onOpenChange={setOpen} defaultStart={defaultStart} event={editing} occurrence={editingOccurrence} />
       <DayDrawer date={drawerDate} events={drawerEvents} overrides={overrides} onClose={() => setDrawerDate(null)} onEdit={openEdit} onAdd={(d) => { setDrawerDate(null); openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0)); }} />
       <LogTimeDropZone onDrop={setLogDraft} />
       <LogDraftDialog draft={logDraft} onClose={() => setLogDraft(null)} />
