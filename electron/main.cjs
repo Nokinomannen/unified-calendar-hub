@@ -58,6 +58,31 @@ const webPrefs = () => ({
   preload: path.join(__dirname, "preload.cjs"),
 });
 
+/** Keep a remembered window box on screen even if displays changed. */
+function boxOnScreen(saved, fallback) {
+  if (!saved) return fallback;
+  const fits = screen.getAllDisplays().some((d) => {
+    const b = d.workArea;
+    return saved.x >= b.x - 60 && saved.y >= b.y - 40 && saved.x <= b.x + b.width - 80 && saved.y <= b.y + b.height - 40;
+  });
+  return fits ? { ...fallback, ...saved } : fallback;
+}
+
+function loadApp(win, url) {
+  win.loadURL(url).catch(() => {
+    /* did-fail-load handles it */
+  });
+}
+
+function attachOfflineFallback(win, url) {
+  win.webContents.on("did-fail-load", (_e, code, _desc, failedUrl, isMainFrame) => {
+    // -3 is an aborted load (e.g. a redirect); not a real failure.
+    if (!isMainFrame || code === -3) return;
+    win.__retryUrl = failedUrl && failedUrl.startsWith("http") ? failedUrl : url;
+    win.loadFile(path.join(__dirname, "offline.html"));
+  });
+}
+
 function createMainWindow() {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
@@ -66,15 +91,28 @@ function createMainWindow() {
     return mainWindow;
   }
   mainWindow = new BrowserWindow({
-    width: 1240,
-    height: 880,
+    ...boxOnScreen(state.main, { width: 1240, height: 880 }),
     minWidth: 420,
+    minHeight: 380,
+    show: false,
     backgroundColor: "#101010",
     title: "One",
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     webPreferences: webPrefs(),
   });
-  mainWindow.loadURL(APP_URL);
+  if (state.mainMaximized) mainWindow.maximize();
+  attachOfflineFallback(mainWindow, APP_URL);
+  loadApp(mainWindow, APP_URL);
+  mainWindow.once("ready-to-show", () => mainWindow && mainWindow.show());
+  const rememberMain = () => {
+    if (!mainWindow || mainWindow.isMinimized() || mainWindow.isFullScreen()) return;
+    const maximized = mainWindow.isMaximized();
+    const b = mainWindow.getNormalBounds();
+    saveState({ main: b, mainMaximized: maximized });
+  };
+  mainWindow.on("resize", rememberMain);
+  mainWindow.on("moved", rememberMain);
+  mainWindow.on("close", rememberMain);
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
