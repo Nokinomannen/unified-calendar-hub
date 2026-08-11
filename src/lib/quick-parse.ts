@@ -199,7 +199,7 @@ export function quickParse(input: string, opts: QuickParseOptions | Date = {}): 
   // --- time range "13-15" / "13:00-15:30" ---
   let startH = 9;
   let startM = 0;
-  let durMin = 60;
+  let durMin = defaultMinutes;
 
   const range = rest.match(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|–|—|till|to)\s*(\d{1,2})(?:[:.](\d{2}))?\b/);
   const single = rest.match(/\b(?:at|kl|kl\.|klockan)?\s*(\d{1,2})[:.](\d{2})\b/);
@@ -225,9 +225,11 @@ export function quickParse(input: string, opts: QuickParseOptions | Date = {}): 
     consumed.push(bareHour[0]);
     sawTime = true;
   } else {
-    const next = new Date(now.getTime() + 60 * 60_000);
-    startH = next.getHours();
-    startM = 0;
+    // No time given: next slot rounded up to the user's preferred increment.
+    const next = new Date(now.getTime() + 30 * 60_000);
+    const mins = Math.ceil((next.getHours() * 60 + next.getMinutes()) / roundTo) * roundTo;
+    startH = Math.min(23, Math.floor(mins / 60));
+    startM = mins % 60;
   }
 
   if (dur && !range) {
@@ -241,21 +243,29 @@ export function quickParse(input: string, opts: QuickParseOptions | Date = {}): 
   // --- title = whatever is left ---
   rest = stripAll(rest, consumed);
   const title = rest
-    .replace(/\b(on|at|the|kl|kl\.|klockan|for|i|under|till|to|från|from)\b/gi, " ")
+    .replace(/\b(on|at|the|kl|kl\.|klockan|for|i|under|till|to|från|from|på|hos)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 
-  const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), startH, startM, 0, 0);
-  const end = new Date(start.getTime() + durMin * 60_000);
+  const start = allDay
+    ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0)
+    : new Date(day.getFullYear(), day.getMonth(), day.getDate(), startH, startM, 0, 0);
+  const end = allDay
+    ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 0, 0)
+    : new Date(start.getTime() + durMin * 60_000);
 
   return {
     title: title || "Untitled",
     start,
     end,
     calendarHint,
-    confident: Boolean(title) && (sawDate || sawTime),
+    calendarId,
+    location,
+    allDay,
+    confident: Boolean(title) && (sawDate || sawTime || allDay),
   };
 }
+
 
 function addDays(d: Date, n: number) {
   const c = new Date(d);
