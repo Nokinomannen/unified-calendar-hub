@@ -68,20 +68,74 @@ function stripAll(text: string, matches: string[]) {
  * line still returns a sane default (today, next full hour, 1h) with
  * `confident: false` so the UI can offer the AI assistant instead.
  */
-export function quickParse(input: string, now: Date = new Date()): QuickParseResult {
+export function quickParse(input: string, opts: QuickParseOptions | Date = {}): QuickParseResult {
+  const o: QuickParseOptions = opts instanceof Date ? { now: opts } : opts;
+  const now = o.now ?? new Date();
+  const defaultMinutes = o.defaultMinutes ?? 60;
+  const roundTo = Math.max(1, o.roundTo ?? 15);
   const raw = input.trim();
   let rest = ` ${raw} `;
   const consumed: string[] = [];
   let sawDate = false;
   let sawTime = false;
 
-  // --- calendar hint: @name or #name (last token wins) ---
+  // --- calendar: @name/#name, or a plain calendar name/alias in the text ---
   let calendarHint: string | null = null;
+  let calendarId: string | null = null;
   const hint = rest.match(/[@#]([\p{L}\d-]+)/u);
   if (hint) {
     calendarHint = hint[1];
     consumed.push(hint[0]);
+    rest = rest.replace(hint[0], " ");
   }
+
+  const norm = (s: string) => s.toLowerCase().replace(/[\s_.-]+/g, "");
+  for (const cal of o.calendars ?? []) {
+    const names = [cal.name, ...(cal.aliases ?? [])].filter(Boolean);
+    // Longest first so "a-hub" wins over "hub".
+    names.sort((a, b) => b.length - a.length);
+    let hit = false;
+    if (calendarHint) {
+      const h = norm(calendarHint);
+      if (names.some((n) => norm(n) === h || norm(n).startsWith(h))) hit = true;
+    }
+    if (!hit) {
+      for (const n of names) {
+        // Match the name even when written with different separators (a-hub / a hub / ahub).
+        const pattern = n
+          .trim()
+          .split(/[\s_.-]+/)
+          .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+          .join("[\\s_.-]*");
+        const re = new RegExp(`(^|\\s)(${pattern})(?=\\s|$)`, "iu");
+        const m = rest.match(re);
+        if (m) {
+          rest = rest.replace(m[0], " ");
+          hit = true;
+          calendarHint = calendarHint ?? n;
+          break;
+        }
+      }
+    }
+    if (hit) { calendarId = cal.id; break; }
+  }
+
+  // --- all day ---
+  let allDay = false;
+  const allDayM = rest.match(/\b(heldag|hela dagen|all[- ]?day)\b/iu);
+  if (allDayM) {
+    allDay = true;
+    consumed.push(allDayM[0]);
+  }
+
+  // --- location: "på X" / "i X" at the end, or "@X" already consumed as hint ---
+  let location: string | null = null;
+  const locM = rest.match(/\s(?:på|hos|at|in)\s+([\p{Lu}][\p{L}\d&'’ -]{1,30})\s*$/u);
+  if (locM) {
+    location = locM[1].trim();
+    consumed.push(locM[0]);
+  }
+
 
   // --- date ---
   let day = atMidnight(now);
