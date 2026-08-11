@@ -29,9 +29,8 @@ type ViewMode = "month" | "week" | "day";
 
 export const Route = createFileRoute("/")({
   // `?d=YYYY-MM-DD` lets the command palette and links jump to a specific day.
-  validateSearch: (search: Record<string, unknown>) => ({
-    d: typeof search.d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.d) ? search.d : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { d?: string } =>
+    typeof search.d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.d) ? { d: search.d } : {},
   component: CalendarPage,
 });
 
