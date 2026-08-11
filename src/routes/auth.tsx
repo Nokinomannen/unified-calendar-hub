@@ -14,7 +14,6 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,17 +28,9 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: { emailRedirectTo: `${window.location.origin}/` },
-        });
-        if (error) throw error;
-        toast.success("Account created — you're in.");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      }
+      // Private app — sign-in only. No public sign-up.
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
       saveAutoCreds(email, password);
       router.navigate({ to: "/" });
     } catch (err) {
@@ -48,6 +39,7 @@ function AuthPage() {
       setLoading(false);
     }
   }
+
 
   return (
     <div className="grid min-h-screen place-items-center bg-gradient-to-br from-background via-background to-accent/30 px-4">
