@@ -315,26 +315,38 @@ export type Database = {
       event_overrides: {
         Row: {
           created_at: string
+          end_at: string | null
           event_id: string
           id: string
+          location: string | null
           occurrence_date: string
+          start_at: string | null
           status: string
+          title: string | null
           user_id: string
         }
         Insert: {
           created_at?: string
+          end_at?: string | null
           event_id: string
           id?: string
+          location?: string | null
           occurrence_date: string
+          start_at?: string | null
           status?: string
+          title?: string | null
           user_id: string
         }
         Update: {
           created_at?: string
+          end_at?: string | null
           event_id?: string
           id?: string
+          location?: string | null
           occurrence_date?: string
+          start_at?: string | null
           status?: string
+          title?: string | null
           user_id?: string
         }
         Relationships: [
