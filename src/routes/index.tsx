@@ -328,10 +328,10 @@ function MonthGrid({ cursor, events, skippedSet, weather, weekStartsOn, compact,
 
 
 function DayCell({
-  day, cursor, events, skippedSet, weather, onClick, onAdd, onEdit, onConvert,
+  day, cursor, events, skippedSet, weather, compact, showConflicts, onClick, onAdd, onEdit, onConvert,
 }: {
   day: Date; cursor: Date; events: ExpandedEvent[]; skippedSet: Set<string>;
-  weather?: WeatherDay;
+  weather?: WeatherDay; compact: boolean; showConflicts: boolean;
   onClick: () => void; onAdd: () => void;
   onEdit: (e: ExpandedEvent) => void; onConvert: (d: LogDraft) => void;
 }) {
@@ -341,16 +341,19 @@ function DayCell({
 
   const timed = events.filter((e) => !e.all_day);
   const conflictIds = new Set<string>();
-  for (let i = 0; i < timed.length; i++) {
-    for (let j = i + 1; j < timed.length; j++) {
-      const a = timed[i], b = timed[j];
-      if (a.occurrence_start < b.occurrence_end && b.occurrence_start < a.occurrence_end) {
-        if (!skippedSet.has(`${a.id}|${dk}`) && !skippedSet.has(`${b.id}|${dk}`)) {
-          conflictIds.add(a.id); conflictIds.add(b.id);
+  if (showConflicts) {
+    for (let i = 0; i < timed.length; i++) {
+      for (let j = i + 1; j < timed.length; j++) {
+        const a = timed[i], b = timed[j];
+        if (a.occurrence_start < b.occurrence_end && b.occurrence_start < a.occurrence_end) {
+          if (!skippedSet.has(`${a.id}|${dk}`) && !skippedSet.has(`${b.id}|${dk}`)) {
+            conflictIds.add(a.id); conflictIds.add(b.id);
+          }
         }
       }
     }
   }
+
 
   const activeHours = timed
     .filter((e) => !skippedSet.has(`${e.id}|${dk}`))
