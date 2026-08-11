@@ -261,6 +261,22 @@ export function AddEventDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader><DialogTitle>{editing ? "Edit event" : "New event"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
+          {isSeries && (
+            <div className="rounded-lg border border-border bg-muted/30 p-2.5">
+              <div className="mb-1.5 text-xs font-medium">Återkommande event — vad ska ändras?</div>
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  { v: "one", l: "Bara detta tillfälle" },
+                  { v: "future", l: "Detta och framåt" },
+                  { v: "all", l: "Hela serien" },
+                ] as const).map((o) => (
+                  <button key={o.v} type="button" onClick={() => setScope(o.v)}
+                    className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${scope === o.v ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-accent"}`}
+                  >{o.l}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
