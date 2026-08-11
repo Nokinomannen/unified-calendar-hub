@@ -161,10 +161,12 @@ function CalendarPage() {
   function openEdit(e: ExpandedEvent) {
     const { occurrence_start: _s, occurrence_end: _e, calendar: _c, ...row } = e as any;
     setEditing(row as EventRow);
+    setEditingOccurrence(e.rrule ? { start: e.occurrence_start, end: e.occurrence_end } : null);
     setOpen(true);
   }
   function openAdd(when?: Date) {
     setEditing(null);
+    setEditingOccurrence(null);
     setDefaultStart(when);
     setOpen(true);
   }
