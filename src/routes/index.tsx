@@ -72,6 +72,7 @@ function CalendarPage() {
   const [open, setOpen] = useState(false);
   const [defaultStart, setDefaultStart] = useState<Date | undefined>();
   const [editing, setEditing] = useState<EventRow | null>(null);
+  const [editingOccurrence, setEditingOccurrence] = useState<{ start: Date; end: Date } | null>(null);
   const [drawerDate, setDrawerDate] = useState<Date | null>(null);
   const [logDraft, setLogDraft] = useState<LogDraft | null>(null);
   const weatherAll = useWeatherMap("malmo");
