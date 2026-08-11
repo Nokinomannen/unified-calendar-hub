@@ -365,7 +365,9 @@ function DayCell({
   return (
     <div
       className={cn(
-        "group relative min-h-[72px] cursor-pointer border-b border-r border-border p-1 text-left transition-colors sm:min-h-[124px] sm:p-2",
+        "group relative cursor-pointer border-b border-r border-border p-1 text-left transition-colors sm:p-2",
+        compact ? "min-h-[60px] sm:min-h-[96px]" : "min-h-[72px] sm:min-h-[124px]",
+
         !inMonth && "bg-muted/15",
         isFree && "bg-success/[0.05] hover:bg-success/10",
         !isFree && "hover:bg-accent/30",
