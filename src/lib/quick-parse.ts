@@ -6,8 +6,24 @@ export type QuickParseResult = {
   start: Date;
   end: Date;
   calendarHint: string | null;
+  /** Resolved calendar id when a name/alias matched the text. */
+  calendarId: string | null;
+  location: string | null;
+  allDay: boolean;
   confident: boolean;
 };
+
+export type QuickParseCalendar = { id: string; name: string; aliases?: string[] | null };
+
+export type QuickParseOptions = {
+  now?: Date;
+  calendars?: QuickParseCalendar[];
+  /** Fallback duration in minutes when the text has no range or duration. */
+  defaultMinutes?: number;
+  /** Round a guessed start time to this many minutes. */
+  roundTo?: number;
+};
+
 
 const WEEKDAYS: Record<string, number> = {
   monday: 1, mon: 1, måndag: 1, mandag: 1, mån: 1,
