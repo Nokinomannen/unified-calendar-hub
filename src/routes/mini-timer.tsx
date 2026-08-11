@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Play, Pause, Square } from "lucide-react";
+import { Play, Pause, Square, X, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useActiveCalendars } from "@/hooks/use-calendar-data";
@@ -14,6 +14,17 @@ import {
 import { formatElapsed, useNowTick } from "@/components/timer-widget";
 import { StopTimerDialog } from "@/components/stop-timer-dialog";
 import { cn } from "@/lib/utils";
+
+/** Electron preload bridge; undefined in the browser. */
+type OneDesktop = {
+  isDesktop: true;
+  timerState: (s: { running: boolean; paused: boolean; label: string; elapsed: string }) => void;
+  closeMini: () => void;
+  openMain: () => void;
+};
+const desktop = (): OneDesktop | undefined =>
+  typeof window === "undefined" ? undefined : (window as unknown as { oneDesktop?: OneDesktop }).oneDesktop;
+
 
 export const Route = createFileRoute("/mini-timer")({
   ssr: false,
@@ -48,6 +59,17 @@ function MiniTimer() {
   const now = useNowTick(!!timer);
   const cal = timer ? calendars.find((c) => c.id === timer.calendar_id) : null;
   const paused = !!timer?.paused_at;
+  const elapsed = timer ? formatElapsed(timerNetMs(timer, now)) : "";
+
+  // Mirror the timer into the macOS menu bar.
+  useEffect(() => {
+    desktop()?.timerState({
+      running: !!timer,
+      paused,
+      label: cal?.name ?? "Jobb",
+      elapsed,
+    });
+  }, [timer, paused, cal?.name, elapsed]);
 
   if (!user) {
     return (
@@ -59,10 +81,11 @@ function MiniTimer() {
 
   return (
     <div
-      className="flex h-screen select-none items-center gap-2 bg-background px-3 text-foreground"
+      className="group flex h-screen select-none items-center gap-2 bg-background px-3 text-foreground"
       style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
     >
       <div className="flex min-w-0 flex-1 flex-col" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+
         {timer ? (
           <>
             <span className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -85,7 +108,30 @@ function MiniTimer() {
         )}
       </div>
 
+      {desktop() && (
+        <div
+          className="flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+        >
+          <button
+            onClick={() => desktop()?.closeMini()}
+            className="grid h-5 w-5 place-items-center rounded-full text-muted-foreground hover:bg-accent"
+            aria-label="Dölj mini-timern"
+          >
+            <X className="h-3 w-3" />
+          </button>
+          <button
+            onClick={() => desktop()?.openMain()}
+            className="grid h-5 w-5 place-items-center rounded-full text-muted-foreground hover:bg-accent"
+            aria-label="Öppna kalendern"
+          >
+            <CalendarDays className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center gap-1" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+
         {timer ? (
           <>
             <button
