@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Play, Pause, Square } from "lucide-react";
+import { Play, Pause, Square, X, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useActiveCalendars } from "@/hooks/use-calendar-data";
@@ -14,6 +14,17 @@ import {
 import { formatElapsed, useNowTick } from "@/components/timer-widget";
 import { StopTimerDialog } from "@/components/stop-timer-dialog";
 import { cn } from "@/lib/utils";
+
+/** Electron preload bridge; undefined in the browser. */
+type OneDesktop = {
+  isDesktop: true;
+  timerState: (s: { running: boolean; paused: boolean; label: string; elapsed: string }) => void;
+  closeMini: () => void;
+  openMain: () => void;
+};
+const desktop = (): OneDesktop | undefined =>
+  typeof window === "undefined" ? undefined : (window as unknown as { oneDesktop?: OneDesktop }).oneDesktop;
+
 
 export const Route = createFileRoute("/mini-timer")({
   ssr: false,
