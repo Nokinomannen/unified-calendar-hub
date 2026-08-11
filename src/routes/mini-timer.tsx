@@ -59,6 +59,17 @@ function MiniTimer() {
   const now = useNowTick(!!timer);
   const cal = timer ? calendars.find((c) => c.id === timer.calendar_id) : null;
   const paused = !!timer?.paused_at;
+  const elapsed = timer ? formatElapsed(timerNetMs(timer, now)) : "";
+
+  // Mirror the timer into the macOS menu bar.
+  useEffect(() => {
+    desktop()?.timerState({
+      running: !!timer,
+      paused,
+      label: cal?.name ?? "Jobb",
+      elapsed,
+    });
+  }, [timer, paused, cal?.name, elapsed]);
 
   if (!user) {
     return (
@@ -70,10 +81,11 @@ function MiniTimer() {
 
   return (
     <div
-      className="flex h-screen select-none items-center gap-2 bg-background px-3 text-foreground"
+      className="group flex h-screen select-none items-center gap-2 bg-background px-3 text-foreground"
       style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
     >
       <div className="flex min-w-0 flex-1 flex-col" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+
         {timer ? (
           <>
             <span className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
