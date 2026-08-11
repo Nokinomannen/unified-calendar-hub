@@ -164,7 +164,8 @@ function createMiniWindow() {
   });
   miniWindow.setAlwaysOnTop(true, "floating");
   miniWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  miniWindow.loadURL(`${APP_URL}/mini-timer`);
+  attachOfflineFallback(miniWindow, `${APP_URL}/mini-timer`);
+  loadApp(miniWindow, `${APP_URL}/mini-timer`);
   const remember = () => {
     if (!miniWindow) return;
     const [x, y] = miniWindow.getPosition();
