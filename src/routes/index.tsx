@@ -105,7 +105,36 @@ function CalendarPage() {
 
   const visible = events.filter((e) => e.calendar?.visible !== false);
 
+  // Keyboard shortcuts — inert while typing in a field or dialog.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(input|textarea|select)$/i.test(t.tagName))) return;
+      const step = (dir: -1 | 1) =>
+        setCursor((c) => (view === "month" ? addMonths(c, dir) : view === "week" ? addWeeks(c, dir) : addDays(c, dir)));
+      switch (e.key.toLowerCase()) {
+        case "q": {
+          e.preventDefault();
+          document.getElementById("quick-add-input")?.focus();
+          break;
+        }
+        case "n": e.preventDefault(); setEditing(null); setDefaultStart(undefined); setOpen(true); break;
+        case "t": e.preventDefault(); setCursor(new Date()); break;
+        case "1": setView("month"); break;
+        case "2": setView("week"); break;
+        case "3": setView("day"); break;
+        case "arrowleft": step(-1); break;
+        case "arrowright": step(1); break;
+        default: break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [view]);
+
   if (loading || !user) return null;
+
 
   const drawerEvents = drawerDate ? visible.filter((e) => isSameDay(e.occurrence_start, drawerDate)) : [];
 
