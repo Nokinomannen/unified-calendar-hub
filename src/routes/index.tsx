@@ -15,7 +15,7 @@ import { useReminderSync, useReminderScheduler } from "@/hooks/use-reminders";
 import { EventContextMenu, LogDraftDialog, type LogDraft } from "@/components/event-context-menu";
 import { LogTimeDropZone } from "@/components/log-time-dropzone";
 import { useWeatherMap } from "@/hooks/use-weather";
-import { useSettings } from "@/hooks/use-settings";
+import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 
 import { WeatherBadge } from "@/components/weather-badge";
 import type { WeatherDay } from "@/hooks/use-weather";
@@ -46,6 +46,7 @@ function CalendarPage() {
   useReminderScheduler();
 
   const { settings } = useSettings();
+  const updateSettings = useUpdateSettings();
   const wso = settings.weekStartsOn;
 
   const [view, setView] = useState<ViewMode>("month");
@@ -112,10 +113,10 @@ function CalendarPage() {
   const toggleCalendar = (id: string) => {
     const next = new Set(hiddenIds);
     if (next.has(id)) next.delete(id); else next.add(id);
-    update2.mutate({ viewFilters: { ...(settings.viewFilters ?? {}), [filterKey]: [...next] } });
+    updateSettings.mutate({ viewFilters: { ...(settings.viewFilters ?? {}), [filterKey]: [...next] } });
   };
   const setAll = (show: boolean) =>
-    update2.mutate({
+    updateSettings.mutate({
       viewFilters: {
         ...(settings.viewFilters ?? {}),
         [filterKey]: show ? [] : calendars.map((c) => c.id),
