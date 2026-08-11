@@ -8,4 +8,6 @@ contextBridge.exposeInMainWorld("oneDesktop", {
   timerState: (state) => ipcRenderer.send("timer-state", state),
   closeMini: () => ipcRenderer.send("mini-close"),
   openMain: () => ipcRenderer.send("open-main"),
+  /** Used by the offline fallback page to retry the failed load. */
+  retryLoad: () => ipcRenderer.send("retry-load"),
 });
