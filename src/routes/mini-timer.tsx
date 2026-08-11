@@ -108,7 +108,30 @@ function MiniTimer() {
         )}
       </div>
 
+      {desktop() && (
+        <div
+          className="flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+        >
+          <button
+            onClick={() => desktop()?.closeMini()}
+            className="grid h-5 w-5 place-items-center rounded-full text-muted-foreground hover:bg-accent"
+            aria-label="Dölj mini-timern"
+          >
+            <X className="h-3 w-3" />
+          </button>
+          <button
+            onClick={() => desktop()?.openMain()}
+            className="grid h-5 w-5 place-items-center rounded-full text-muted-foreground hover:bg-accent"
+            aria-label="Öppna kalendern"
+          >
+            <CalendarDays className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center gap-1" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+
         {timer ? (
           <>
             <button
