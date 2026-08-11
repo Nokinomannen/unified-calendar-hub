@@ -154,6 +154,44 @@ export function AddEventDialog({
         reminder_minutes: reminder === "default" ? null : reminder === "off" ? -1 : parseInt(reminder),
         email_reminder: emailRem === "default" ? null : emailRem,
       };
+      // Recurring series: the chosen scope decides what actually changes.
+      if (editing && event && isSeries && occurrence) {
+        const s = new Date(start);
+        const e2 = new Date(end);
+        if (scope === "one") {
+          await saveOccurrence.mutateAsync({
+            eventId: event.id,
+            date: dateKey(occurrence.start),
+            title,
+            start_at: s.toISOString(),
+            end_at: e2.toISOString(),
+            location: location || null,
+          });
+          toast.success("Tillfället uppdaterat");
+          onOpenChange(false);
+          return;
+        }
+        if (scope === "future") {
+          await update.mutateAsync({ id: event.id, rrule: endSeriesBefore(event.rrule!, occurrence.start) });
+          await create.mutateAsync({ ...payload, rrule: rrule ?? event.rrule });
+          toast.success("Serien delad — ändringen gäller från och med detta datum");
+          onOpenChange(false);
+          return;
+        }
+        // scope === "all": keep the series start date, move the time of day.
+        const master = new Date(event.start_at);
+        master.setHours(s.getHours(), s.getMinutes(), 0, 0);
+        const masterEnd = new Date(master.getTime() + (e2.getTime() - s.getTime()));
+        await update.mutateAsync({
+          id: event.id,
+          ...payload,
+          start_at: master.toISOString(),
+          end_at: masterEnd.toISOString(),
+        });
+        toast.success("Hela serien uppdaterad");
+        onOpenChange(false);
+        return;
+      }
       let eventId = event?.id ?? null;
       if (editing && event) {
         await update.mutateAsync({ id: event.id, ...payload });
