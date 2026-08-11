@@ -21,6 +21,8 @@ export type Settings = {
   /** Panels */
   showHours: boolean;
   showUpcoming: boolean;
+  /** Per-view calendar filters — hidden calendar ids keyed by view ("month" | "week" | "day" | "compact") */
+  viewFilters: Record<string, string[]>;
   /** Money */
   currency: string;
   taxRate: number;
