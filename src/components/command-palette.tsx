@@ -8,8 +8,9 @@ import { useEvents } from "@/hooks/use-calendar-data";
 import { useTheme } from "@/hooks/use-theme";
 import { useActiveTimer, usePauseTimer, useResumeTimer } from "@/hooks/use-timer";
 import {
-  BarChart3, CalendarDays, Layers, Moon, Sun, Monitor, Play, Pause, CalendarClock,
+  BarChart3, CalendarDays, Layers, Moon, Sun, Monitor, Play, Pause, CalendarClock, SlidersHorizontal,
 } from "lucide-react";
+
 
 /** Cmd/Ctrl+K palette: search events, jump to dates, switch pages and controls. */
 export function CommandPalette() {
@@ -59,10 +60,11 @@ export function CommandPalette() {
     setOpen(false);
     router.navigate({ to: "/", search: { d: format(d, "yyyy-MM-dd") } });
   }
-  function go(to: "/" | "/dashboard" | "/sources") {
+  function go(to: "/" | "/dashboard" | "/sources" | "/settings") {
     setOpen(false);
     router.navigate({ to });
   }
+
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
@@ -104,6 +106,8 @@ export function CommandPalette() {
           <CommandItem onSelect={() => go("/")}><CalendarDays className="mr-2 h-4 w-4" /> Kalender</CommandItem>
           <CommandItem onSelect={() => go("/dashboard")}><BarChart3 className="mr-2 h-4 w-4" /> Insights</CommandItem>
           <CommandItem onSelect={() => go("/sources")}><Layers className="mr-2 h-4 w-4" /> Källor</CommandItem>
+          <CommandItem onSelect={() => go("/settings")}><SlidersHorizontal className="mr-2 h-4 w-4" /> Inställningar</CommandItem>
+
         </CommandGroup>
 
         <CommandGroup heading="Åtgärder">
