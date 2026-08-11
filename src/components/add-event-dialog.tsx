@@ -61,15 +61,21 @@ export function AddEventDialog({
   const [reminder, setReminder] = useState<string>("default");
   const [emailRem, setEmailRem] = useState<string>("default");
   const [fee, setFee] = useState("");
+  const [scope, setScope] = useState<Scope>("one");
   const upsertDj = useUpsertDjSet();
+  const saveOccurrence = useSaveOccurrence();
+  const toggleSkip = useToggleSkip();
+
+  // A recurring event opened from a specific day can be edited per occurrence.
+  const isSeries = !!(event?.rrule && occurrence);
 
   useEffect(() => {
     if (!open) return;
     if (event) {
       setTitle(event.title);
       setCalId(event.calendar_id);
-      setStart(localDateTimeValue(new Date(event.start_at)));
-      setEnd(localDateTimeValue(new Date(event.end_at)));
+      setStart(localDateTimeValue(occurrence?.start ?? new Date(event.start_at)));
+      setEnd(localDateTimeValue(occurrence?.end ?? new Date(event.end_at)));
       setLocation(event.location ?? "");
       setDescription(event.description ?? "");
       setAllDay(event.all_day);
@@ -77,7 +83,7 @@ export function AddEventDialog({
       setRepeat(r.includes("FREQ=WEEKLY") ? "WEEKLY" : r.includes("FREQ=DAILY") ? "DAILY" : "none");
       const m = r.match(/BYDAY=([^;]+)/);
       setByDays(m ? m[1].split(",") : []);
-      
+      setScope("one");
       setReminder(event.reminder_minutes === null ? "default" : event.reminder_minutes < 0 ? "off" : String(event.reminder_minutes));
       setEmailRem(event.email_reminder ?? "default");
     } else {
@@ -85,9 +91,9 @@ export function AddEventDialog({
       const e0 = new Date(s0.getTime() + 60 * 60 * 1000);
       setTitle(""); setCalId(""); setStart(localDateTimeValue(s0)); setEnd(localDateTimeValue(e0));
       setLocation(""); setDescription(""); setAllDay(false); setRepeat("none"); setByDays([]); setUntil("");
-      setReminder("default"); setEmailRem("default");
+      setReminder("default"); setEmailRem("default"); setScope("one");
     }
-  }, [open, event, defaultStart]);
+  }, [open, event, defaultStart, occurrence]);
 
   const cal = calId || calendars?.[0]?.id || "";
   const isDj = allCalendars.find((c) => c.id === cal)?.kind === "dj";
