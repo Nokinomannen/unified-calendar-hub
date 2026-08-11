@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ingen anslutning</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: #101010;
+        color: #ededed;
+        display: grid;
+        place-items: center;
+        font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        -webkit-app-region: drag;
+      }
+      .card { max-width: 340px; text-align: center; padding: 24px; -webkit-app-region: no-drag; }
+      h1 { font-size: 17px; font-weight: 600; margin: 0 0 8px; }
+      p { margin: 0 0 20px; color: #9a9a9a; font-size: 13px; }
+      button {
+        appearance: none; border: 0; cursor: pointer;
+        background: #c9622e; color: #fff;
+        padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      }
+      button:hover { background: #d97038; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #c9622e; margin: 0 auto 16px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="dot"></div>
+      <h1>Ingen anslutning</h1>
+      <p>One kunde inte nå kalendern. Kontrollera nätverket — appen försöker igen automatiskt.</p>
+      <button id="retry" type="button">Försök igen</button>
+    </div>
+    <script>
+      const retry = () => window.oneDesktop && window.oneDesktop.retryLoad();
+      document.getElementById("retry").addEventListener("click", retry);
+      window.addEventListener("online", retry);
+      setInterval(() => { if (navigator.onLine) retry(); }, 8000);
+    </script>
+  </body>
+</html>

@@ -58,6 +58,31 @@ const webPrefs = () => ({
   preload: path.join(__dirname, "preload.cjs"),
 });
 
+/** Keep a remembered window box on screen even if displays changed. */
+function boxOnScreen(saved, fallback) {
+  if (!saved) return fallback;
+  const fits = screen.getAllDisplays().some((d) => {
+    const b = d.workArea;
+    return saved.x >= b.x - 60 && saved.y >= b.y - 40 && saved.x <= b.x + b.width - 80 && saved.y <= b.y + b.height - 40;
+  });
+  return fits ? { ...fallback, ...saved } : fallback;
+}
+
+function loadApp(win, url) {
+  win.loadURL(url).catch(() => {
+    /* did-fail-load handles it */
+  });
+}
+
+function attachOfflineFallback(win, url) {
+  win.webContents.on("did-fail-load", (_e, code, _desc, failedUrl, isMainFrame) => {
+    // -3 is an aborted load (e.g. a redirect); not a real failure.
+    if (!isMainFrame || code === -3) return;
+    win.__retryUrl = failedUrl && failedUrl.startsWith("http") ? failedUrl : url;
+    win.loadFile(path.join(__dirname, "offline.html"));
+  });
+}
+
 function createMainWindow() {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
@@ -66,15 +91,28 @@ function createMainWindow() {
     return mainWindow;
   }
   mainWindow = new BrowserWindow({
-    width: 1240,
-    height: 880,
+    ...boxOnScreen(state.main, { width: 1240, height: 880 }),
     minWidth: 420,
+    minHeight: 380,
+    show: false,
     backgroundColor: "#101010",
     title: "One",
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     webPreferences: webPrefs(),
   });
-  mainWindow.loadURL(APP_URL);
+  if (state.mainMaximized) mainWindow.maximize();
+  attachOfflineFallback(mainWindow, APP_URL);
+  loadApp(mainWindow, APP_URL);
+  mainWindow.once("ready-to-show", () => mainWindow && mainWindow.show());
+  const rememberMain = () => {
+    if (!mainWindow || mainWindow.isMinimized() || mainWindow.isFullScreen()) return;
+    const maximized = mainWindow.isMaximized();
+    const b = mainWindow.getNormalBounds();
+    saveState({ main: b, mainMaximized: maximized });
+  };
+  mainWindow.on("resize", rememberMain);
+  mainWindow.on("moved", rememberMain);
+  mainWindow.on("close", rememberMain);
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -126,7 +164,8 @@ function createMiniWindow() {
   });
   miniWindow.setAlwaysOnTop(true, "floating");
   miniWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  miniWindow.loadURL(`${APP_URL}/mini-timer`);
+  attachOfflineFallback(miniWindow, `${APP_URL}/mini-timer`);
+  loadApp(miniWindow, `${APP_URL}/mini-timer`);
   const remember = () => {
     if (!miniWindow) return;
     const [x, y] = miniWindow.getPosition();
@@ -163,8 +202,12 @@ function trayImage() {
 }
 
 function refreshTray() {
-  if (!tray) return;
   const running = timerState.running;
+  // Dock badge mirrors the menu bar so the running timer is visible either way.
+  if (process.platform === "darwin" && app.dock) {
+    app.dock.setBadge(running ? (timerState.paused ? "⏸" : "●") : "");
+  }
+  if (!tray) return;
   tray.setTitle(
     running ? ` ${timerState.paused ? "⏸" : ""}${timerState.elapsed}` : "",
   );
@@ -205,6 +248,80 @@ function createTray() {
   refreshTray();
 }
 
+// ---- Application menu (Swedish, with the shortcuts the browser gives you) ----
+
+function buildAppMenu() {
+  const isMac = process.platform === "darwin";
+  const template = [
+    ...(isMac
+      ? [
+          {
+            label: "One",
+            submenu: [
+              { role: "about", label: "Om One" },
+              { type: "separator" },
+              { role: "services", label: "Tjänster" },
+              { type: "separator" },
+              { role: "hide", label: "Göm One" },
+              { role: "hideOthers", label: "Göm övriga" },
+              { role: "unhide", label: "Visa alla" },
+              { type: "separator" },
+              { role: "quit", label: "Avsluta One" },
+            ],
+          },
+        ]
+      : []),
+    {
+      label: "Arkiv",
+      submenu: [
+        { label: "Öppna kalendern", accelerator: "CmdOrCtrl+N", click: () => createMainWindow() },
+        {
+          label: "Visa/dölj mini-timer",
+          accelerator: "CmdOrCtrl+Shift+T",
+          click: () => toggleMiniWindow(),
+        },
+        { type: "separator" },
+        { role: isMac ? "close" : "quit", label: isMac ? "Stäng fönster" : "Avsluta" },
+      ],
+    },
+    {
+      label: "Redigera",
+      submenu: [
+        { role: "undo", label: "Ångra" },
+        { role: "redo", label: "Gör om" },
+        { type: "separator" },
+        { role: "cut", label: "Klipp ut" },
+        { role: "copy", label: "Kopiera" },
+        { role: "paste", label: "Klistra in" },
+        { role: "selectAll", label: "Markera allt" },
+      ],
+    },
+    {
+      label: "Visa",
+      submenu: [
+        { role: "reload", label: "Ladda om" },
+        { role: "forceReload", label: "Tvinga omladdning" },
+        { type: "separator" },
+        { role: "resetZoom", label: "Normal storlek" },
+        { role: "zoomIn", label: "Zooma in" },
+        { role: "zoomOut", label: "Zooma ut" },
+        { type: "separator" },
+        { role: "togglefullscreen", label: "Helskärm" },
+        { role: "toggleDevTools", label: "Utvecklarverktyg" },
+      ],
+    },
+    {
+      label: "Fönster",
+      submenu: [
+        { role: "minimize", label: "Minimera" },
+        { role: "zoom", label: "Zooma" },
+        ...(isMac ? [{ type: "separator" }, { role: "front", label: "Lägg alla överst" }] : []),
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 ipcMain.on("timer-state", (_e, next) => {
   timerState = { running: false, paused: false, label: "", elapsed: "", ...(next || {}) };
   refreshTray();
@@ -213,18 +330,35 @@ ipcMain.on("mini-close", () => {
   if (miniWindow) miniWindow.close();
 });
 ipcMain.on("open-main", () => createMainWindow());
-
-app.whenReady().then(() => {
-  createMainWindow();
-  if (state.miniOpen !== false) createMiniWindow();
-  createTray();
-
-  globalShortcut.register("CommandOrControl+Shift+T", () => toggleMiniWindow());
-
-  app.on("activate", () => {
-    if (!mainWindow) createMainWindow();
-  });
+ipcMain.on("retry-load", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return;
+  loadApp(win, win.__retryUrl || APP_URL);
 });
+
+// A second launch should focus the running app, not spawn another tray icon.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    createMainWindow();
+    if (miniWindow) miniWindow.show();
+  });
+
+  app.whenReady().then(() => {
+    buildAppMenu();
+    createMainWindow();
+    if (state.miniOpen !== false) createMiniWindow();
+    createTray();
+
+    globalShortcut.register("CommandOrControl+Shift+T", () => toggleMiniWindow());
+
+    app.on("activate", () => {
+      if (!mainWindow) createMainWindow();
+      else createMainWindow();
+    });
+  });
+}
 
 app.on("will-quit", () => globalShortcut.unregisterAll());
 
@@ -232,3 +366,4 @@ app.on("will-quit", () => globalShortcut.unregisterAll());
 app.on("window-all-closed", () => {
   if (!tray) app.quit();
 });
+
