@@ -49,16 +49,14 @@ function AuthPage() {
             <CalendarDays className="h-6 w-6" />
           </span>
           <h1 className="text-2xl font-semibold">One Calendar</h1>
-          <p className="text-sm text-muted-foreground">Everything in one place — school, work, life.</p>
+          <p className="text-sm text-muted-foreground">Privat kalender — logga in för att fortsätta.</p>
         </div>
         <form onSubmit={submit} className="space-y-3">
           <div><Label>Email</Label><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
           <div><Label>Password</Label><Input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-          <Button className="w-full" disabled={loading}>{loading ? "…" : mode === "signin" ? "Sign in" : "Create account"}</Button>
+          <Button className="w-full" disabled={loading}>{loading ? "…" : "Sign in"}</Button>
         </form>
-        <button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground">
-          {mode === "signin" ? "No account? Sign up" : "Have an account? Sign in"}
-        </button>
+
       </div>
     </div>
   );
