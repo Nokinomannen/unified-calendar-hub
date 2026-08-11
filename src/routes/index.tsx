@@ -219,7 +219,7 @@ function CalendarPage() {
           </span>
         </div>
 
-        <QuickAddBar />
+        {settings.showQuickAdd && <QuickAddBar />}
 
         {settings.showHours && <HoursTracker />}
 
@@ -252,7 +252,9 @@ function CalendarPage() {
             {view === "week" && (
               <WeekView weekStart={cursor} events={visible} overrides={overrides}
                 onEdit={openEdit} onAdd={openAdd} onConvert={setLogDraft} weather={weather}
+                weekStartsOn={wso}
               />
+
             )}
             {view === "day" && (
               <div className="rounded-2xl border border-border bg-card p-2">
