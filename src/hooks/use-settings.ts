@@ -21,6 +21,8 @@ export type Settings = {
   /** Panels */
   showHours: boolean;
   showUpcoming: boolean;
+  /** Per-view calendar filters — hidden calendar ids keyed by view ("month" | "week" | "day" | "compact") */
+  viewFilters: Record<string, string[]>;
   /** Money */
   currency: string;
   taxRate: number;
@@ -43,6 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   density: "comfortable",
   showHours: true,
   showUpcoming: true,
+  viewFilters: {},
   currency: "SEK",
   taxRate: 30,
   weeklyHoursGoal: 40,
