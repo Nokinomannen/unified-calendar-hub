@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WeeklyRouteImport } from './routes/weekly'
 import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
+import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MiniTimerRouteImport } from './routes/mini-timer'
@@ -34,6 +35,11 @@ const WeeklyRoute = WeeklyRouteImport.update({
 const UnsubscribeRoute = UnsubscribeRouteImport.update({
   id: '/unsubscribe',
   path: '/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SourcesRoute = SourcesRouteImport.update({
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/mini-timer': typeof MiniTimerRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
+  '/tasks': typeof TasksRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/weekly': typeof WeeklyRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/mini-timer': typeof MiniTimerRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
+  '/tasks': typeof TasksRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/weekly': typeof WeeklyRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/mini-timer': typeof MiniTimerRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
+  '/tasks': typeof TasksRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/weekly': typeof WeeklyRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/mini-timer'
     | '/settings'
     | '/sources'
+    | '/tasks'
     | '/unsubscribe'
     | '/weekly'
     | '/email/unsubscribe'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/mini-timer'
     | '/settings'
     | '/sources'
+    | '/tasks'
     | '/unsubscribe'
     | '/weekly'
     | '/email/unsubscribe'
@@ -213,6 +224,7 @@ export interface FileRouteTypes {
     | '/mini-timer'
     | '/settings'
     | '/sources'
+    | '/tasks'
     | '/unsubscribe'
     | '/weekly'
     | '/email/unsubscribe'
@@ -232,6 +244,7 @@ export interface RootRouteChildren {
   MiniTimerRoute: typeof MiniTimerRoute
   SettingsRoute: typeof SettingsRoute
   SourcesRoute: typeof SourcesRoute
+  TasksRoute: typeof TasksRoute
   UnsubscribeRoute: typeof UnsubscribeRoute
   WeeklyRoute: typeof WeeklyRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
@@ -256,6 +269,13 @@ declare module '@tanstack/react-router' {
       path: '/unsubscribe'
       fullPath: '/unsubscribe'
       preLoaderRoute: typeof UnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sources': {
@@ -368,6 +388,7 @@ const rootRouteChildren: RootRouteChildren = {
   MiniTimerRoute: MiniTimerRoute,
   SettingsRoute: SettingsRoute,
   SourcesRoute: SourcesRoute,
+  TasksRoute: TasksRoute,
   UnsubscribeRoute: UnsubscribeRoute,
   WeeklyRoute: WeeklyRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,

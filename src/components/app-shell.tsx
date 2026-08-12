@@ -62,10 +62,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const items = [
     { to: "/", label: "Calendar", icon: CalendarDays },
     { to: "/weekly", label: "Veckan", icon: ListChecks },
+    { to: "/tasks", label: "Tasks", icon: CheckSquare },
     { to: "/dashboard", label: "Insights", icon: BarChart3 },
     { to: "/sources", label: "Sources", icon: Layers },
     { to: "/settings", label: "Settings", icon: SlidersHorizontal },
   ] as const;
+
 
 
   return (
