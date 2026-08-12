@@ -123,6 +123,8 @@ function SourcesPage() {
 
         <CalendarColorSettings />
         <ReminderSettings />
+        <NotionSettings />
+
 
 
         <DesktopAppSection />
