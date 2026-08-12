@@ -182,7 +182,8 @@ function createMiniWindow() {
   miniWindow.on("close", remember);
   miniWindow.on("closed", () => {
     miniWindow = null;
-    saveState({ miniOpen: false });
+    // Quitting should not forget that the timer window was open.
+    if (!isQuitting) saveState({ miniOpen: false });
     refreshTray();
   });
   saveState({ miniOpen: true });
