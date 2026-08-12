@@ -6,17 +6,21 @@ alltid ligger överst, och en ikon i menyraden som visar tiden medan du jobbar.
 ## Installera (macOS)
 
 1. Ladda ner zip-filen som matchar din Mac:
-   - **One-mac-appleSilicon.zip** — M1/M2/M3/M4 (Apple-menyn → Om den här datorn → "Chip: Apple ...")
-   - **One-mac-intel.zip** — äldre Intel-Mac
-2. Dubbelklicka på zip-filen. Du får en `One.app`.
-3. Dra `One.app` till mappen **Program** (Applications).
-4. **Första starten:** öppna Terminal (Cmd+Mellanslag → "Terminal") och kör:
-   ```bash
-   xattr -cr /Applications/One.app && codesign --force --deep --sign - /Applications/One.app
-   ```
-   Sedan dubbelklicka på appen. Detta behövs bara en gång — appen är inte
-   notariserad av Apple, och utan det säger macOS "One är skadad".
+   - **One-mac-appleSilicon-v3.zip** — M1/M2/M3/M4 (Apple-menyn → Om den här datorn → "Chip: Apple ...")
+   - **One-mac-intel-v3.zip** — äldre Intel-Mac
+2. Dubbelklicka på zip-filen i Hämtade filer. Du får en mapp med `One.app`
+   och `Installera One.command`.
+3. Dubbelklicka på **Installera One.command**. Blockerar macOS den:
+   högerklicka → Öppna → Öppna, eller Systeminställningar → Integritet och
+   säkerhet → "Öppna ändå".
+4. Skriv ditt datorlösenord när rutan dyker upp. Skriptet tar bort karantänen,
+   signerar appen lokalt, lägger den i Program och startar den.
+   Säger du nej till lösenordet installeras den i stället i `~/Applications`.
 5. Logga in en gång i huvudfönstret. Sessionen sparas.
+
+Ingen Terminal-kommandon behövs. (Manuell nödlösning om du vill:
+`xattr -cr /Applications/One.app && codesign --force --deep --sign - /Applications/One.app`.)
+
 
 ## Så funkar den
 
