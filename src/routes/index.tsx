@@ -95,6 +95,7 @@ function CalendarPage() {
 
 
   const { data: calendars = [] } = useCalendars();
+  const updateCalendar = useUpdateCalendar();
   const { data: events = [] } = useEvents(range.start, range.end);
   const { data: overrides = [] } = useOverrides();
 
