@@ -28,7 +28,18 @@ export type Settings = {
   taxRate: number;
   weeklyHoursGoal: number;
   includeDjInForecast: boolean;
+  /** Notion tasks */
+  showTasks: boolean;
+  notion: {
+    databaseId: string | null;
+    titleProp: string | null;
+    statusProp: string | null;
+    dueProp: string | null;
+    priorityProp: string | null;
+    hideDone: boolean;
+  };
 };
+
 
 export const DEFAULT_SETTINGS: Settings = {
   quickAddCalendarId: null,
@@ -50,7 +61,17 @@ export const DEFAULT_SETTINGS: Settings = {
   taxRate: 30,
   weeklyHoursGoal: 40,
   includeDjInForecast: true,
+  showTasks: true,
+  notion: {
+    databaseId: null,
+    titleProp: null,
+    statusProp: null,
+    dueProp: null,
+    priorityProp: null,
+    hideDone: true,
+  },
 };
+
 
 const KEY = ["user_settings"];
 const LS = "one-settings";

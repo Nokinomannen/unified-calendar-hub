@@ -11,6 +11,8 @@ import { WeekView } from "@/components/week-view";
 import { HoursTracker } from "@/components/hours-tracker";
 import { QuickAddBar } from "@/components/quick-add-bar";
 import { UpcomingPanel } from "@/components/upcoming-panel";
+import { NotionTasksPanel } from "@/components/notion-tasks-panel";
+
 import { useReminderSync, useReminderScheduler } from "@/hooks/use-reminders";
 import { EventContextMenu, LogDraftDialog, type LogDraft } from "@/components/event-context-menu";
 import { LogTimeDropZone } from "@/components/log-time-dropzone";
@@ -275,6 +277,9 @@ function CalendarPage() {
             onEdit={(ev) => { setEditing(ev); setOpen(true); }}
           />
         )}
+
+        {settings.showTasks && settings.notion?.databaseId && <NotionTasksPanel />}
+
 
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
