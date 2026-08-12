@@ -10,11 +10,12 @@ alltid ligger överst, och en ikon i menyraden som visar tiden medan du jobbar.
    - **One-mac-intel.zip** — äldre Intel-Mac
 2. Dubbelklicka på zip-filen. Du får en `One.app`.
 3. Dra `One.app` till mappen **Program** (Applications).
-4. **Första starten:** högerklicka på `One.app` → **Öppna** → **Öppna** i dialogen.
-   (macOS varnar en gång eftersom appen inte är notariserad av Apple. Vanlig
-   dubbelklick fungerar från och med gång två.) Appen är ad hoc-signerad, så
-   varningen "appen är skadad" ska inte längre dyka upp. Om den ändå gör det:
-   `xattr -cr /Applications/One.app` i Terminal.
+4. **Första starten:** öppna Terminal (Cmd+Mellanslag → "Terminal") och kör:
+   ```bash
+   xattr -cr /Applications/One.app && codesign --force --deep --sign - /Applications/One.app
+   ```
+   Sedan dubbelklicka på appen. Detta behövs bara en gång — appen är inte
+   notariserad av Apple, och utan det säger macOS "One är skadad".
 5. Logga in en gång i huvudfönstret. Sessionen sparas.
 
 ## Så funkar den
