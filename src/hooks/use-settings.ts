@@ -61,7 +61,17 @@ export const DEFAULT_SETTINGS: Settings = {
   taxRate: 30,
   weeklyHoursGoal: 40,
   includeDjInForecast: true,
+  showTasks: true,
+  notion: {
+    databaseId: null,
+    titleProp: null,
+    statusProp: null,
+    dueProp: null,
+    priorityProp: null,
+    hideDone: true,
+  },
 };
+
 
 const KEY = ["user_settings"];
 const LS = "one-settings";
