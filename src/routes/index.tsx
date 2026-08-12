@@ -110,18 +110,30 @@ function CalendarPage() {
     () => new Set(settings.viewFilters?.[filterKey] ?? []),
     [settings.viewFilters, filterKey],
   );
+  // Chip row only lists live calendars — archived ones live under Sources.
+  const chipCalendars = useMemo(() => calendars.filter((c) => !c.archived), [calendars]);
   const toggleCalendar = (id: string) => {
+    const cal = calendars.find((c) => c.id === id);
     const next = new Set(hiddenIds);
-    if (next.has(id)) next.delete(id); else next.add(id);
+    // A globally hidden calendar turns back on: clear both the global flag and the view filter.
+    if (cal && cal.visible === false) {
+      updateCalendar.mutate({ id, visible: true });
+      next.delete(id);
+    } else if (next.has(id)) next.delete(id);
+    else next.add(id);
     updateSettings.mutate({ viewFilters: { ...(settings.viewFilters ?? {}), [filterKey]: [...next] } });
   };
-  const setAll = (show: boolean) =>
+  const setAll = (show: boolean) => {
+    if (show) {
+      for (const c of chipCalendars) if (c.visible === false) updateCalendar.mutate({ id: c.id, visible: true });
+    }
     updateSettings.mutate({
       viewFilters: {
         ...(settings.viewFilters ?? {}),
-        [filterKey]: show ? [] : calendars.map((c) => c.id),
+        [filterKey]: show ? [] : chipCalendars.map((c) => c.id),
       },
     });
+  };
 
   const visible = events.filter((e) => e.calendar?.visible !== false && !hiddenIds.has(e.calendar_id));
 
