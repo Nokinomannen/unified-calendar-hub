@@ -55,13 +55,15 @@ export function NotionTasksPanel({ limit = 8, className }: { limit?: number; cla
       <div className="mb-3 flex items-center gap-2">
         <ListChecks className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold">{data?.dbName ?? "Notion-tasks"}</h2>
+        {ago && <span className="ml-auto text-[11px] text-muted-foreground">{ago}</span>}
         <button
           onClick={() => refetch()}
-          className="ml-auto text-muted-foreground transition-colors hover:text-foreground"
+          className={cn("text-muted-foreground transition-colors hover:text-foreground", !ago && "ml-auto")}
           aria-label="Uppdatera från Notion"
         >
           {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
         </button>
+
       </div>
 
       {error && (
