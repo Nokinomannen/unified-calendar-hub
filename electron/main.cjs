@@ -369,6 +369,16 @@ if (!app.requestSingleInstanceLock()) {
   });
 }
 
+// On quit, take every window and the menu bar icon with us — the frameless
+// mini timer has no title bar, so a lingering one cannot be closed by hand.
+app.on("before-quit", () => {
+  isQuitting = true;
+  if (miniWindow) miniWindow.destroy();
+  miniWindow = null;
+  if (tray) tray.destroy();
+  tray = null;
+});
+
 app.on("will-quit", () => globalShortcut.unregisterAll());
 
 // Keep running in the tray so the timer stays reachable after closing the calendar window.
