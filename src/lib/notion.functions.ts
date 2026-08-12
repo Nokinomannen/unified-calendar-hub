@@ -47,6 +47,9 @@ function pickProp(props: Record<string, NotionProp>, types: string[], preferred?
   return null;
 }
 
+const DONE_RE = /^(done|complete|completed|klar|färdig|avklarad)$/i;
+const TODO_RE = /^(to ?do|not started|ej påbörjad|att göra|backlog|inbox)$/i;
+
 export type NotionTask = {
   id: string;
   title: string;
@@ -55,7 +58,10 @@ export type NotionTask = {
   due: string | null;
   priority: string | null;
   url: string;
+  lastEdited: string | null;
 };
+
+export type NotionStatusOption = { name: string; color: string; done: boolean };
 
 /** Databases the connected Notion integration can see. */
 export const listNotionDatabases = createServerFn({ method: "GET" })
@@ -98,11 +104,34 @@ export const listNotionTasks = createServerFn({ method: "POST" })
     const statusProp = pickProp(props, ["status", "checkbox", "select"], data.statusProp);
     const dueProp = pickProp(props, ["date"], data.dueProp);
     const priorityProp = pickProp(props, ["select"], data.priorityProp);
+    const statusType = statusProp ? (props[statusProp]?.type ?? null) : null;
+
+    let statusOptions: NotionStatusOption[] = [];
+    if (statusProp && statusType && statusType !== "checkbox") {
+      const raw = props[statusProp]?.[statusType] as
+        | { options?: { name: string; color?: string }[]; groups?: { name: string; option_ids?: string[] }[] }
+        | undefined;
+      statusOptions = (raw?.options ?? []).map((o) => ({
+        name: o.name,
+        color: o.color ?? "default",
+        done: DONE_RE.test(o.name),
+      }));
+    }
 
     const query = (await notion(`/v1/databases/${data.databaseId}/query`, {
       method: "POST",
-      body: { page_size: 100 },
-    })) as { results: { id: string; url: string; properties: Record<string, Record<string, unknown>> }[] };
+      body: {
+        page_size: 100,
+        sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
+      },
+    })) as {
+      results: {
+        id: string;
+        url: string;
+        last_edited_time?: string;
+        properties: Record<string, Record<string, unknown>>;
+      }[];
+    };
 
     const tasks: NotionTask[] = (query.results ?? []).map((page) => {
       const p = page.properties ?? {};
@@ -120,10 +149,10 @@ export const listNotionTasks = createServerFn({ method: "POST" })
         };
         if (cell.type === "checkbox") {
           done = !!cell.checkbox;
-          status = done ? "Done" : "To Do";
+          status = done ? "Klara" : "Öppna";
         } else {
           status = cell.status?.name ?? cell.select?.name ?? null;
-          done = /^(done|complete|completed|klar|färdig)$/i.test(status ?? "");
+          done = DONE_RE.test(status ?? "");
         }
       }
 
@@ -140,6 +169,7 @@ export const listNotionTasks = createServerFn({ method: "POST" })
         due: dueCell?.date?.start ?? null,
         priority: priCell?.select?.name ?? null,
         url: page.url,
+        lastEdited: page.last_edited_time ?? null,
       };
     });
 
@@ -152,12 +182,34 @@ export const listNotionTasks = createServerFn({ method: "POST" })
       return a.title.localeCompare(b.title);
     });
 
+    if (statusType === "checkbox") {
+      statusOptions = [
+        { name: "Öppna", color: "default", done: false },
+        { name: "Klara", color: "green", done: true },
+      ];
+    }
+
     return {
       dbName: dbTitle(db),
       mapping: { titleProp, statusProp, dueProp, priorityProp },
+      statusType,
+      statusOptions,
+      lastEdited: query.results?.[0]?.last_edited_time ?? null,
       tasks: filtered,
     };
   });
+
+async function statusPropertyValue(
+  databaseId: string,
+  statusPropHint: string | null | undefined,
+  resolve: (prop: NotionProp, name: string) => Record<string, unknown>,
+) {
+  const db = (await notion(`/v1/databases/${databaseId}`)) as NotionDb;
+  const props = db.properties ?? {};
+  const name = pickProp(props, ["status", "checkbox", "select"], statusPropHint);
+  if (!name) throw new Error("Hittade ingen status-kolumn i databasen");
+  return { name, value: resolve(props[name]!, name) };
+}
 
 /** Toggle a task between done and not-done in Notion. */
 export const setNotionTaskDone = createServerFn({ method: "POST" })
@@ -167,27 +219,45 @@ export const setNotionTaskDone = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data }) => {
-    const db = (await notion(`/v1/databases/${data.databaseId}`)) as NotionDb;
-    const props = db.properties ?? {};
-    const name = pickProp(props, ["status", "checkbox", "select"], data.statusProp);
-    if (!name) throw new Error("Hittade ingen status-kolumn i databasen");
-
-    const prop = props[name]!;
-    let value: Record<string, unknown>;
-
-    if (prop.type === "checkbox") {
-      value = { checkbox: data.done };
-    } else {
+    const { name, value } = await statusPropertyValue(data.databaseId, data.statusProp, (prop) => {
+      if (prop.type === "checkbox") return { checkbox: data.done };
       const options = ((prop[prop.type] as { options?: { name: string }[] } | undefined)?.options ?? []).map(
         (o) => o.name,
       );
-      const doneName = options.find((o) => /^(done|complete|completed|klar|färdig)$/i.test(o));
-      const todoName =
-        options.find((o) => /^(to ?do|not started|ej påbörjad|att göra)$/i.test(o)) ?? options[0];
+      const doneName = options.find((o) => DONE_RE.test(o));
+      const todoName = options.find((o) => TODO_RE.test(o)) ?? options[0];
       const target = data.done ? doneName : todoName;
       if (!target) throw new Error("Hittade inget passande statusalternativ i Notion");
-      value = prop.type === "status" ? { status: { name: target } } : { select: { name: target } };
-    }
+      return prop.type === "status" ? { status: { name: target } } : { select: { name: target } };
+    });
+
+    await notion(`/v1/pages/${data.pageId}`, {
+      method: "PATCH",
+      body: { properties: { [name]: value } },
+    });
+    return { ok: true };
+  });
+
+/** Move a task to an arbitrary status column (kanban drag & drop). */
+export const setNotionTaskStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: { databaseId: string; pageId: string; status: string; statusProp?: string | null }) => {
+      if (!input?.pageId || !input?.databaseId) throw new Error("pageId och databaseId krävs");
+      if (!input?.status) throw new Error("status krävs");
+      return input;
+    },
+  )
+  .handler(async ({ data }) => {
+    const { name, value } = await statusPropertyValue(data.databaseId, data.statusProp, (prop) => {
+      if (prop.type === "checkbox") return { checkbox: DONE_RE.test(data.status) || data.status === "Klara" };
+      const options = ((prop[prop.type] as { options?: { name: string }[] } | undefined)?.options ?? []).map(
+        (o) => o.name,
+      );
+      const target = options.find((o) => o.toLowerCase() === data.status.toLowerCase());
+      if (!target) throw new Error(`Statusen "${data.status}" finns inte i Notion-databasen`);
+      return prop.type === "status" ? { status: { name: target } } : { select: { name: target } };
+    });
 
     await notion(`/v1/pages/${data.pageId}`, {
       method: "PATCH",
