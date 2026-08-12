@@ -50,6 +50,7 @@ function saveState(patch) {
 let mainWindow = null;
 let miniWindow = null;
 let tray = null;
+let isQuitting = false;
 
 const webPrefs = () => ({
   contextIsolation: true,
