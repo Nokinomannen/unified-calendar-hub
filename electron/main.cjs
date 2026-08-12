@@ -50,6 +50,7 @@ function saveState(patch) {
 let mainWindow = null;
 let miniWindow = null;
 let tray = null;
+let isQuitting = false;
 
 const webPrefs = () => ({
   contextIsolation: true,
@@ -79,6 +80,13 @@ function attachOfflineFallback(win, url) {
     // -3 is an aborted load (e.g. a redirect); not a real failure.
     if (!isMainFrame || code === -3) return;
     win.__retryUrl = failedUrl && failedUrl.startsWith("http") ? failedUrl : url;
+    win.loadFile(path.join(__dirname, "offline.html"));
+  });
+  // A 403/404/5xx returns a body ("Forbidden") instead of failing the load,
+  // which would otherwise render as bare text in a frameless window.
+  win.webContents.on("did-navigate", (_e, navUrl, httpCode) => {
+    if (!httpCode || httpCode < 400) return;
+    win.__retryUrl = navUrl && navUrl.startsWith("http") ? navUrl : url;
     win.loadFile(path.join(__dirname, "offline.html"));
   });
 }
@@ -175,7 +183,8 @@ function createMiniWindow() {
   miniWindow.on("close", remember);
   miniWindow.on("closed", () => {
     miniWindow = null;
-    saveState({ miniOpen: false });
+    // Quitting should not forget that the timer window was open.
+    if (!isQuitting) saveState({ miniOpen: false });
     refreshTray();
   });
   saveState({ miniOpen: true });
@@ -359,6 +368,16 @@ if (!app.requestSingleInstanceLock()) {
     });
   });
 }
+
+// On quit, take every window and the menu bar icon with us — the frameless
+// mini timer has no title bar, so a lingering one cannot be closed by hand.
+app.on("before-quit", () => {
+  isQuitting = true;
+  if (miniWindow) miniWindow.destroy();
+  miniWindow = null;
+  if (tray) tray.destroy();
+  tray = null;
+});
 
 app.on("will-quit", () => globalShortcut.unregisterAll());
 
