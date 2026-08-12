@@ -1,0 +1,1 @@
+UPDATE public.calendars SET visible = true, updated_at = now() WHERE name IN ('School','DJ');
