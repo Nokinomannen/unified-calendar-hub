@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format, isPast, isToday, parseISO } from "date-fns";
 import { ExternalLink, ListChecks, Loader2, RefreshCw } from "lucide-react";
 import { useNotionTasks, useToggleNotionTask } from "@/hooks/use-notion";
@@ -17,12 +17,27 @@ function dueLabel(due: string) {
   }
 }
 
+function useAgo(updatedAt: number | undefined) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 5000);
+    return () => clearInterval(id);
+  }, []);
+  if (!updatedAt) return null;
+  const secs = Math.max(0, Math.round((Date.now() - updatedAt) / 1000));
+  if (secs < 10) return "just nu";
+  if (secs < 60) return `${secs}s sedan`;
+  return `${Math.round(secs / 60)}m sedan`;
+}
+
 export function NotionTasksPanel({ limit = 8, className }: { limit?: number; className?: string }) {
   const { settings } = useSettings();
-  const { data, isLoading, isFetching, error, refetch } = useNotionTasks();
+  const { data, isLoading, isFetching, error, refetch, dataUpdatedAt } = useNotionTasks();
   const toggle = useToggleNotionTask();
+  const ago = useAgo(dataUpdatedAt);
 
   const tasks = useMemo(() => (data?.tasks ?? []).slice(0, limit), [data, limit]);
+
 
   if (!settings.notion?.databaseId) {
     return (
