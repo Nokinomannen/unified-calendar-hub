@@ -276,6 +276,9 @@ function CalendarPage() {
           />
         )}
 
+        {settings.showTasks && settings.notion?.databaseId && <NotionTasksPanel />}
+
+
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={view}
