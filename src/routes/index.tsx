@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell, FAB } from "@/components/app-shell";
 import { AddEventDialog } from "@/components/add-event-dialog";
-import { useCalendars, useEvents, type ExpandedEvent, type EventRow } from "@/hooks/use-calendar-data";
+import { useCalendars, useUpdateCalendar, useEvents, type ExpandedEvent, type EventRow } from "@/hooks/use-calendar-data";
 import { useOverrides, dateKey } from "@/hooks/use-overrides";
 import { DayDrawer } from "@/components/day-drawer";
 import { WeekView } from "@/components/week-view";
