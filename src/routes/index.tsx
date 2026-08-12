@@ -231,7 +231,7 @@ function CalendarPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {calendars.map((c) => {
+          {chipCalendars.map((c) => {
             const on = c.visible !== false && !hiddenIds.has(c.id);
             return (
               <button key={c.id}
