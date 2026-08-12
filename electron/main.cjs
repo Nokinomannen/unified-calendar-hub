@@ -81,6 +81,13 @@ function attachOfflineFallback(win, url) {
     win.__retryUrl = failedUrl && failedUrl.startsWith("http") ? failedUrl : url;
     win.loadFile(path.join(__dirname, "offline.html"));
   });
+  // A 403/404/5xx returns a body ("Forbidden") instead of failing the load,
+  // which would otherwise render as bare text in a frameless window.
+  win.webContents.on("did-navigate", (_e, navUrl, httpCode) => {
+    if (!httpCode || httpCode < 400) return;
+    win.__retryUrl = navUrl && navUrl.startsWith("http") ? navUrl : url;
+    win.loadFile(path.join(__dirname, "offline.html"));
+  });
 }
 
 function createMainWindow() {
