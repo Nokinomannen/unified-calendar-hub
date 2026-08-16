@@ -70,10 +70,36 @@ function boxOnScreen(saved, fallback) {
 }
 
 function loadApp(win, url) {
+  win.__loadedAt = Date.now();
   win.loadURL(url).catch(() => {
     /* did-fail-load handles it */
   });
 }
+
+// The app is the published web app in a shell, so "updating" means fetching a
+// fresh build. We reload past a staleness threshold instead of on every focus,
+// so typing in the chat is never interrupted.
+const STALE_AFTER_MS = 30 * 60 * 1000;
+
+function refreshWindow(win, { force = false } = {}) {
+  if (!win || win.isDestroyed()) return;
+  if (!force && Date.now() - (win.__loadedAt || 0) < STALE_AFTER_MS) return;
+  win.__loadedAt = Date.now();
+  win.webContents.reloadIgnoringCache();
+}
+
+function checkForUpdates(force = true) {
+  refreshWindow(mainWindow, { force });
+  refreshWindow(miniWindow, { force });
+}
+
+function trackFreshness(win) {
+  win.webContents.on("did-finish-load", () => {
+    win.__loadedAt = Date.now();
+  });
+  win.on("focus", () => refreshWindow(win));
+}
+
 
 function attachOfflineFallback(win, url) {
   win.webContents.on("did-fail-load", (_e, code, _desc, failedUrl, isMainFrame) => {
@@ -110,6 +136,7 @@ function createMainWindow() {
   });
   if (state.mainMaximized) mainWindow.maximize();
   attachOfflineFallback(mainWindow, APP_URL);
+  trackFreshness(mainWindow);
   loadApp(mainWindow, APP_URL);
   mainWindow.once("ready-to-show", () => mainWindow && mainWindow.show());
   const rememberMain = () => {
@@ -173,6 +200,7 @@ function createMiniWindow() {
   miniWindow.setAlwaysOnTop(true, "floating");
   miniWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   attachOfflineFallback(miniWindow, `${APP_URL}/mini-timer`);
+  trackFreshness(miniWindow);
   loadApp(miniWindow, `${APP_URL}/mini-timer`);
   const remember = () => {
     if (!miniWindow) return;
@@ -233,6 +261,7 @@ function refreshTray() {
       },
       { type: "separator" },
       { label: "Öppna kalendern", click: () => createMainWindow() },
+      { label: "Hämta senaste versionen", click: () => checkForUpdates(true) },
       {
         label: miniWindow ? "Dölj mini-timer" : "Visa mini-timer",
         accelerator: "CommandOrControl+Shift+T",
@@ -268,6 +297,11 @@ function buildAppMenu() {
             label: "One",
             submenu: [
               { role: "about", label: "Om One" },
+              {
+                label: "Hämta senaste versionen",
+                accelerator: "CmdOrCtrl+Alt+R",
+                click: () => checkForUpdates(true),
+              },
               { type: "separator" },
               { role: "services", label: "Tjänster" },
               { type: "separator" },
@@ -361,6 +395,10 @@ if (!app.requestSingleInstanceLock()) {
     createTray();
 
     globalShortcut.register("CommandOrControl+Shift+T", () => toggleMiniWindow());
+
+    // Background freshness check: pull a new build a few times a day even if
+    // the window is never refocused.
+    setInterval(() => checkForUpdates(true), 3 * 60 * 60 * 1000);
 
     app.on("activate", () => {
       if (!mainWindow) createMainWindow();

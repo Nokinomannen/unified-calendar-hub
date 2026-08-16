@@ -6,10 +6,10 @@ alltid ligger överst, och en ikon i menyraden som visar tiden medan du jobbar.
 ## Installera (macOS)
 
 1. Ladda ner zip-filen som matchar din Mac:
-   - **One-mac-appleSilicon-v3.zip** — M1/M2/M3/M4 (Apple-menyn → Om den här datorn → "Chip: Apple ...")
-   - **One-mac-intel-v3.zip** — äldre Intel-Mac
-2. Dubbelklicka på zip-filen i Hämtade filer. Du får en mapp med `One.app`
-   och `Installera One.command`.
+   - **One-mac-appleSilicon-v4.zip** — M1/M2/M3/M4 (Apple-menyn → Om den här datorn → "Chip: Apple ...")
+   - **One-mac-intel-v4.zip** — äldre Intel-Mac
+2. Dubbelklicka på zip-filen i Hämtade filer. Du får mappen `One` med
+   `One.app`, `Installera One.command` och `Läs mig först.txt`.
 3. Dubbelklicka på **Installera One.command**. Blockerar macOS den:
    högerklicka → Öppna → Öppna, eller Systeminställningar → Integritet och
    säkerhet → "Öppna ändå".
@@ -37,6 +37,8 @@ Ingen Terminal-kommandon behövs. (Manuell nödlösning om du vill:
 - **Dock-ikonen** får en prick när timern går (⏸ när den är pausad).
 - **Offline** — utan nät visas en egen "Ingen anslutning"-vy som försöker igen
   automatiskt när nätet är tillbaka.
+- **Alltid senaste versionen** — appen hämtar en färsk version när den varit
+  oanvänd en halvtimme, var tredje timme i bakgrunden, och direkt med `⌘⌥R`.
 - **Fönsterläge sparas** — huvudfönstrets storlek och position kommer tillbaka.
 - Startar du appen igen medan den redan kör fokuseras den befintliga i stället
   för att skapa en till menyradsikon.
