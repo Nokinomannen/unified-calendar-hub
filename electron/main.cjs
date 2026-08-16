@@ -136,6 +136,7 @@ function createMainWindow() {
   });
   if (state.mainMaximized) mainWindow.maximize();
   attachOfflineFallback(mainWindow, APP_URL);
+  trackFreshness(mainWindow);
   loadApp(mainWindow, APP_URL);
   mainWindow.once("ready-to-show", () => mainWindow && mainWindow.show());
   const rememberMain = () => {
@@ -199,6 +200,7 @@ function createMiniWindow() {
   miniWindow.setAlwaysOnTop(true, "floating");
   miniWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   attachOfflineFallback(miniWindow, `${APP_URL}/mini-timer`);
+  trackFreshness(miniWindow);
   loadApp(miniWindow, `${APP_URL}/mini-timer`);
   const remember = () => {
     if (!miniWindow) return;
@@ -259,6 +261,7 @@ function refreshTray() {
       },
       { type: "separator" },
       { label: "Öppna kalendern", click: () => createMainWindow() },
+      { label: "Hämta senaste versionen", click: () => checkForUpdates(true) },
       {
         label: miniWindow ? "Dölj mini-timer" : "Visa mini-timer",
         accelerator: "CommandOrControl+Shift+T",
@@ -294,6 +297,11 @@ function buildAppMenu() {
             label: "One",
             submenu: [
               { role: "about", label: "Om One" },
+              {
+                label: "Hämta senaste versionen",
+                accelerator: "CmdOrCtrl+Alt+R",
+                click: () => checkForUpdates(true),
+              },
               { type: "separator" },
               { role: "services", label: "Tjänster" },
               { type: "separator" },
@@ -387,6 +395,10 @@ if (!app.requestSingleInstanceLock()) {
     createTray();
 
     globalShortcut.register("CommandOrControl+Shift+T", () => toggleMiniWindow());
+
+    // Background freshness check: pull a new build a few times a day even if
+    // the window is never refocused.
+    setInterval(() => checkForUpdates(true), 3 * 60 * 60 * 1000);
 
     app.on("activate", () => {
       if (!mainWindow) createMainWindow();
