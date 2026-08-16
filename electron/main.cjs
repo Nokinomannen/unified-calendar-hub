@@ -70,10 +70,36 @@ function boxOnScreen(saved, fallback) {
 }
 
 function loadApp(win, url) {
+  win.__loadedAt = Date.now();
   win.loadURL(url).catch(() => {
     /* did-fail-load handles it */
   });
 }
+
+// The app is the published web app in a shell, so "updating" means fetching a
+// fresh build. We reload past a staleness threshold instead of on every focus,
+// so typing in the chat is never interrupted.
+const STALE_AFTER_MS = 30 * 60 * 1000;
+
+function refreshWindow(win, { force = false } = {}) {
+  if (!win || win.isDestroyed()) return;
+  if (!force && Date.now() - (win.__loadedAt || 0) < STALE_AFTER_MS) return;
+  win.__loadedAt = Date.now();
+  win.webContents.reloadIgnoringCache();
+}
+
+function checkForUpdates(force = true) {
+  refreshWindow(mainWindow, { force });
+  refreshWindow(miniWindow, { force });
+}
+
+function trackFreshness(win) {
+  win.webContents.on("did-finish-load", () => {
+    win.__loadedAt = Date.now();
+  });
+  win.on("focus", () => refreshWindow(win));
+}
+
 
 function attachOfflineFallback(win, url) {
   win.webContents.on("did-fail-load", (_e, code, _desc, failedUrl, isMainFrame) => {
