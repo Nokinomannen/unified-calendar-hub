@@ -188,16 +188,21 @@ function createMiniWindow() {
     ...MINI_SIZE,
     ...miniPosition(),
     resizable: false,
+    movable: true,
     frame: false,
     transparent: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     fullscreenable: false,
+    minimizable: false,
+    maximizable: false,
+    hasShadow: true,
     backgroundColor: "#101010",
     title: "One timer",
     webPreferences: webPrefs(),
   });
-  miniWindow.setAlwaysOnTop(true, "floating");
+  // "screen-saver" keeps the panel above full-screen apps and other floating windows.
+  miniWindow.setAlwaysOnTop(true, "screen-saver");
   miniWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   attachOfflineFallback(miniWindow, `${APP_URL}/mini-timer`);
   trackFreshness(miniWindow);
