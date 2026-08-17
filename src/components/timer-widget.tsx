@@ -30,7 +30,18 @@ export function useNowTick(active: boolean) {
   return now;
 }
 
+/** Electron preload bridge; undefined in the browser. */
+type OneDesktopBridge = { toggleMini?: () => void; showMini?: () => void };
+function useDesktopBridge() {
+  const [bridge, setBridge] = useState<OneDesktopBridge | null>(null);
+  useEffect(() => {
+    setBridge((window as unknown as { oneDesktop?: OneDesktopBridge }).oneDesktop ?? null);
+  }, []);
+  return bridge;
+}
+
 export function TimerWidget({ className }: { className?: string }) {
+  const desktop = useDesktopBridge();
   const { data: calendars = [] } = useActiveCalendars();
   const jobs = calendars.filter((c) => c.source === "job");
   const { data: timer } = useActiveTimer();
