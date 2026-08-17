@@ -52,11 +52,14 @@ const TODO_RE = /^(to ?do|not started|ej påbörjad|att göra|backlog|inbox)$/i;
 
 export type NotionTask = {
   id: string;
+  dbId: string;
+  dbName: string;
   title: string;
   done: boolean;
   status: string | null;
   due: string | null;
   priority: string | null;
+  tags: string[];
   url: string;
   lastEdited: string | null;
 };
