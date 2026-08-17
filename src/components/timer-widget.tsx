@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Play, Pause, Square, Timer as TimerIcon } from "lucide-react";
+import { Play, Pause, Square, Timer as TimerIcon, PictureInPicture2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
