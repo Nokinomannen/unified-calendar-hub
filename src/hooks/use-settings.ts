@@ -31,14 +31,50 @@ export type Settings = {
   /** Notion tasks */
   showTasks: boolean;
   notion: {
+    /** Legacy single-database config — migrated into `databases` on read. */
     databaseId: string | null;
     titleProp: string | null;
     statusProp: string | null;
     dueProp: string | null;
     priorityProp: string | null;
     hideDone: boolean;
+    /** Multiple Notion databases merged into one task list. */
+    databases?: NotionDbConfig[];
+    /** categoryKey -> words the app should recognise. */
+    categoryAliases?: Record<string, string[]>;
+    /** Notion pageId -> categoryKey, set manually in the app. */
+    overrides?: Record<string, string>;
   };
 };
+
+export type NotionDbConfig = {
+  databaseId: string;
+  titleProp: string | null;
+  statusProp: string | null;
+  dueProp: string | null;
+  priorityProp: string | null;
+  /** Category key used when nothing else matches for tasks from this database. */
+  defaultCategory: string | null;
+};
+
+/** Normalized database list — migrates the legacy single-database config. */
+export function notionDatabases(settings: Settings): NotionDbConfig[] {
+  const n = settings.notion;
+  if (n?.databases?.length) return n.databases.filter((d) => !!d.databaseId);
+  if (n?.databaseId) {
+    return [
+      {
+        databaseId: n.databaseId,
+        titleProp: n.titleProp ?? null,
+        statusProp: n.statusProp ?? null,
+        dueProp: n.dueProp ?? null,
+        priorityProp: n.priorityProp ?? null,
+        defaultCategory: null,
+      },
+    ];
+  }
+  return [];
+
 
 
 export const DEFAULT_SETTINGS: Settings = {
