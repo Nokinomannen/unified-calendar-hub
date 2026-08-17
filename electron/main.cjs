@@ -377,6 +377,11 @@ ipcMain.on("timer-state", (_e, next) => {
 ipcMain.on("mini-close", () => {
   if (miniWindow) miniWindow.close();
 });
+ipcMain.on("toggle-mini", () => toggleMiniWindow());
+ipcMain.on("show-mini", () => {
+  createMiniWindow();
+  refreshTray();
+});
 ipcMain.on("open-main", () => createMainWindow());
 ipcMain.on("retry-load", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
