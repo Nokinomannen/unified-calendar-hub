@@ -108,6 +108,10 @@ export const DEFAULT_SETTINGS: Settings = {
     dueProp: null,
     priorityProp: null,
     hideDone: true,
+    databases: [],
+    categoryAliases: {},
+    overrides: {},
+
   },
 };
 
