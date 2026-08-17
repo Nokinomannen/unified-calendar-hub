@@ -52,11 +52,14 @@ const TODO_RE = /^(to ?do|not started|ej påbörjad|att göra|backlog|inbox)$/i;
 
 export type NotionTask = {
   id: string;
+  dbId: string;
+  dbName: string;
   title: string;
   done: boolean;
   status: string | null;
   due: string | null;
   priority: string | null;
+  tags: string[];
   url: string;
   lastEdited: string | null;
 };
@@ -80,101 +83,157 @@ export const listNotionDatabases = createServerFn({ method: "GET" })
     }));
   });
 
-type TaskInput = {
+type DbInput = {
   databaseId: string;
   titleProp?: string | null;
   statusProp?: string | null;
   dueProp?: string | null;
   priorityProp?: string | null;
+};
+
+type TaskInput = {
+  /** One or more databases, merged into a single task list. */
+  databases: DbInput[];
   hideDone?: boolean;
 };
 
-/** Tasks from one Notion database, normalized. */
+async function loadDatabase(cfg: DbInput, hideDone: boolean) {
+  const db = (await notion(`/v1/databases/${cfg.databaseId}`)) as NotionDb;
+  const props = db.properties ?? {};
+
+  const titleProp = pickProp(props, ["title"], cfg.titleProp) ?? "";
+  const statusProp = pickProp(props, ["status", "checkbox", "select"], cfg.statusProp);
+  const dueProp = pickProp(props, ["date"], cfg.dueProp);
+  const priorityProp = pickProp(props, ["select"], cfg.priorityProp);
+  const statusType = statusProp ? (props[statusProp]?.type ?? null) : null;
+
+  let statusOptions: NotionStatusOption[] = [];
+  if (statusProp && statusType && statusType !== "checkbox") {
+    const raw = props[statusProp]?.[statusType] as
+      | { options?: { name: string; color?: string }[] }
+      | undefined;
+    statusOptions = (raw?.options ?? []).map((o) => ({
+      name: o.name,
+      color: o.color ?? "default",
+      done: DONE_RE.test(o.name),
+    }));
+  }
+  if (statusType === "checkbox") {
+    statusOptions = [
+      { name: "Öppna", color: "default", done: false },
+      { name: "Klara", color: "green", done: true },
+    ];
+  }
+
+  const query = (await notion(`/v1/databases/${cfg.databaseId}/query`, {
+    method: "POST",
+    body: {
+      page_size: 100,
+      sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
+    },
+  })) as {
+    results: {
+      id: string;
+      url: string;
+      last_edited_time?: string;
+      properties: Record<string, Record<string, unknown>>;
+    }[];
+  };
+
+  const tasks: NotionTask[] = (query.results ?? []).map((page) => {
+    const p = page.properties ?? {};
+    const titleCell = p[titleProp] as { title?: { plain_text: string }[] } | undefined;
+    const title = titleCell?.title?.map((t) => t.plain_text).join("") || "Namnlös";
+
+    let status: string | null = null;
+    let done = false;
+    if (statusProp && p[statusProp]) {
+      const cell = p[statusProp] as {
+        type?: string;
+        status?: { name: string } | null;
+        checkbox?: boolean;
+        select?: { name: string } | null;
+      };
+      if (cell.type === "checkbox") {
+        done = !!cell.checkbox;
+        status = done ? "Klara" : "Öppna";
+      } else {
+        status = cell.status?.name ?? cell.select?.name ?? null;
+        done = DONE_RE.test(status ?? "");
+      }
+    }
+
+    const dueCell = dueProp ? (p[dueProp] as { date?: { start?: string } | null } | undefined) : undefined;
+    const priCell = priorityProp
+      ? (p[priorityProp] as { select?: { name: string } | null } | undefined)
+      : undefined;
+
+    // Every select / multi-select / people-free tag value except the status and priority
+    // columns, used by the app to figure out which job a task belongs to.
+    const tags: string[] = [];
+    for (const [name, rawCell] of Object.entries(p)) {
+      if (name === statusProp || name === priorityProp) continue;
+      const cell = rawCell as {
+        type?: string;
+        select?: { name?: string } | null;
+        multi_select?: { name?: string }[];
+        rich_text?: { plain_text?: string }[];
+      };
+      if (cell.type === "select" && cell.select?.name) tags.push(cell.select.name);
+      if (cell.type === "multi_select") {
+        for (const opt of cell.multi_select ?? []) if (opt?.name) tags.push(opt.name);
+      }
+      if (cell.type === "rich_text" && /tag|kategori|projekt|jobb|område/i.test(name)) {
+        const text = (cell.rich_text ?? []).map((r) => r.plain_text ?? "").join(" ").trim();
+        if (text) tags.push(text);
+      }
+    }
+
+    return {
+      id: page.id,
+      dbId: cfg.databaseId,
+      dbName: dbTitle(db),
+      title,
+      done,
+      status,
+      due: dueCell?.date?.start ?? null,
+      priority: priCell?.select?.name ?? null,
+      tags,
+      url: page.url,
+      lastEdited: page.last_edited_time ?? null,
+    };
+  });
+
+  return {
+    dbId: cfg.databaseId,
+    dbName: dbTitle(db),
+    mapping: { titleProp, statusProp, dueProp, priorityProp },
+    statusType,
+    statusOptions,
+    lastEdited: query.results?.[0]?.last_edited_time ?? null,
+    tasks: hideDone ? tasks.filter((t) => !t.done) : tasks,
+  };
+}
+
+/** Tasks from one or more Notion databases, normalized and merged. */
 export const listNotionTasks = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: TaskInput) => {
-    if (!input?.databaseId) throw new Error("databaseId krävs");
+    if (!input?.databases?.length) throw new Error("minst en databas krävs");
     return input;
   })
   .handler(async ({ data }) => {
-    const db = (await notion(`/v1/databases/${data.databaseId}`)) as NotionDb;
-    const props = db.properties ?? {};
+    const results = await Promise.all(data.databases.map((cfg) => loadDatabase(cfg, !!data.hideDone)));
 
-    const titleProp = pickProp(props, ["title"], data.titleProp) ?? "";
-    const statusProp = pickProp(props, ["status", "checkbox", "select"], data.statusProp);
-    const dueProp = pickProp(props, ["date"], data.dueProp);
-    const priorityProp = pickProp(props, ["select"], data.priorityProp);
-    const statusType = statusProp ? (props[statusProp]?.type ?? null) : null;
-
-    let statusOptions: NotionStatusOption[] = [];
-    if (statusProp && statusType && statusType !== "checkbox") {
-      const raw = props[statusProp]?.[statusType] as
-        | { options?: { name: string; color?: string }[]; groups?: { name: string; option_ids?: string[] }[] }
-        | undefined;
-      statusOptions = (raw?.options ?? []).map((o) => ({
-        name: o.name,
-        color: o.color ?? "default",
-        done: DONE_RE.test(o.name),
-      }));
+    const statusOptions: NotionStatusOption[] = [];
+    for (const r of results) {
+      for (const o of r.statusOptions) {
+        if (!statusOptions.some((x) => x.name.toLowerCase() === o.name.toLowerCase())) statusOptions.push(o);
+      }
     }
 
-    const query = (await notion(`/v1/databases/${data.databaseId}/query`, {
-      method: "POST",
-      body: {
-        page_size: 100,
-        sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
-      },
-    })) as {
-      results: {
-        id: string;
-        url: string;
-        last_edited_time?: string;
-        properties: Record<string, Record<string, unknown>>;
-      }[];
-    };
-
-    const tasks: NotionTask[] = (query.results ?? []).map((page) => {
-      const p = page.properties ?? {};
-      const titleCell = p[titleProp] as { title?: { plain_text: string }[] } | undefined;
-      const title = titleCell?.title?.map((t) => t.plain_text).join("") || "Namnlös";
-
-      let status: string | null = null;
-      let done = false;
-      if (statusProp && p[statusProp]) {
-        const cell = p[statusProp] as {
-          type?: string;
-          status?: { name: string } | null;
-          checkbox?: boolean;
-          select?: { name: string } | null;
-        };
-        if (cell.type === "checkbox") {
-          done = !!cell.checkbox;
-          status = done ? "Klara" : "Öppna";
-        } else {
-          status = cell.status?.name ?? cell.select?.name ?? null;
-          done = DONE_RE.test(status ?? "");
-        }
-      }
-
-      const dueCell = dueProp ? (p[dueProp] as { date?: { start?: string } | null } | undefined) : undefined;
-      const priCell = priorityProp
-        ? (p[priorityProp] as { select?: { name: string } | null } | undefined)
-        : undefined;
-
-      return {
-        id: page.id,
-        title,
-        done,
-        status,
-        due: dueCell?.date?.start ?? null,
-        priority: priCell?.select?.name ?? null,
-        url: page.url,
-        lastEdited: page.last_edited_time ?? null,
-      };
-    });
-
-    const filtered = data.hideDone ? tasks.filter((t) => !t.done) : tasks;
-    filtered.sort((a, b) => {
+    const tasks = results.flatMap((r) => r.tasks);
+    tasks.sort((a, b) => {
       if (a.done !== b.done) return a.done ? 1 : -1;
       if (a.due && b.due) return a.due.localeCompare(b.due);
       if (a.due) return -1;
@@ -182,22 +241,18 @@ export const listNotionTasks = createServerFn({ method: "POST" })
       return a.title.localeCompare(b.title);
     });
 
-    if (statusType === "checkbox") {
-      statusOptions = [
-        { name: "Öppna", color: "default", done: false },
-        { name: "Klara", color: "green", done: true },
-      ];
-    }
-
+    const first = results[0]!;
     return {
-      dbName: dbTitle(db),
-      mapping: { titleProp, statusProp, dueProp, priorityProp },
-      statusType,
+      dbName: results.map((r) => r.dbName).join(" · "),
+      databases: results.map((r) => ({ id: r.dbId, name: r.dbName, statusType: r.statusType })),
+      mapping: first.mapping,
+      statusType: first.statusType,
       statusOptions,
-      lastEdited: query.results?.[0]?.last_edited_time ?? null,
-      tasks: filtered,
+      lastEdited: results.map((r) => r.lastEdited).filter(Boolean).sort().pop() ?? null,
+      tasks,
     };
   });
+
 
 async function statusPropertyValue(
   databaseId: string,

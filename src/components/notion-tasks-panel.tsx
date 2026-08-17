@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format, isPast, isToday, parseISO } from "date-fns";
 import { ExternalLink, ListChecks, Loader2, RefreshCw } from "lucide-react";
 import { useNotionTasks, useToggleNotionTask } from "@/hooks/use-notion";
-import { useSettings } from "@/hooks/use-settings";
+import { useSettings, notionDatabases } from "@/hooks/use-settings";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -32,20 +32,31 @@ function useAgo(updatedAt: number | undefined) {
 
 export function NotionTasksPanel({ limit = 8, className }: { limit?: number; className?: string }) {
   const { settings } = useSettings();
-  const { data, isLoading, isFetching, error, refetch, dataUpdatedAt } = useNotionTasks();
+  const { data, tasks: allTasks, categories, isLoading, isFetching, error, refetch, dataUpdatedAt } = useNotionTasks();
   const toggle = useToggleNotionTask();
   const ago = useAgo(dataUpdatedAt);
+  const [activeCat, setActiveCat] = useState<string | null>(null);
 
-  const tasks = useMemo(() => (data?.tasks ?? []).slice(0, limit), [data, limit]);
+  const catMap = useMemo(() => new Map(categories.map((c) => [c.key, c])), [categories]);
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of allTasks) map.set(t.category.key, (map.get(t.category.key) ?? 0) + 1);
+    return map;
+  }, [allTasks]);
 
+  const visible = useMemo(
+    () => allTasks.filter((t) => !activeCat || t.category.key === activeCat),
+    [allTasks, activeCat],
+  );
+  const tasks = useMemo(() => visible.slice(0, limit), [visible, limit]);
 
-  if (!settings.notion?.databaseId) {
+  if (!notionDatabases(settings).length) {
     return (
       <section className={cn("rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground", className)}>
         <div className="mb-1 flex items-center gap-2 font-medium text-foreground">
           <ListChecks className="h-4 w-4" /> Notion-tasks
         </div>
-        Välj vilken Notion-databas som ska visas under <span className="font-medium text-foreground">Sources</span>.
+        Välj vilka Notion-databaser som ska visas under <span className="font-medium text-foreground">Sources</span>.
       </section>
     );
   }
@@ -63,12 +74,40 @@ export function NotionTasksPanel({ limit = 8, className }: { limit?: number; cla
         >
           {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
         </button>
-
       </div>
 
-      {error && (
-        <p className="text-xs text-destructive">{(error as Error).message}</p>
+      {categories.length > 1 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          <button
+            onClick={() => setActiveCat(null)}
+            className={cn(
+              "rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground",
+              activeCat === null && "border-foreground/30 bg-foreground/10 font-medium text-foreground",
+            )}
+          >
+            Alla
+          </button>
+          {categories
+            .filter((c) => (counts.get(c.key) ?? 0) > 0)
+            .map((c) => (
+              <button
+                key={c.key}
+                onClick={() => setActiveCat((p) => (p === c.key ? null : c.key))}
+                className={cn(
+                  "flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground",
+                  activeCat === c.key && "font-medium text-foreground",
+                )}
+                style={activeCat === c.key ? { borderColor: c.color, backgroundColor: `${c.color}22` } : undefined}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+                {c.label}
+                <span className="opacity-60">{counts.get(c.key)}</span>
+              </button>
+            ))}
+        </div>
       )}
+
+      {error && <p className="text-xs text-destructive">{(error as Error).message}</p>}
 
       {isLoading && !data && <p className="text-xs text-muted-foreground">Hämtar från Notion…</p>}
 
@@ -79,6 +118,7 @@ export function NotionTasksPanel({ limit = 8, className }: { limit?: number; cla
       <ul className="divide-y divide-border/60">
         {tasks.map((t) => {
           const d = t.due ? dueLabel(t.due) : null;
+          const cat = catMap.get(t.category.key);
           return (
             <li key={t.id} className="flex items-start gap-3 py-2">
               <input
@@ -86,7 +126,7 @@ export function NotionTasksPanel({ limit = 8, className }: { limit?: number; cla
                 checked={t.done}
                 onChange={(e) =>
                   toggle.mutate(
-                    { pageId: t.id, done: e.target.checked },
+                    { pageId: t.id, done: e.target.checked, dbId: t.dbId },
                     { onError: (err) => toast.error((err as Error).message) },
                   )
                 }
@@ -96,7 +136,13 @@ export function NotionTasksPanel({ limit = 8, className }: { limit?: number; cla
               <div className="min-w-0 flex-1">
                 <div className={cn("truncate text-sm", t.done && "text-muted-foreground line-through")}>{t.title}</div>
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  {t.status && <span>{t.status}</span>}
+                  {cat && (
+                    <span className="flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                      {cat.label}
+                    </span>
+                  )}
+                  {t.status && <span>· {t.status}</span>}
                   {t.priority && <span>· {t.priority}</span>}
                   {d && (
                     <span
@@ -124,9 +170,9 @@ export function NotionTasksPanel({ limit = 8, className }: { limit?: number; cla
         })}
       </ul>
 
-      {(data?.tasks.length ?? 0) > limit && (
+      {visible.length > limit && (
         <Button variant="ghost" size="sm" className="mt-2 w-full" asChild>
-          <a href="/tasks">Visa alla {data?.tasks.length}</a>
+          <a href="/tasks">Visa alla {visible.length}</a>
         </Button>
       )}
     </section>
