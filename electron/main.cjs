@@ -35,7 +35,7 @@ function readAppUrl() {
 }
 
 const APP_URL = readAppUrl().replace(/\/$/, "");
-const MINI_SIZE = { width: 268, height: 96 };
+const MINI_SIZE = { width: 300, height: 132 };
 
 let state = readJson(STATE_PATH, {});
 function saveState(patch) {
