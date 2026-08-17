@@ -400,6 +400,15 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     buildAppMenu();
+    if (process.platform === "darwin" && app.dock) {
+      app.dock.setMenu(
+        Menu.buildFromTemplate([
+          { label: "Öppna kalendern", click: () => createMainWindow() },
+          { label: "Visa/dölj mini-timer", click: () => toggleMiniWindow() },
+          { label: "Hämta senaste versionen", click: () => checkForUpdates(true) },
+        ]),
+      );
+    }
     createMainWindow();
     if (state.miniOpen !== false) createMiniWindow();
     createTray();
