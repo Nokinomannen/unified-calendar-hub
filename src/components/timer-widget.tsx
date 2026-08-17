@@ -93,6 +93,17 @@ export function TimerWidget({ className }: { className?: string }) {
       )}
     >
       <TimerIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+      {desktop && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1 px-2 text-xs"
+          onClick={() => (desktop.toggleMini ?? desktop.showMini)?.()}
+          title="Visa/dölj mini-timer (⌘⇧T)"
+        >
+          <PictureInPicture2 className="h-3.5 w-3.5" /> Mini-timer
+        </Button>
+      )}
       {timer ? (
         <>
           <span
