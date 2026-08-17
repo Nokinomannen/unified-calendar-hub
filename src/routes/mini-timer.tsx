@@ -20,6 +20,8 @@ type OneDesktop = {
   isDesktop: true;
   timerState: (s: { running: boolean; paused: boolean; label: string; elapsed: string }) => void;
   closeMini: () => void;
+  toggleMini?: () => void;
+  showMini?: () => void;
   openMain: () => void;
 };
 const desktop = (): OneDesktop | undefined =>
