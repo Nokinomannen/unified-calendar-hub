@@ -74,6 +74,9 @@ export function notionDatabases(settings: Settings): NotionDbConfig[] {
     ];
   }
   return [];
+}
+
+
 
 
 
