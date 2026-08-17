@@ -2,15 +2,26 @@ import { useEffect, useMemo, useState } from "react";
 import { format, isPast, isToday, parseISO } from "date-fns";
 import { ExternalLink, Loader2, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
-import { useNotionTasks, useSetNotionTaskStatus, type NotionTasksResult } from "@/hooks/use-notion";
-import { useSettings } from "@/hooks/use-settings";
+import {
+  useNotionTasks,
+  useSetNotionTaskStatus,
+  useSetTaskCategory,
+  type CategorizedTask,
+} from "@/hooks/use-notion";
+import { useSettings, notionDatabases } from "@/hooks/use-settings";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-type Task = NotionTasksResult["tasks"][number];
+type Task = CategorizedTask;
 
 const NO_STATUS = "__none__";
 const PRIORITY_RANK: Record<string, number> = { high: 0, hög: 0, medium: 1, mellan: 1, low: 2, låg: 2 };
@@ -51,28 +62,43 @@ function sortTasks(a: Task, b: Task) {
 
 export function NotionKanban() {
   const { settings } = useSettings();
-  const { data, isLoading, isFetching, error, refetch, dataUpdatedAt } = useNotionTasks({ hideDone: false });
+  const { data, tasks: allTasks, categories, isLoading, isFetching, error, refetch, dataUpdatedAt } =
+    useNotionTasks({ hideDone: false });
   const move = useSetNotionTaskStatus();
+  const setCategory = useSetTaskCategory();
   const ago = useAgo(dataUpdatedAt);
 
   const [q, setQ] = useState("");
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [showDone, setShowDone] = useState(true);
+  const [activeCat, setActiveCat] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
+
+  const catMap = useMemo(() => new Map(categories.map((c) => [c.key, c])), [categories]);
+
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of allTasks) {
+      if (t.done && !showDone) continue;
+      map.set(t.category.key, (map.get(t.category.key) ?? 0) + 1);
+    }
+    return map;
+  }, [allTasks, showDone]);
 
   const columns = useMemo(() => {
     if (!data) return [];
     const cols = data.statusOptions.filter((o) => showDone || !o.done);
-    const hasUnstatused = data.tasks.some((t) => !t.status);
+    const hasUnstatused = allTasks.some((t) => !t.status);
     const list = cols.map((c) => ({ key: c.name, label: c.name, done: c.done, droppable: true }));
     if (hasUnstatused) list.unshift({ key: NO_STATUS, label: "Utan status", done: false, droppable: false });
     return list;
-  }, [data, showDone]);
+  }, [data, showDone, allTasks]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return (data?.tasks ?? []).filter((t) => {
+    return allTasks.filter((t) => {
+      if (activeCat && t.category.key !== activeCat) return false;
       if (term && !t.title.toLowerCase().includes(term)) return false;
       if (onlyOverdue) {
         if (!t.due) return false;
@@ -85,7 +111,7 @@ export function NotionKanban() {
       }
       return true;
     });
-  }, [data, q, onlyOverdue]);
+  }, [allTasks, q, onlyOverdue, activeCat]);
 
   const byColumn = useMemo(() => {
     const map = new Map<string, Task[]>();
@@ -98,10 +124,11 @@ export function NotionKanban() {
     return map;
   }, [filtered, columns]);
 
-  if (!settings.notion?.databaseId) {
+  if (!notionDatabases(settings).length) {
     return (
       <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-        Välj en Notion-databas under <span className="font-medium text-foreground">Sources</span> för att se tavlan.
+        Välj en eller flera Notion-databaser under <span className="font-medium text-foreground">Sources</span> för att
+        se tavlan.
       </div>
     );
   }
@@ -111,9 +138,9 @@ export function NotionKanban() {
     setDragging(null);
     setOver(null);
     if (!id || status === NO_STATUS) return;
-    const task = data?.tasks.find((t) => t.id === id);
+    const task = allTasks.find((t) => t.id === id);
     if (!task || task.status === status) return;
-    move.mutate({ pageId: id, status }, { onError: (e) => toast.error((e as Error).message) });
+    move.mutate({ pageId: id, status, dbId: task.dbId }, { onError: (e) => toast.error((e as Error).message) });
   };
 
   return (
@@ -135,6 +162,44 @@ export function NotionKanban() {
           {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           <span className="text-xs">{ago ? `Uppdaterad ${ago}` : "Uppdatera"}</span>
         </Button>
+      </div>
+
+      {/* Job filter chips */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setActiveCat(null)}
+          className={cn(
+            "rounded-full border px-3 py-1 text-xs transition-colors",
+            activeCat === null
+              ? "border-foreground/30 bg-foreground/10 font-medium text-foreground"
+              : "border-border text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Alla <span className="ml-1 opacity-60">{[...counts.values()].reduce((a, b) => a + b, 0)}</span>
+        </button>
+        {categories
+          .filter((c) => (counts.get(c.key) ?? 0) > 0 || activeCat === c.key)
+          .map((c) => (
+            <button
+              key={c.key}
+              onClick={() => setActiveCat((prev) => (prev === c.key ? null : c.key))}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
+                activeCat === c.key
+                  ? "font-medium text-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground",
+              )}
+              style={
+                activeCat === c.key
+                  ? { borderColor: c.color, backgroundColor: `${c.color}22` }
+                  : undefined
+              }
+            >
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
+              {c.label}
+              <span className="opacity-60">{counts.get(c.key) ?? 0}</span>
+            </button>
+          ))}
       </div>
 
       {error && <p className="text-sm text-destructive">{(error as Error).message}</p>}
@@ -169,6 +234,7 @@ export function NotionKanban() {
                 <div className="flex flex-col gap-2">
                   {items.map((t) => {
                     const d = dueMeta(t.due);
+                    const cat = catMap.get(t.category.key);
                     return (
                       <article
                         key={t.id}
@@ -197,22 +263,57 @@ export function NotionKanban() {
                             <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
                           </a>
                         </div>
-                        {(d || t.priority) && (
-                          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                            {d && (
-                              <span
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
                                 className={cn(
-                                  "rounded-full bg-muted px-2 py-0.5",
-                                  d.tone === "late" && "bg-destructive/15 text-destructive",
-                                  d.tone === "warn" && "font-medium text-foreground",
+                                  "flex items-center gap-1.5 rounded-full px-2 py-0.5 transition-colors hover:text-foreground",
+                                  t.category.source === "manual" ? "bg-muted" : "bg-muted/60 italic",
                                 )}
+                                title={
+                                  t.category.source === "manual"
+                                    ? "Manuellt satt"
+                                    : "Automatiskt sorterad — klicka för att ändra"
+                                }
                               >
-                                {d.text}
-                              </span>
-                            )}
-                            {t.priority && <span className="rounded-full bg-muted px-2 py-0.5">{t.priority}</span>}
-                          </div>
-                        )}
+                                <span
+                                  className="h-2 w-2 rounded-full"
+                                  style={{ backgroundColor: cat?.color ?? "#6b7280" }}
+                                />
+                                {cat?.label ?? "Personligt"}
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              {categories.map((c) => (
+                                <DropdownMenuItem key={c.key} onSelect={() => setCategory(t.id, c.key)}>
+                                  <span
+                                    className="mr-2 h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: c.color }}
+                                  />
+                                  {c.label}
+                                </DropdownMenuItem>
+                              ))}
+                              {t.category.source === "manual" && (
+                                <DropdownMenuItem onSelect={() => setCategory(t.id, null)}>
+                                  Automatisk igen
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          {d && (
+                            <span
+                              className={cn(
+                                "rounded-full bg-muted px-2 py-0.5",
+                                d.tone === "late" && "bg-destructive/15 text-destructive",
+                                d.tone === "warn" && "font-medium text-foreground",
+                              )}
+                            >
+                              {d.text}
+                            </span>
+                          )}
+                          {t.priority && <span className="rounded-full bg-muted px-2 py-0.5">{t.priority}</span>}
+                        </div>
                       </article>
                     );
                   })}
