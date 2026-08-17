@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Play, Pause, Square, Timer as TimerIcon } from "lucide-react";
+import { Play, Pause, Square, Timer as TimerIcon, PictureInPicture2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -30,7 +30,18 @@ export function useNowTick(active: boolean) {
   return now;
 }
 
+/** Electron preload bridge; undefined in the browser. */
+type OneDesktopBridge = { toggleMini?: () => void; showMini?: () => void };
+function useDesktopBridge() {
+  const [bridge, setBridge] = useState<OneDesktopBridge | null>(null);
+  useEffect(() => {
+    setBridge((window as unknown as { oneDesktop?: OneDesktopBridge }).oneDesktop ?? null);
+  }, []);
+  return bridge;
+}
+
 export function TimerWidget({ className }: { className?: string }) {
+  const desktop = useDesktopBridge();
   const { data: calendars = [] } = useActiveCalendars();
   const jobs = calendars.filter((c) => c.source === "job");
   const { data: timer } = useActiveTimer();
@@ -82,6 +93,17 @@ export function TimerWidget({ className }: { className?: string }) {
       )}
     >
       <TimerIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+      {desktop && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1 px-2 text-xs"
+          onClick={() => (desktop.toggleMini ?? desktop.showMini)?.()}
+          title="Visa/dölj mini-timer (⌘⇧T)"
+        >
+          <PictureInPicture2 className="h-3.5 w-3.5" /> Mini-timer
+        </Button>
+      )}
       {timer ? (
         <>
           <span

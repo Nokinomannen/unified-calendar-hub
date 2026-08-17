@@ -35,6 +35,8 @@ export function useActiveTimer() {
       return (data ?? null) as ActiveTimer | null;
     },
     refetchOnWindowFocus: true,
+    // Keeps the desktop mini-timer and the main window in sync both ways.
+    refetchInterval: 5000,
   });
 }
 

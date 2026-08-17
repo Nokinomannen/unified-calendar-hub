@@ -35,7 +35,7 @@ function readAppUrl() {
 }
 
 const APP_URL = readAppUrl().replace(/\/$/, "");
-const MINI_SIZE = { width: 268, height: 96 };
+const MINI_SIZE = { width: 300, height: 132 };
 
 let state = readJson(STATE_PATH, {});
 function saveState(patch) {
@@ -188,16 +188,21 @@ function createMiniWindow() {
     ...MINI_SIZE,
     ...miniPosition(),
     resizable: false,
+    movable: true,
     frame: false,
     transparent: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     fullscreenable: false,
+    minimizable: false,
+    maximizable: false,
+    hasShadow: true,
     backgroundColor: "#101010",
     title: "One timer",
     webPreferences: webPrefs(),
   });
-  miniWindow.setAlwaysOnTop(true, "floating");
+  // "screen-saver" keeps the panel above full-screen apps and other floating windows.
+  miniWindow.setAlwaysOnTop(true, "screen-saver");
   miniWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   attachOfflineFallback(miniWindow, `${APP_URL}/mini-timer`);
   trackFreshness(miniWindow);
@@ -372,6 +377,11 @@ ipcMain.on("timer-state", (_e, next) => {
 ipcMain.on("mini-close", () => {
   if (miniWindow) miniWindow.close();
 });
+ipcMain.on("toggle-mini", () => toggleMiniWindow());
+ipcMain.on("show-mini", () => {
+  createMiniWindow();
+  refreshTray();
+});
 ipcMain.on("open-main", () => createMainWindow());
 ipcMain.on("retry-load", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
@@ -390,6 +400,15 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     buildAppMenu();
+    if (process.platform === "darwin" && app.dock) {
+      app.dock.setMenu(
+        Menu.buildFromTemplate([
+          { label: "Öppna kalendern", click: () => createMainWindow() },
+          { label: "Visa/dölj mini-timer", click: () => toggleMiniWindow() },
+          { label: "Hämta senaste versionen", click: () => checkForUpdates(true) },
+        ]),
+      );
+    }
     createMainWindow();
     if (state.miniOpen !== false) createMiniWindow();
     createTray();
