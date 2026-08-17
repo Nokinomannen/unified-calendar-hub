@@ -73,100 +73,114 @@ function MiniTimer() {
     });
   }, [timer, paused, cal?.name, elapsed]);
 
+  const drag = { WebkitAppRegion: "drag" } as React.CSSProperties;
+  const noDrag = { WebkitAppRegion: "no-drag" } as React.CSSProperties;
+
+  const titleBar = (
+    <div className="flex items-center justify-between gap-2 px-3 pt-2" style={drag}>
+      <span className="truncate text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+        {timer ? `${cal?.name ?? "Jobb"}${paused ? " · pausad" : ""}` : "One timer"}
+      </span>
+      <div className="flex items-center gap-1" style={noDrag}>
+        <button
+          onClick={() => desktop()?.openMain()}
+          className="grid h-5 w-5 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          aria-label="Öppna kalendern"
+        >
+          <CalendarDays className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={() => desktop()?.closeMini()}
+          className="grid h-5 w-5 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          aria-label="Dölj mini-timern"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+
   if (!user) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background px-4 text-center text-xs text-muted-foreground">
-        Logga in i huvudfönstret först.
+      <div className="flex h-screen select-none flex-col bg-background text-foreground" style={drag}>
+        {titleBar}
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-3 pb-3 text-center">
+          <p className="text-xs text-muted-foreground">Du är inte inloggad.</p>
+          <button
+            onClick={() => desktop()?.openMain()}
+            style={noDrag}
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+          >
+            Öppna kalendern och logga in
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div
-      className="group flex h-screen select-none items-center gap-2 bg-background px-3 text-foreground"
-      style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-    >
-      <div className="flex min-w-0 flex-1 flex-col" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+    <div className="flex h-screen select-none flex-col bg-background text-foreground" style={drag}>
+      {titleBar}
 
-        {timer ? (
-          <>
-            <span className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
-              {cal?.name ?? "Jobb"}{paused ? " · pausad" : ""}
-            </span>
-            <span className={cn("font-mono text-lg leading-tight tabular-nums", paused && "text-muted-foreground")}>
+      <div className="flex flex-1 items-center gap-3 px-3 pb-3 pt-1">
+        <div className="min-w-0 flex-1" style={noDrag}>
+          {timer ? (
+            <span
+              className={cn(
+                "block font-mono text-[26px] leading-none tabular-nums",
+                paused && "text-muted-foreground",
+              )}
+            >
               {formatElapsed(timerNetMs(timer, now))}
             </span>
-          </>
-        ) : (
-          <select
-            value={jobId}
-            onChange={(e) => setJobId(e.target.value)}
-            className="h-7 w-full rounded-md border border-input bg-background px-2 text-xs"
-          >
-            {jobs.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        )}
-      </div>
-
-      {desktop() && (
-        <div
-          className="flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100"
-          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-        >
-          <button
-            onClick={() => desktop()?.closeMini()}
-            className="grid h-5 w-5 place-items-center rounded-full text-muted-foreground hover:bg-accent"
-            aria-label="Dölj mini-timern"
-          >
-            <X className="h-3 w-3" />
-          </button>
-          <button
-            onClick={() => desktop()?.openMain()}
-            className="grid h-5 w-5 place-items-center rounded-full text-muted-foreground hover:bg-accent"
-            aria-label="Öppna kalendern"
-          >
-            <CalendarDays className="h-3 w-3" />
-          </button>
+          ) : (
+            <select
+              value={jobId}
+              onChange={(e) => setJobId(e.target.value)}
+              className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+            >
+              {jobs.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
         </div>
-      )}
 
-      <div className="flex items-center gap-1" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
-
-        {timer ? (
-          <>
+        <div className="flex shrink-0 items-center gap-1.5" style={noDrag}>
+          {timer ? (
+            <>
+              <button
+                onClick={() => (paused ? resume.mutate(timer) : pause.mutate(timer))}
+                className="grid h-9 w-9 place-items-center rounded-full border border-border hover:bg-accent"
+                aria-label={paused ? "Fortsätt" : "Paus"}
+              >
+                {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={() => setStoppedAt(new Date())}
+                className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground"
+                aria-label="Stoppa"
+              >
+                <Square className="h-3.5 w-3.5" />
+              </button>
+            </>
+          ) : (
             <button
-              onClick={() => (paused ? resume.mutate(timer) : pause.mutate(timer))}
-              className="grid h-8 w-8 place-items-center rounded-full border border-border hover:bg-accent"
-              aria-label={paused ? "Fortsätt" : "Paus"}
+              onClick={async () => {
+                if (!jobId) return;
+                try {
+                  await start.mutateAsync({ calendar_id: jobId });
+                } catch (e) {
+                  toast.error((e as Error).message);
+                }
+              }}
+              className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground"
+              aria-label="Starta"
             >
-              {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+              <Play className="h-4 w-4" />
             </button>
-            <button
-              onClick={() => setStoppedAt(new Date())}
-              className="grid h-8 w-8 place-items-center rounded-full bg-primary text-primary-foreground"
-              aria-label="Stoppa"
-            >
-              <Square className="h-3.5 w-3.5" />
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={async () => {
-              if (!jobId) return;
-              try {
-                await start.mutateAsync({ calendar_id: jobId });
-              } catch (e) {
-                toast.error((e as Error).message);
-              }
-            }}
-            className="grid h-8 w-8 place-items-center rounded-full bg-primary text-primary-foreground"
-            aria-label="Starta"
-          >
-            <Play className="h-4 w-4" />
-          </button>
-        )}
+          )}
+        </div>
       </div>
 
       <StopTimerDialog
