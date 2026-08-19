@@ -193,6 +193,64 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "preview_bulk_delete_events",
+      description: `Stage a bulk soft-delete of up to ${MAX_BULK} events in ONE step. Returns confirmation_token + summary. Use this instead of calling preview_delete_event repeatedly.`,
+      parameters: {
+        type: "object",
+        properties: { ids: { type: "array", items: { type: "string" } } },
+        required: ["ids"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confirm_bulk_delete_events",
+      description: "Apply a previously previewed bulk delete.",
+      parameters: {
+        type: "object",
+        properties: { confirmation_token: { type: "string" } },
+        required: ["confirmation_token"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "preview_merge_days",
+      description:
+        `Merge every day in a date range into ONE event per day (e.g. bundle a split school day into a single 09:30-15:00 block). For each day with 2+ matching events it keeps the longest one, retimes it, writes the other items as a bullet list into its description, and soft-deletes the rest. Covers the whole range in a single confirmation — never loop day by day. Returns confirmation_token + per-day preview. Cap ${MAX_BULK} days.`,
+      parameters: {
+        type: "object",
+        properties: {
+          calendar_name: { type: "string" },
+          start: { type: "string", description: "ISO date, inclusive" },
+          end: { type: "string", description: "ISO date, inclusive" },
+          start_time: { type: "string", description: "HH:MM local, default 09:30" },
+          end_time: { type: "string", description: "HH:MM local, default 15:00" },
+          title: { type: "string", description: "Optional fixed title. Default: keep the longest event's title." },
+          max_hours: { type: "number", description: "Skip events longer than this (default 6) so all-day-ish bookings stay separate." },
+        },
+        required: ["calendar_name", "start", "end"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confirm_merge_days",
+      description: "Apply a previously previewed day merge.",
+      parameters: {
+        type: "object",
+        properties: { confirmation_token: { type: "string" } },
+        required: ["confirmation_token"],
+      },
+    },
+  },
+
+  {
+    type: "function",
+    function: {
       name: "reimport_from_screenshot",
       description: `Parse an attached screenshot and reconcile against existing events. mode='reconcile' (default): match by title+date, propose time updates and optional inserts. mode='dedupe_only': for dates with 2+ existing events in the calendar, keep the one closest to the screenshot's shift and soft-delete the rest. ALWAYS dry-run — returns confirmation_token + preview. Then call confirm_reimport. Cap ${MAX_BULK} mutations.`,
       parameters: {
