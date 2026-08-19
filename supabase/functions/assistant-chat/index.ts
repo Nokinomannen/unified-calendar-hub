@@ -1094,6 +1094,12 @@ function applyTimeOfDay(iso: string, hhmm: string): string {
   return new Date(target.getTime() - offsetHours * 3600_000).toISOString();
 }
 
+function stockholmTime(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+  } catch { return ""; }
+}
+
 function stockholmDate(iso: string): string {
   try {
     const d = new Date(iso);
