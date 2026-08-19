@@ -193,6 +193,64 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "preview_bulk_delete_events",
+      description: `Stage a bulk soft-delete of up to ${MAX_BULK} events in ONE step. Returns confirmation_token + summary. Use this instead of calling preview_delete_event repeatedly.`,
+      parameters: {
+        type: "object",
+        properties: { ids: { type: "array", items: { type: "string" } } },
+        required: ["ids"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confirm_bulk_delete_events",
+      description: "Apply a previously previewed bulk delete.",
+      parameters: {
+        type: "object",
+        properties: { confirmation_token: { type: "string" } },
+        required: ["confirmation_token"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "preview_merge_days",
+      description:
+        `Merge every day in a date range into ONE event per day (e.g. bundle a split school day into a single 09:30-15:00 block). For each day with 2+ matching events it keeps the longest one, retimes it, writes the other items as a bullet list into its description, and soft-deletes the rest. Covers the whole range in a single confirmation — never loop day by day. Returns confirmation_token + per-day preview. Cap ${MAX_BULK} days.`,
+      parameters: {
+        type: "object",
+        properties: {
+          calendar_name: { type: "string" },
+          start: { type: "string", description: "ISO date, inclusive" },
+          end: { type: "string", description: "ISO date, inclusive" },
+          start_time: { type: "string", description: "HH:MM local, default 09:30" },
+          end_time: { type: "string", description: "HH:MM local, default 15:00" },
+          title: { type: "string", description: "Optional fixed title. Default: keep the longest event's title." },
+          max_hours: { type: "number", description: "Skip events longer than this (default 6) so all-day-ish bookings stay separate." },
+        },
+        required: ["calendar_name", "start", "end"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confirm_merge_days",
+      description: "Apply a previously previewed day merge.",
+      parameters: {
+        type: "object",
+        properties: { confirmation_token: { type: "string" } },
+        required: ["confirmation_token"],
+      },
+    },
+  },
+
+  {
+    type: "function",
+    function: {
       name: "reimport_from_screenshot",
       description: `Parse an attached screenshot and reconcile against existing events. mode='reconcile' (default): match by title+date, propose time updates and optional inserts. mode='dedupe_only': for dates with 2+ existing events in the calendar, keep the one closest to the screenshot's shift and soft-delete the rest. ALWAYS dry-run — returns confirmation_token + preview. Then call confirm_reimport. Cap ${MAX_BULK} mutations.`,
       parameters: {
@@ -324,7 +382,9 @@ How to act:
 - To delete or bulk-modify: you MUST first call the matching preview_* tool and receive a real confirmation_token. Only after that token exists may you ask the user "Apply?". Do NOT tell the user you "will delete" or "will update" anything before the preview_* call has actually returned. Never fabricate a preview or a token.
 - If find_events returns no matches for what the user described, stop and tell them immediately: "I couldn't find an event matching [their description]. Could you give me more detail?" Do not invent an event, do not call preview_*, do not ask "Apply?".
 - After the user confirms in a NEW message, call confirm_* with the token. Tokens expire in 5 minutes and are one-time use.
-- Hard cap: 50 events per bulk operation. If more, batch.
+- ALWAYS batch. One preview + one confirmation for the whole job — never one confirmation per day or per event. If the user asks for something spanning many days, use preview_merge_days / preview_bulk_update_events / preview_bulk_delete_events over the full date range, ask once, and apply once.
+- "Slå ihop skoldagen", "bundle the school day", "make it one event per day" → preview_merge_days with the calendar and the full range (default 09:30–15:00). It keeps the content of the removed items as a bullet list in the description.
+- Hard cap: 50 events (or 50 days) per bulk operation. If more, run consecutive batches yourself and report progress; don't hand the work back to the user.
 - To recover a recently deleted event (agent OR manual UI delete), call undo_last_delete.
 - Always use ISO 8601 with timezone offset. Default Europe/Stockholm.
 - Match calendar_name fuzzily (School, Tiger of Sweden, A-hub, Personal). Default Personal if unsure.
@@ -604,6 +664,127 @@ async function runTool(
         }
         return { created_count: data?.length ?? 0 };
       }
+
+      // ── Preview / confirm: bulk delete ──
+      case "preview_bulk_delete_events": {
+        const ids: string[] = (args.ids || []).filter(isUuid);
+        if (!ids.length) return { error: "No valid UUIDs." };
+        if (ids.length > MAX_BULK) return { error: `exceeds ${MAX_BULK}-event cap (got ${ids.length}). Batch in smaller chunks.` };
+        const { data: rows, error } = await supabase.from("events")
+          .select("id,title,start_at,end_at,calendar_id").in("id", ids).is("deleted_at", null);
+        if (error) return { error: error.message };
+        if (!rows?.length) return { error: "none of those events exist (or already deleted)" };
+        const tok = newToken();
+        const { error: pe } = await supabase.from("pending_actions").insert({
+          user_id: userId, action_type: "bulk_delete_events",
+          payload: { ids: rows.map((r: any) => r.id) }, confirmation_token: tok,
+        });
+        if (pe) return { error: pe.message };
+        return {
+          confirmation_token: tok, expires_in_seconds: 300, count: rows.length,
+          sample: rows.slice(0, 10).map((r: any) => ({ title: r.title, start_at: r.start_at })),
+        };
+      }
+
+      case "confirm_bulk_delete_events": {
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "bulk_delete_events", tokensIssuedThisRequest);
+        if ("error" in pa) return pa;
+        const ids: string[] = pa.payload.ids || [];
+        const { data: befores } = await supabase.from("events").select("*").in("id", ids).is("deleted_at", null);
+        const { error } = await supabase.from("events")
+          .update({ deleted_at: new Date().toISOString() }).in("id", ids).is("deleted_at", null);
+        if (error) return { error: error.message };
+        for (const b of befores || []) await audit(supabase, userId, "soft_delete", b.id, b, null, "confirm_bulk_delete_events");
+        return { deleted_count: befores?.length ?? 0 };
+      }
+
+      // ── Preview / confirm: merge a whole range of days ──
+      case "preview_merge_days": {
+        const cal = calByName(args.calendar_name);
+        if (!cal) return { error: `no calendar matching '${args.calendar_name}'` };
+        const startTime = /^\d{1,2}:\d{2}$/.test(args.start_time || "") ? args.start_time : "09:30";
+        const endTime = /^\d{1,2}:\d{2}$/.test(args.end_time || "") ? args.end_time : "15:00";
+        const maxHours = Number(args.max_hours) > 0 ? Number(args.max_hours) : 6;
+        const { data: rows, error } = await supabase.from("events")
+          .select("id,title,start_at,end_at,location,all_day,description")
+          .eq("calendar_id", cal.id).is("deleted_at", null).eq("all_day", false)
+          .gte("start_at", new Date(args.start).toISOString())
+          .lte("start_at", new Date(new Date(args.end).getTime() + 86400000).toISOString())
+          .order("start_at");
+        if (error) return { error: error.message };
+        const byDay = new Map<string, any[]>();
+        for (const r of rows || []) {
+          const hrs = (new Date(r.end_at).getTime() - new Date(r.start_at).getTime()) / 3600000;
+          if (hrs > maxHours) continue;
+          const d = stockholmDate(r.start_at);
+          if (!d) continue;
+          if (!byDay.has(d)) byDay.set(d, []);
+          byDay.get(d)!.push(r);
+        }
+        const days: any[] = [];
+        for (const [d, list] of [...byDay.entries()].sort()) {
+          if (list.length < 2) continue;
+          const keeper = [...list].sort((a, b) =>
+            (new Date(b.end_at).getTime() - new Date(b.start_at).getTime()) -
+            (new Date(a.end_at).getTime() - new Date(a.start_at).getTime()))[0];
+          const body = list
+            .sort((a, b) => a.start_at.localeCompare(b.start_at))
+            .map((r) => `• ${stockholmTime(r.start_at)}–${stockholmTime(r.end_at)}  ${r.title}`)
+            .join("\n");
+          days.push({
+            date: d,
+            keep_id: keeper.id,
+            title: args.title || keeper.title,
+            start_at: applyTimeOfDay(keeper.start_at, startTime),
+            end_at: applyTimeOfDay(keeper.start_at, endTime),
+            description: body,
+            delete_ids: list.filter((r) => r.id !== keeper.id).map((r) => r.id),
+            items: list.length,
+          });
+        }
+        if (!days.length) return { error: "No day in that range has 2+ events to merge." };
+        if (days.length > MAX_BULK) return { error: `${days.length} days exceeds the ${MAX_BULK} cap. Split the range.` };
+        const tok = newToken();
+        const { error: pe } = await supabase.from("pending_actions").insert({
+          user_id: userId, action_type: "merge_days",
+          payload: { days }, confirmation_token: tok,
+        });
+        if (pe) return { error: pe.message };
+        return {
+          confirmation_token: tok, expires_in_seconds: 300,
+          calendar: cal.name, day_count: days.length,
+          events_removed: days.reduce((n, d) => n + d.delete_ids.length, 0),
+          new_time: `${startTime}–${endTime}`,
+          sample: days.slice(0, 10).map((d) => ({ date: d.date, title: d.title, merged_items: d.items })),
+        };
+      }
+
+      case "confirm_merge_days": {
+        const pa = await consumeToken(supabase, userId, args.confirmation_token, "merge_days", tokensIssuedThisRequest);
+        if ("error" in pa) return pa;
+        const days: any[] = pa.payload.days || [];
+        let merged = 0, removed = 0; const errs: string[] = [];
+        for (const d of days) {
+          const { data: before } = await supabase.from("events").select("*").eq("id", d.keep_id).single();
+          const { data: after, error } = await supabase.from("events")
+            .update({ title: d.title, start_at: d.start_at, end_at: d.end_at, description: d.description })
+            .eq("id", d.keep_id).select().single();
+          if (error) { errs.push(`${d.date}: ${error.message}`); continue; }
+          await audit(supabase, userId, "update", d.keep_id, before, after, "confirm_merge_days");
+          merged++;
+          if (d.delete_ids?.length) {
+            const { data: befores } = await supabase.from("events").select("*").in("id", d.delete_ids).is("deleted_at", null);
+            const { error: de } = await supabase.from("events")
+              .update({ deleted_at: new Date().toISOString() }).in("id", d.delete_ids).is("deleted_at", null);
+            if (de) { errs.push(`${d.date}: ${de.message}`); continue; }
+            for (const b of befores || []) await audit(supabase, userId, "soft_delete", b.id, b, null, "confirm_merge_days");
+            removed += befores?.length ?? 0;
+          }
+        }
+        return { merged_days: merged, removed_events: removed, errors: errs };
+      }
+
+
 
       // ── Reimport (preview only; confirm via confirm_reimport) ──
       case "reimport_from_screenshot": {
@@ -913,6 +1094,12 @@ function applyTimeOfDay(iso: string, hhmm: string): string {
   const probeHour = parseInt(probeFmt, 10);
   const offsetHours = (probeHour - hh + 24) % 24;
   return new Date(target.getTime() - offsetHours * 3600_000).toISOString();
+}
+
+function stockholmTime(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+  } catch { return ""; }
 }
 
 function stockholmDate(iso: string): string {
