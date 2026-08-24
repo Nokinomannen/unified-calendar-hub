@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { format, isPast, isToday, parseISO } from "date-fns";
-import { ExternalLink, ListChecks, Loader2, RefreshCw } from "lucide-react";
-import { useNotionTasks, useToggleNotionTask } from "@/hooks/use-notion";
+import { ExternalLink, ListChecks, Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useNotionTasks, useToggleNotionTask, useArchiveNotionTask } from "@/hooks/use-notion";
+import { NotionTaskDialog, type TaskDialogState } from "@/components/notion-task-dialog";
 import { useSettings, notionDatabases } from "@/hooks/use-settings";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,8 @@ export function NotionTasksPanel({ limit = 8, className }: { limit?: number; cla
   const { settings } = useSettings();
   const { data, tasks: allTasks, categories, isLoading, isFetching, error, refetch, dataUpdatedAt } = useNotionTasks();
   const toggle = useToggleNotionTask();
+  const archive = useArchiveNotionTask();
+  const [dialog, setDialog] = useState<TaskDialogState | null>(null);
   const ago = useAgo(dataUpdatedAt);
   const [activeCat, setActiveCat] = useState<string | null>(null);
 
@@ -73,6 +76,13 @@ export function NotionTasksPanel({ limit = 8, className }: { limit?: number; cla
           aria-label="Uppdatera från Notion"
         >
           {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+        </button>
+        <button
+          onClick={() => setDialog({ mode: "create" })}
+          className="text-muted-foreground transition-colors hover:text-foreground"
+          aria-label="Ny task i Notion"
+        >
+          <Plus className="h-4 w-4" />
         </button>
       </div>
 
@@ -156,15 +166,40 @@ export function NotionTasksPanel({ limit = 8, className }: { limit?: number; cla
                   )}
                 </div>
               </div>
-              <a
-                href={t.url}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-0.5 text-muted-foreground transition-colors hover:text-foreground"
-                aria-label="Öppna i Notion"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+              <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
+                <button
+                  onClick={() => setDialog({ mode: "edit", task: t })}
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Redigera task"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (!confirm(`Ta bort "${t.title}" från Notion?`)) return;
+                    archive.mutate(
+                      { pageId: t.id },
+                      {
+                        onSuccess: () => toast.success("Task arkiverad i Notion"),
+                        onError: (e) => toast.error((e as Error).message),
+                      },
+                    );
+                  }}
+                  className="text-muted-foreground transition-colors hover:text-destructive"
+                  aria-label="Ta bort task"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+                <a
+                  href={t.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Öppna i Notion"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
             </li>
           );
         })}
@@ -175,6 +210,12 @@ export function NotionTasksPanel({ limit = 8, className }: { limit?: number; cla
           <a href="/tasks">Visa alla {visible.length}</a>
         </Button>
       )}
+
+      <NotionTaskDialog
+        state={dialog}
+        databases={data?.databases ?? []}
+        onOpenChange={(open) => { if (!open) setDialog(null); }}
+      />
     </section>
   );
 }

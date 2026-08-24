@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { format, isPast, isToday, parseISO } from "date-fns";
-import { ExternalLink, Loader2, RefreshCw, Search } from "lucide-react";
+import { ExternalLink, Loader2, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useNotionTasks,
   useSetNotionTaskStatus,
   useSetTaskCategory,
+  useArchiveNotionTask,
   type CategorizedTask,
 } from "@/hooks/use-notion";
+import { NotionTaskDialog, type TaskDialogState } from "@/components/notion-task-dialog";
 import { useSettings, notionDatabases } from "@/hooks/use-settings";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -66,6 +68,8 @@ export function NotionKanban() {
     useNotionTasks({ hideDone: false });
   const move = useSetNotionTaskStatus();
   const setCategory = useSetTaskCategory();
+  const archive = useArchiveNotionTask();
+  const [dialog, setDialog] = useState<TaskDialogState | null>(null);
   const ago = useAgo(dataUpdatedAt);
 
   const [q, setQ] = useState("");
@@ -162,6 +166,9 @@ export function NotionKanban() {
           {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           <span className="text-xs">{ago ? `Uppdaterad ${ago}` : "Uppdatera"}</span>
         </Button>
+        <Button size="sm" onClick={() => setDialog({ mode: "create" })} className="gap-1.5">
+          <Plus className="h-4 w-4" /> Ny task
+        </Button>
       </div>
 
       {/* Job filter chips */}
@@ -230,6 +237,15 @@ export function NotionKanban() {
                   <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                     {items.length}
                   </span>
+                  <button
+                    onClick={() =>
+                      setDialog({ mode: "create", status: col.key === NO_STATUS ? null : col.key })
+                    }
+                    aria-label={`Ny task i ${col.label}`}
+                    className="ml-auto text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
                 </div>
                 <div className="flex flex-col gap-2">
                   {items.map((t) => {
@@ -253,15 +269,34 @@ export function NotionKanban() {
                           <p className={cn("min-w-0 flex-1 text-sm leading-snug", t.done && "text-muted-foreground line-through")}>
                             {t.title}
                           </p>
-                          <a
-                            href={t.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label="Öppna i Notion"
-                            className="opacity-0 transition-opacity group-hover:opacity-100"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                          </a>
+                          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            <button
+                              onClick={() => setDialog({ mode: "edit", task: t })}
+                              aria-label="Redigera task"
+                              className="text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (!confirm(`Ta bort "${t.title}" från Notion?`)) return;
+                                archive.mutate(
+                                  { pageId: t.id },
+                                  {
+                                    onSuccess: () => toast.success("Task arkiverad i Notion"),
+                                    onError: (e) => toast.error((e as Error).message),
+                                  },
+                                );
+                              }}
+                              aria-label="Ta bort task"
+                              className="text-muted-foreground transition-colors hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                            <a href={t.url} target="_blank" rel="noreferrer" aria-label="Öppna i Notion">
+                              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                            </a>
+                          </div>
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                           <DropdownMenu>
@@ -328,6 +363,12 @@ export function NotionKanban() {
           })}
         </div>
       )}
+
+      <NotionTaskDialog
+        state={dialog}
+        databases={data?.databases ?? []}
+        onOpenChange={(open) => { if (!open) setDialog(null); }}
+      />
     </div>
   );
 }
