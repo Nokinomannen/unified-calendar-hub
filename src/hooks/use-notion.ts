@@ -2,11 +2,16 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  archiveNotionTask,
+  createNotionTask,
   listNotionDatabases,
   listNotionTasks,
   setNotionTaskDone,
   setNotionTaskStatus,
+  updateNotionTask,
+  type NotionDbMeta,
   type NotionTask,
+  type TaskFields,
 } from "@/lib/notion.functions";
 import { useSettings, useUpdateSettings, notionDatabases } from "@/hooks/use-settings";
 import { useCalendars } from "@/hooks/use-calendar-data";
@@ -16,7 +21,7 @@ export type CategorizedTask = NotionTask & { category: CategoryAssignment };
 
 export type NotionTasksResult = {
   dbName: string;
-  databases: { id: string; name: string; statusType: string | null }[];
+  databases: NotionDbMeta[];
   mapping: { titleProp: string; statusProp: string | null; dueProp: string | null; priorityProp: string | null };
   statusType: string | null;
   statusOptions: { name: string; color: string; done: boolean }[];
