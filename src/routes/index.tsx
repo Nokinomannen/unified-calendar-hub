@@ -17,7 +17,7 @@ import { useReminderSync, useReminderScheduler } from "@/hooks/use-reminders";
 import { EventContextMenu, LogDraftDialog, type LogDraft } from "@/components/event-context-menu";
 import { LogTimeDropZone } from "@/components/log-time-dropzone";
 import { useWeatherMap } from "@/hooks/use-weather";
-import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
+import { useSettings, useUpdateSettings, notionDatabases } from "@/hooks/use-settings";
 
 import { WeatherBadge } from "@/components/weather-badge";
 import type { WeatherDay } from "@/hooks/use-weather";
