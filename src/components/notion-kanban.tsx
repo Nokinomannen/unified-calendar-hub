@@ -138,7 +138,7 @@ export function NotionKanban() {
       }
       return true;
     });
-  }, [allTasks, q, onlyOverdue, activeCat]);
+  }, [boardTasks, q, onlyOverdue, activeCat]);
 
   const byColumn = useMemo(() => {
     const map = new Map<string, Task[]>();
