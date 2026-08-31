@@ -299,7 +299,11 @@ export function NotionKanban() {
                   </span>
                   <button
                     onClick={() =>
-                      setDialog({ mode: "create", status: col.key === NO_STATUS ? null : col.key })
+                      setDialog({
+                        mode: "create",
+                        dbId: activeDb ?? undefined,
+                        status: col.key === NO_STATUS ? null : col.key,
+                      })
                     }
                     aria-label={`Ny task i ${col.label}`}
                     className="ml-auto text-muted-foreground transition-colors hover:text-foreground"
