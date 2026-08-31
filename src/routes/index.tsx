@@ -332,7 +332,10 @@ function CalendarPage() {
             )}
           </motion.div>
         </AnimatePresence>
+
+        {settings.showTasks && notionDatabases(settings).length > 0 && <NotionTasksPanel />}
       </div>
+
 
       <FAB onClick={() => openAdd()} />
       <AddEventDialog open={open} onOpenChange={setOpen} defaultStart={defaultStart} event={editing} occurrence={editingOccurrence} />
