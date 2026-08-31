@@ -159,11 +159,22 @@ type Mapping = {
 
 function resolveMapping(props: Record<string, NotionProp>, cfg: Partial<DbInput>): Mapping {
   const titleProp = pickProp(props, ["title"], cfg.titleProp) ?? "";
-  const statusProp = pickProp(props, ["status", "checkbox", "select"], cfg.statusProp);
-  const dueProp = pickProp(props, ["date"], cfg.dueProp);
-  const priorityCandidate = pickProp(props, ["select"], cfg.priorityProp);
+  const statusProp = pickProp(props, ["status", "checkbox", "select"], cfg.statusProp, {
+    names: [/^\s*(status|state|tillstånd)\s*$/i, /status/i],
+    exclude: /someday|type|kategori|priority|prioritet/i,
+  });
+  const dueProp = pickProp(props, ["date"], cfg.dueProp, {
+    names: [/^\s*(due date|due|deadline|förfaller|slutdatum)\s*$/i, /due|deadline|förfall/i],
+    exclude: /review|created|updated|start/i,
+  });
+  const priorityCandidate = pickProp(props, ["select"], cfg.priorityProp, {
+    names: [/^\s*(priority|prioritet)\s*$/i, /priorit/i],
+    exclude: /type|kategori|state|status/i,
+  });
   const priorityProp = priorityCandidate === statusProp ? null : priorityCandidate;
-  const notesProp = Object.keys(props).find((k) => props[k]?.type === "rich_text") ?? null;
+  const notesKeys = Object.keys(props).filter((k) => props[k]?.type === "rich_text");
+  const notesProp = notesKeys.find((k) => /note|anteckn|description|beskriv/i.test(k)) ?? notesKeys[0] ?? null;
+
   return {
     titleProp,
     statusProp,
