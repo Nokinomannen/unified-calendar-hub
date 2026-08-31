@@ -278,7 +278,17 @@ function CalendarPage() {
           />
         )}
 
-        {settings.showTasks && notionDatabases(settings).length > 0 && <NotionTasksPanel />}
+        {notionDatabases(settings).length > 0 && (
+          <div className="flex justify-end">
+            <button
+              onClick={() => updateSettings.mutate({ showTasks: !settings.showTasks })}
+              className="rounded-full border border-border px-3 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {settings.showTasks ? "Dölj tasks" : "Visa tasks"}
+            </button>
+          </div>
+        )}
+
 
 
         <AnimatePresence mode="wait" initial={false}>
