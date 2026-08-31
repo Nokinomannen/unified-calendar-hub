@@ -189,10 +189,47 @@ export function NotionKanban() {
           {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           <span className="text-xs">{ago ? `Uppdaterad ${ago}` : "Uppdatera"}</span>
         </Button>
-        <Button size="sm" onClick={() => setDialog({ mode: "create" })} className="gap-1.5">
+        <Button
+          size="sm"
+          onClick={() => setDialog({ mode: "create", dbId: activeDb ?? undefined })}
+          className="gap-1.5"
+        >
           <Plus className="h-4 w-4" /> Ny task
         </Button>
       </div>
+
+      {/* Boards — one per Notion database */}
+      {boards.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-card/60 p-1">
+          {boards.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => setActiveDb(b.id)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm transition-colors",
+                activeDb === b.id
+                  ? "bg-accent font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {b.name}
+              <span className="ml-1.5 text-[11px] opacity-60">{boardCounts.get(b.id) ?? 0}</span>
+            </button>
+          ))}
+          <button
+            onClick={() => setActiveDb(null)}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm transition-colors",
+              activeDb === null
+                ? "bg-accent font-medium text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Alla
+          </button>
+        </div>
+      )}
+
 
       {/* Job filter chips */}
       <div className="flex flex-wrap items-center gap-2">
