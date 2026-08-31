@@ -48,14 +48,38 @@ function dbTitle(db: NotionDb) {
   return db.title?.map((t) => t.plain_text).join("") || "Namnlös databas";
 }
 
-function pickProp(props: Record<string, NotionProp>, types: string[], preferred?: string | null) {
+/**
+ * Pick a Notion property. Name matching wins over type guessing, because a
+ * database can have several columns of the same type (e.g. "Someday" and
+ * "Status", or "Review Date" and "Due Date").
+ */
+function pickProp(
+  props: Record<string, NotionProp>,
+  types: string[],
+  preferred?: string | null,
+  opts?: { names?: RegExp[]; exclude?: RegExp },
+) {
   if (preferred && props[preferred]) return preferred;
+  const keys = Object.keys(props);
+  const typed = keys.filter((k) => types.includes(props[k]?.type ?? ""));
+  const allowed = opts?.exclude ? typed.filter((k) => !opts.exclude!.test(k)) : typed;
+
+  for (const re of opts?.names ?? []) {
+    const hit = allowed.find((k) => re.test(k));
+    if (hit) return hit;
+  }
   for (const type of types) {
-    const hit = Object.keys(props).find((k) => props[k]?.type === type);
+    const hit = allowed.find((k) => props[k]?.type === type);
+    if (hit) return hit;
+  }
+  // Nothing left after exclusions — fall back to any column of the right type.
+  for (const type of types) {
+    const hit = typed.find((k) => props[k]?.type === type);
     if (hit) return hit;
   }
   return null;
 }
+
 
 function optionsOf(prop: NotionProp | undefined): { name: string; color: string }[] {
   if (!prop) return [];
