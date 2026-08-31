@@ -76,32 +76,55 @@ export function NotionKanban() {
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [showDone, setShowDone] = useState(true);
   const [activeCat, setActiveCat] = useState<string | null>(null);
+  const [activeDb, setActiveDb] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
 
+  const boards = data?.databases ?? [];
+
+  // Default to the first board once the databases are known.
+  useEffect(() => {
+    if (activeDb === null && boards.length > 1) setActiveDb(boards[0]!.id);
+  }, [boards.length]);
+
+  const boardTasks = useMemo(
+    () => (activeDb ? allTasks.filter((t) => t.dbId === activeDb) : allTasks),
+    [allTasks, activeDb],
+  );
+
   const catMap = useMemo(() => new Map(categories.map((c) => [c.key, c])), [categories]);
 
-  const counts = useMemo(() => {
+  const boardCounts = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of allTasks) {
       if (t.done && !showDone) continue;
-      map.set(t.category.key, (map.get(t.category.key) ?? 0) + 1);
+      map.set(t.dbId, (map.get(t.dbId) ?? 0) + 1);
     }
     return map;
   }, [allTasks, showDone]);
 
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of boardTasks) {
+      if (t.done && !showDone) continue;
+      map.set(t.category.key, (map.get(t.category.key) ?? 0) + 1);
+    }
+    return map;
+  }, [boardTasks, showDone]);
+
   const columns = useMemo(() => {
     if (!data) return [];
-    const cols = data.statusOptions.filter((o) => showDone || !o.done);
-    const hasUnstatused = allTasks.some((t) => !t.status);
+    const source = activeDb ? (boards.find((b) => b.id === activeDb)?.statusOptions ?? []) : data.statusOptions;
+    const cols = source.filter((o) => showDone || !o.done);
+    const hasUnstatused = boardTasks.some((t) => !t.status);
     const list = cols.map((c) => ({ key: c.name, label: c.name, done: c.done, droppable: true }));
     if (hasUnstatused) list.unshift({ key: NO_STATUS, label: "Utan status", done: false, droppable: false });
     return list;
-  }, [data, showDone, allTasks]);
+  }, [data, showDone, boardTasks, activeDb, boards]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return allTasks.filter((t) => {
+    return boardTasks.filter((t) => {
       if (activeCat && t.category.key !== activeCat) return false;
       if (term && !t.title.toLowerCase().includes(term)) return false;
       if (onlyOverdue) {
