@@ -361,7 +361,10 @@ async function statusPropertyValue(
 ) {
   const db = (await notion(`/v1/databases/${databaseId}`)) as NotionDb;
   const props = db.properties ?? {};
-  const name = pickProp(props, ["status", "checkbox", "select"], statusPropHint);
+  const name = pickProp(props, ["status", "checkbox", "select"], statusPropHint, {
+    names: [/^\s*(status|state|tillstånd)\s*$/i, /status/i],
+    exclude: /someday|type|kategori|priority|prioritet/i,
+  });
   if (!name) throw new Error("Hittade ingen status-kolumn i databasen");
   return { name, value: resolve(props[name]!, name) };
 }
