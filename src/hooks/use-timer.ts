@@ -36,7 +36,10 @@ export function useActiveTimer() {
     },
     refetchOnWindowFocus: true,
     // Keeps the desktop mini-timer and the main window in sync both ways.
-    refetchInterval: 5000,
+    // Only polls while the tab is visible, to avoid needless background traffic.
+    refetchInterval: () =>
+      typeof document === "undefined" || document.visibilityState === "visible" ? 20_000 : false,
+    refetchIntervalInBackground: false,
   });
 }
 

@@ -4,12 +4,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { syncAllOutlook, syncAllIcs } from "@/lib/outlook.functions";
 
-const OUTLOOK_INTERVAL = 15 * 60_000;
+const OUTLOOK_INTERVAL = 30 * 60_000;
 const ICS_INTERVAL = 60 * 60_000;
 
 /**
  * Keeps externally sourced calendars fresh: syncs Outlook accounts on app
- * open and every 15 min, and ICS subscriptions hourly. Server-side throttling
+ * open and every 30 min, and ICS subscriptions hourly. Server-side throttling
  * (14 min) prevents redundant runs when multiple tabs are open.
  */
 export function useExternalSync() {

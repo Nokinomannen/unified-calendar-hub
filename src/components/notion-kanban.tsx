@@ -42,7 +42,7 @@ function dueMeta(due: string | null) {
 function useAgo(iso: number | undefined) {
   const [, tick] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 5000);
+    const id = setInterval(() => tick((n) => n + 1), 30000);
     return () => clearInterval(id);
   }, []);
   if (!iso) return null;

@@ -30,7 +30,7 @@ export type NotionTasksResult = {
 };
 
 /** Poll fast while the tab is visible, pause completely in the background. */
-const LIVE_INTERVAL = 15_000;
+const LIVE_INTERVAL = 60_000;
 const liveInterval = () =>
   typeof document === "undefined" || document.visibilityState === "visible" ? LIVE_INTERVAL : false;
 
