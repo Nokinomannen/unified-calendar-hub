@@ -13,6 +13,9 @@ import { LogHoursDialog } from "@/components/log-hours-dialog";
 
 export type LogDraft = { date: Date; calendarId?: string; hours: number; title: string };
 
+/** Events mirrored from external systems can't be edited in One. */
+const READONLY_SOURCES = new Set(["outlook", "ics"]);
+
 export function eventToLogDraft(e: ExpandedEvent): LogDraft {
   const hours = (e.occurrence_end.getTime() - e.occurrence_start.getTime()) / 3600_000;
   return {
@@ -59,7 +62,7 @@ export function EventContextMenu({
       <ContextMenuContent className="w-56">
         <ContextMenuLabel className="truncate">{event.title}</ContextMenuLabel>
         <ContextMenuSeparator />
-        {onEdit && (
+        {onEdit && !READONLY_SOURCES.has(event.calendar?.source ?? "") && (
           <ContextMenuItem onSelect={() => onEdit(event)}>
             <Pencil className="mr-2 h-4 w-4" /> Edit event
           </ContextMenuItem>

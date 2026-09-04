@@ -15,6 +15,7 @@ import { RecentlyDeleted } from "@/components/recently-deleted";
 import { CalendarColorSettings } from "@/components/calendar-colors";
 import { ReminderSettings } from "@/components/reminder-settings";
 import { NotionSettings } from "@/components/notion-settings";
+import { OutlookSources } from "@/components/outlook-sources";
 
 
 export const Route = createFileRoute("/sources")({
@@ -124,6 +125,7 @@ function SourcesPage() {
         </div>
 
         <CalendarColorSettings />
+        <OutlookSources />
         <ReminderSettings />
         <NotionSettings />
 
@@ -218,9 +220,8 @@ function SourcesPage() {
         <section className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
           <h2 className="mb-2 font-medium text-foreground">Coming next</h2>
           <ul className="list-disc space-y-1 pl-5">
-            <li>Microsoft OAuth sign-in for your second Outlook account</li>
-            <li>ICS subscription URL (auto-refresh) — when your school exposes one</li>
             <li>Push reminders on your phone (after installing as PWA)</li>
+            <li>Two-way sync — edits in One pushed back to Outlook</li>
           </ul>
         </section>
       </div>
