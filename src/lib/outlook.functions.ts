@@ -26,20 +26,35 @@ export const claimOutlookConnections = createServerFn({ method: "POST" })
 
     const { data: existing } = await supabase
       .from("outlook_accounts" as never)
-      .select("secret_env");
-    const taken = new Set(((existing ?? []) as { secret_env: string }[]).map((r) => r.secret_env));
+      .select("secret_env, email");
+    const rows = (existing ?? []) as { secret_env: string; email: string }[];
+    const taken = new Set(rows.map((r) => r.secret_env));
+    const knownEmails = new Set(rows.map((r) => (r.email || "").toLowerCase()));
 
     for (const envName of SECRET_CANDIDATES) {
       if (!process.env[envName] || taken.has(envName)) continue;
-      const res = await graphCall(envName, "/me?$select=mail,userPrincipalName,displayName");
+      // Calendars.Read includes the calendar owner, so we don't need profile scopes.
+      const res = await graphCall(envName, "/me/calendar?$select=owner,name");
       if (!res.ok) {
-        errors.push(`koppling ${taken.size + claimed.length + 1}: svar ${res.status}`);
+        const label = `Konto ${taken.size + claimed.length + 1}`;
+        if (res.status === 401 || res.status === 403) {
+          errors.push(`${label}: kontot behöver godkännas om med kalenderbehörighet`);
+        } else {
+          errors.push(`${label}: Microsoft svarade ${res.status}`);
+        }
         continue;
       }
-      const me = (await res.json()) as { mail?: string; userPrincipalName?: string; displayName?: string };
-      const email = me.mail || me.userPrincipalName || "";
-      if (!email) { errors.push("koppling: ingen e-post hittades"); continue; }
+      const cal0 = (await res.json()) as {
+        name?: string;
+        owner?: { address?: string; name?: string };
+      };
+      const email = cal0.owner?.address || "";
+      const displayName = cal0.owner?.name || email;
+      if (!email) { errors.push("Kontot gick inte att identifiera — godkänn om kopplingen"); continue; }
+      if (knownEmails.has(email.toLowerCase())) continue; // samma konto redan kopplat
 
+      const me = { displayName };
+      knownEmails.add(email.toLowerCase());
       const color = ACCOUNT_COLORS[(taken.size + claimed.length) % ACCOUNT_COLORS.length];
       const { data: cal, error: calErr } = await supabase
         .from("calendars")
