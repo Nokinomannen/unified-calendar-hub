@@ -474,6 +474,47 @@ export type Database = {
           },
         ]
       }
+      outlook_accounts: {
+        Row: {
+          calendar_id: string | null
+          created_at: string
+          email: string
+          id: string
+          last_synced_at: string | null
+          secret_env: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          last_synced_at?: string | null
+          secret_env: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          last_synced_at?: string | null
+          secret_env?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outlook_accounts_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_actions: {
         Row: {
           action_type: string
