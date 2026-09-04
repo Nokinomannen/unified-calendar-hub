@@ -8,9 +8,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const SECRET_CANDIDATES = [
   "MICROSOFT_OUTLOOK_API_KEY",
+  "MICROSOFT_OUTLOOK_API_KEY_1",
   "MICROSOFT_OUTLOOK_API_KEY_2",
   "MICROSOFT_OUTLOOK_API_KEY_3",
-  "MICROSOFT_OUTLOOK_API_KEY_4",
 ];
 
 const ACCOUNT_COLORS = ["#0f6cbd", "#7c3aed", "#0e9f6e", "#d97706"];
