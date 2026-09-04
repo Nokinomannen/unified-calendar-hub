@@ -59,7 +59,7 @@ export function EventContextMenu({
       <ContextMenuContent className="w-56">
         <ContextMenuLabel className="truncate">{event.title}</ContextMenuLabel>
         <ContextMenuSeparator />
-        {onEdit && (
+        {onEdit && !READONLY_SOURCES.has(event.calendar?.source ?? "") && (
           <ContextMenuItem onSelect={() => onEdit(event)}>
             <Pencil className="mr-2 h-4 w-4" /> Edit event
           </ContextMenuItem>
