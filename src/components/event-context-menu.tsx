@@ -13,6 +13,9 @@ import { LogHoursDialog } from "@/components/log-hours-dialog";
 
 export type LogDraft = { date: Date; calendarId?: string; hours: number; title: string };
 
+/** Events mirrored from external systems can't be edited in One. */
+const READONLY_SOURCES = new Set(["outlook", "ics"]);
+
 export function eventToLogDraft(e: ExpandedEvent): LogDraft {
   const hours = (e.occurrence_end.getTime() - e.occurrence_start.getTime()) / 3600_000;
   return {
