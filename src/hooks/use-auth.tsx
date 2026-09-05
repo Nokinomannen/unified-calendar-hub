@@ -70,26 +70,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let ready = false;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
-      setLoading(false);
+      // Don't unblock the app before the initial auto sign-in attempt has run,
+      // otherwise guarded routes bounce to the login page for a moment.
+      if (ready || s) setLoading(false);
     });
     supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) {
         setSession(data.session);
-        setLoading(false);
-        return;
+      } else {
+        // No session (e.g. mobile browser cleared storage) — sign back in silently.
+        try { await tryAutoSignIn(); } catch {}
       }
-      // No session — try auto sign-in with stored creds
-      const creds = readAutoCreds();
-      if (creds) {
-        const { data: signedIn } = await supabase.auth.signInWithPassword(creds);
-        setSession(signedIn.session ?? null);
-      }
+      ready = true;
       setLoading(false);
     });
-    return () => subscription.unsubscribe();
+
+    // Coming back to the app on mobile: restore the session if it went away.
+    const onVisible = async () => {
+      if (document.hidden) return;
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) { try { await tryAutoSignIn(); } catch {} }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
+
 
   return (
     <Ctx.Provider
