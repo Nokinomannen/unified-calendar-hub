@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         loading,
         signOut: async () => {
-          try { localStorage.removeItem(CRED_KEY); } catch {}
+          clearAutoCreds();
           await supabase.auth.signOut();
         },
       }}
