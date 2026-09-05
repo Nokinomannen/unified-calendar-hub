@@ -4,12 +4,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { syncAllOutlook } from "@/lib/outlook.functions";
 
-const OUTLOOK_INTERVAL = 60 * 60_000;
+const OUTLOOK_INTERVAL = 24 * 60 * 60_000; // once per day
 
 /**
- * Keeps Outlook accounts fresh: syncs on app open and every 60 min, but only
- * while the tab is visible. ICS subscriptions are no longer polled on a timer
- * (they can be synced manually from Sources) to avoid pointless background work.
+ * Keeps Outlook accounts fresh: syncs on app open and then once per day, but
+ * only while the tab is visible. ICS subscriptions are no longer polled on a
+ * timer (they can be synced manually from Sources) to avoid pointless work.
  */
 export function useExternalSync() {
   const { user } = useAuth();

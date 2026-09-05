@@ -30,7 +30,7 @@ export type NotionTasksResult = {
 };
 
 /** Poll slowly, only while the tab is actually focused; pause otherwise. */
-const LIVE_INTERVAL = 5 * 60_000;
+const LIVE_INTERVAL = 60 * 60_000; // once per hour
 const liveInterval = () => {
   if (typeof document === "undefined") return false as const;
   const active = document.visibilityState === "visible" && document.hasFocus();
