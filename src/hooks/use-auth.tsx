@@ -13,17 +13,57 @@ const Ctx = createContext<AuthCtx>({ user: null, session: null, loading: true, s
 
 const CRED_KEY = "one-auto-creds";
 
-export function saveAutoCreds(email: string, password: string) {
-  try { localStorage.setItem(CRED_KEY, JSON.stringify({ email, password })); } catch {}
+/**
+ * Mobile Safari can wipe localStorage after a period of inactivity, which logs
+ * the user out. We mirror the credentials into a long-lived cookie so the app
+ * can silently sign back in instead of showing the login form every time.
+ */
+function writeCookie(value: string) {
+  try {
+    document.cookie = `${CRED_KEY}=${encodeURIComponent(value)}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax; Secure`;
+  } catch {}
 }
 
-function readAutoCreds(): { email: string; password: string } | null {
+function readCookie(): string | null {
   try {
-    const raw = localStorage.getItem(CRED_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
+    const m = document.cookie.match(new RegExp(`(?:^|; )${CRED_KEY}=([^;]*)`));
+    return m ? decodeURIComponent(m[1]) : null;
   } catch { return null; }
 }
+
+export function saveAutoCreds(email: string, password: string) {
+  const raw = JSON.stringify({ email, password });
+  try { localStorage.setItem(CRED_KEY, raw); } catch {}
+  writeCookie(raw);
+}
+
+export function readAutoCreds(): { email: string; password: string } | null {
+  let raw: string | null = null;
+  try { raw = localStorage.getItem(CRED_KEY); } catch {}
+  if (!raw) raw = readCookie();
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { email: string; password: string };
+    // Re-seed whichever store lost it.
+    try { localStorage.setItem(CRED_KEY, raw); } catch {}
+    writeCookie(raw);
+    return parsed;
+  } catch { return null; }
+}
+
+/** Signs back in with the remembered credentials. Returns true on success. */
+export async function tryAutoSignIn(): Promise<boolean> {
+  const creds = readAutoCreds();
+  if (!creds) return false;
+  const { data } = await supabase.auth.signInWithPassword(creds);
+  return !!data.session;
+}
+
+function clearAutoCreds() {
+  try { localStorage.removeItem(CRED_KEY); } catch {}
+  try { document.cookie = `${CRED_KEY}=; path=/; max-age=0; SameSite=Lax; Secure`; } catch {}
+}
+
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
