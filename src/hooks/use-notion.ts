@@ -29,10 +29,13 @@ export type NotionTasksResult = {
   tasks: NotionTask[];
 };
 
-/** Poll fast while the tab is visible, pause completely in the background. */
-const LIVE_INTERVAL = 60_000;
-const liveInterval = () =>
-  typeof document === "undefined" || document.visibilityState === "visible" ? LIVE_INTERVAL : false;
+/** Poll slowly, only while the tab is actually focused; pause otherwise. */
+const LIVE_INTERVAL = 5 * 60_000;
+const liveInterval = () => {
+  if (typeof document === "undefined") return false as const;
+  const active = document.visibilityState === "visible" && document.hasFocus();
+  return active ? LIVE_INTERVAL : (false as const);
+};
 
 export function useNotionDatabases(enabled = true) {
   const fn = useServerFn(listNotionDatabases);
@@ -79,9 +82,9 @@ export function useNotionTasks(opts?: { hideDone?: boolean }) {
     enabled: dbs.length > 0,
     refetchInterval: liveInterval,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: "always",
-    refetchOnMount: "always",
-    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 2 * 60_000,
     structuralSharing: true,
   });
 
