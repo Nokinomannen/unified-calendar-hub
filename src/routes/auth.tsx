@@ -1,7 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { saveAutoCreds } from "@/hooks/use-auth";
+import { saveAutoCreds, tryAutoSignIn } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,8 +19,10 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.navigate({ to: "/" });
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (data.session) { router.navigate({ to: "/" }); return; }
+      // Remembered login (mobile browsers often drop the session) — sign in silently.
+      try { if (await tryAutoSignIn()) router.navigate({ to: "/" }); } catch {}
     });
   }, [router]);
 
