@@ -41,7 +41,7 @@ export function useActiveTimer() {
     refetchInterval: (query) => {
       if (typeof document === "undefined") return false;
       if (!query.state.data) return false;
-      return document.visibilityState === "visible" && document.hasFocus() ? 60_000 : false;
+      return document.visibilityState === "visible" && document.hasFocus() ? 5 * 60_000 : false;
     },
     refetchIntervalInBackground: false,
   });
