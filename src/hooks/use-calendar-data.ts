@@ -35,13 +35,16 @@ export function useActiveCalendars() {
 export function useEvents(rangeStart: Date, rangeEnd: Date) {
   return useQuery({
     queryKey: ["events", rangeStart.toISOString(), rangeEnd.toISOString()],
+    staleTime: 5 * 60_000,
     queryFn: async () => {
-      // Pull events whose master start_at is before rangeEnd; we expand RRULE locally.
+      // Pull only events that can touch the range (recurring masters always),
+      // so we don't ship the whole history over the wire on every view change.
       const { data, error } = await supabase
         .from("events")
         .select("*, calendar:calendars(*)")
         .is("deleted_at", null)
-        .lte("start_at", rangeEnd.toISOString());
+        .lte("start_at", rangeEnd.toISOString())
+        .or(`rrule.not.is.null,end_at.gte.${rangeStart.toISOString()}`);
       if (error) throw error;
       // Per-occurrence edits ("bara detta tillfälle") live in event_overrides.
       const { data: ovr } = await supabase

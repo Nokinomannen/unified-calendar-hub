@@ -21,7 +21,7 @@ function dueLabel(due: string) {
 function useAgo(updatedAt: number | undefined) {
   const [, tick] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 30000);
+    const id = setInterval(() => tick((n) => n + 1), 300000);
     return () => clearInterval(id);
   }, []);
   if (!updatedAt) return null;
