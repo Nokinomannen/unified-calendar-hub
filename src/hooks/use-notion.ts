@@ -29,13 +29,8 @@ export type NotionTasksResult = {
   tasks: NotionTask[];
 };
 
-/** Poll slowly, only while the tab is actually focused; pause otherwise. */
-const LIVE_INTERVAL = 60 * 60_000; // once per hour
-const liveInterval = () => {
-  if (typeof document === "undefined") return false as const;
-  const active = document.visibilityState === "visible" && document.hasFocus();
-  return active ? LIVE_INTERVAL : (false as const);
-};
+/** No background polling at all: tasks refresh on app start and on manual refresh. */
+const liveInterval = () => false as const;
 
 export function useNotionDatabases(enabled = true) {
   const fn = useServerFn(listNotionDatabases);
