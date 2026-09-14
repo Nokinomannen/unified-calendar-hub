@@ -31,7 +31,7 @@ Ingen Terminal-kommandon behövs. (Manuell nödlösning om du vill:
 - **Menyraden** — ikonen visar tiden som räknas medan timern går.
   Klick växlar mini-timern. Högerklick ger meny: öppna kalendern, visa/dölj
   timern, starta vid inloggning, avsluta.
-- **Kortkommando** — `⌘⇧T` växlar mini-timern var du än är i macOS.
+- **Kortkommando** — `⌘⇧M` växlar mini-timern var du än är i macOS.
 - **App-meny** — Arkiv, Redigera, Visa och Fönster med Ladda om, Zooma in/ut,
   Helskärm och klipp/kopiera/klistra in precis som i webbläsaren.
 - **Dock-ikonen** får en prick när timern går (⏸ när den är pausad).
