@@ -269,7 +269,7 @@ function refreshTray() {
       { label: "Hämta senaste versionen", click: () => checkForUpdates(true) },
       {
         label: miniWindow ? "Dölj mini-timer" : "Visa mini-timer",
-        accelerator: "CommandOrControl+Shift+T",
+        accelerator: "CommandOrControl+Shift+M",
         click: () => toggleMiniWindow(),
       },
       { type: "separator" },
@@ -325,7 +325,7 @@ function buildAppMenu() {
         { label: "Öppna kalendern", accelerator: "CmdOrCtrl+N", click: () => createMainWindow() },
         {
           label: "Visa/dölj mini-timer",
-          accelerator: "CmdOrCtrl+Shift+T",
+          accelerator: "CmdOrCtrl+Shift+M",
           click: () => toggleMiniWindow(),
         },
         { type: "separator" },
@@ -413,7 +413,7 @@ if (!app.requestSingleInstanceLock()) {
     if (state.miniOpen !== false) createMiniWindow();
     createTray();
 
-    globalShortcut.register("CommandOrControl+Shift+T", () => toggleMiniWindow());
+    globalShortcut.register("CommandOrControl+Shift+M", () => toggleMiniWindow());
 
     // Background freshness check: pull a new build a few times a day even if
     // the window is never refocused.
