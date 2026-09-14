@@ -131,7 +131,7 @@ export function useReminderScheduler() {
     let stopped = false;
 
     async function tick() {
-      if (stopped) return;
+      if (stopped || document.hidden) return;
       if (!("Notification" in window) || Notification.permission !== "granted") return;
       const { data, error } = await supabase
         .from("event_reminders")
