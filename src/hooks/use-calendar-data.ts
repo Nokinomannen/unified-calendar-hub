@@ -35,7 +35,7 @@ export function useActiveCalendars() {
 export function useEvents(rangeStart: Date, rangeEnd: Date) {
   return useQuery({
     queryKey: ["events", rangeStart.toISOString(), rangeEnd.toISOString()],
-    staleTime: 5 * 60_000,
+    staleTime: 30 * 60_000,
     queryFn: async () => {
       // Pull only events that can touch the range (recurring masters always),
       // so we don't ship the whole history over the wire on every view change.
