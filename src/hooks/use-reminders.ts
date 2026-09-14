@@ -167,7 +167,7 @@ export function useReminderScheduler() {
     }
 
     tick();
-    const id = window.setInterval(tick, 60_000);
+    const id = window.setInterval(tick, 10 * 60_000);
     return () => { stopped = true; window.clearInterval(id); };
   }, [qc]);
 }
