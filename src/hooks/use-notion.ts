@@ -77,9 +77,9 @@ export function useNotionTasks(opts?: { hideDone?: boolean }) {
     enabled: dbs.length > 0,
     refetchInterval: liveInterval,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     refetchOnMount: true,
-    staleTime: 2 * 60_000,
+    staleTime: 60 * 60_000,
     structuralSharing: true,
   });
 
