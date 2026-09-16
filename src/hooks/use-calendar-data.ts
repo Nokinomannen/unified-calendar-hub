@@ -15,15 +15,18 @@ export type ExpandedEvent = EventRow & {
   calendar?: CalendarRow;
 };
 
+export const calendarsQueryOptions = {
+  queryKey: ["calendars"] as const,
+  staleTime: 60 * 60_000,
+  queryFn: async () => {
+    const { data, error } = await supabase.from("calendars").select("*").order("created_at");
+    if (error) throw error;
+    return data;
+  },
+};
+
 export function useCalendars() {
-  return useQuery({
-    queryKey: ["calendars"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("calendars").select("*").order("created_at");
-      if (error) throw error;
-      return data;
-    },
-  });
+  return useQuery(calendarsQueryOptions);
 }
 
 /** Calendars you can still pick for new events / hours (archived ones excluded). */
@@ -33,24 +36,40 @@ export function useActiveCalendars() {
 }
 
 export function useEvents(rangeStart: Date, rangeEnd: Date) {
+  const qc = useQueryClient();
   return useQuery({
     queryKey: ["events", rangeStart.toISOString(), rangeEnd.toISOString()],
     staleTime: 30 * 60_000,
     queryFn: async () => {
       // Pull only events that can touch the range (recurring masters always),
       // so we don't ship the whole history over the wire on every view change.
+      // NOTE: no `calendar:calendars(*)` embed — that duplicated the full
+      // calendar row on every single event and dominated egress. We join
+      // client-side against the cached calendars list instead.
       const { data, error } = await supabase
         .from("events")
-        .select("*, calendar:calendars(*)")
+        .select(
+          "id,user_id,calendar_id,title,description,location,start_at,end_at,all_day,rrule,external_id,reminder_minutes,email_reminder,deleted_at",
+        )
         .is("deleted_at", null)
         .lte("start_at", rangeEnd.toISOString())
         .or(`rrule.not.is.null,end_at.gte.${rangeStart.toISOString()}`);
       if (error) throw error;
-      // Per-occurrence edits ("bara detta tillfälle") live in event_overrides.
-      const { data: ovr } = await supabase
-        .from("event_overrides")
-        .select("*")
-        .eq("status", "modified");
+      const calendars = await qc.ensureQueryData(calendarsQueryOptions);
+      const calById = new Map((calendars ?? []).map((c) => [c.id, c]));
+      // Per-occurrence edits ("bara detta tillfälle") live in event_overrides —
+      // cached separately so parallel calendar views share one fetch.
+      const ovr = await qc.ensureQueryData({
+        queryKey: ["event_overrides", "modified"] as const,
+        staleTime: 30 * 60_000,
+        queryFn: async () => {
+          const { data } = await supabase
+            .from("event_overrides")
+            .select("event_id,occurrence_date,title,start_at,end_at,location")
+            .eq("status", "modified");
+          return data ?? [];
+        },
+      });
       const edits = new Map<string, { title?: string | null; start_at?: string | null; end_at?: string | null; location?: string | null }>();
       for (const o of (ovr ?? []) as { event_id: string; occurrence_date: string }[]) {
         edits.set(`${o.event_id}|${o.occurrence_date}`, o as never);
