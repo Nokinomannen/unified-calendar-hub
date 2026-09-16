@@ -15,7 +15,6 @@ import { RecentlyDeleted } from "@/components/recently-deleted";
 import { CalendarColorSettings } from "@/components/calendar-colors";
 import { ReminderSettings } from "@/components/reminder-settings";
 import { NotionSettings } from "@/components/notion-settings";
-import { OutlookSources } from "@/components/outlook-sources";
 
 
 export const Route = createFileRoute("/sources")({
@@ -125,7 +124,6 @@ function SourcesPage() {
         </div>
 
         <CalendarColorSettings />
-        <OutlookSources />
         <ReminderSettings />
         <NotionSettings />
 
@@ -221,7 +219,7 @@ function SourcesPage() {
           <h2 className="mb-2 font-medium text-foreground">Coming next</h2>
           <ul className="list-disc space-y-1 pl-5">
             <li>Push reminders on your phone (after installing as PWA)</li>
-            <li>Two-way sync — edits in One pushed back to Outlook</li>
+            <li>Snabbare import från skärmbilder</li>
           </ul>
         </section>
       </div>

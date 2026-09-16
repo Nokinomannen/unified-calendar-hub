@@ -17,7 +17,6 @@ import { CommandPalette } from "@/components/command-palette";
 import { useActiveTimer, usePauseTimer, useResumeTimer, timerNetMs } from "@/hooks/use-timer";
 import { useCalendars } from "@/hooks/use-calendar-data";
 import { formatElapsed, useNowTick } from "@/components/timer-widget";
-import { useExternalSync } from "@/hooks/use-external-sync";
 import { Pause, Play } from "lucide-react";
 
 function HeaderTimer() {
@@ -57,7 +56,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  useExternalSync();
 
   if (!user) return <>{children}</>;
 
