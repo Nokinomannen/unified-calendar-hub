@@ -16,8 +16,8 @@ const fmtSek = (n: number) =>
 
 export function HoursTracker() {
   const [period, setPeriod] = useState<Period>("week");
-  // Alltid utfälld när appen öppnas; hopfällning gäller bara under besöket.
-  const [open, setOpen] = useState(true);
+  // Dold från start så kalendern visas direkt; användaren öppnar panelen vid behov.
+  const [open, setOpen] = useState(false);
   const toggleOpen = () => setOpen((o) => !o);
   const [djOpen, setDjOpen] = useState(false);
   const [editingSet, setEditingSet] = useState<DjSet | null>(null);
