@@ -89,7 +89,8 @@ export function useEvents(rangeStart: Date, rangeEnd: Date) {
         };
       };
       const expanded: ExpandedEvent[] = [];
-      for (const ev of data as (EventRow & { calendar: CalendarRow })[]) {
+      for (const row of (data ?? []) as EventRow[]) {
+        const ev = { ...row, calendar: calById.get(row.calendar_id) } as EventRow & { calendar?: CalendarRow };
         const start = new Date(ev.start_at);
         const end = new Date(ev.end_at);
         const dur = end.getTime() - start.getTime();
