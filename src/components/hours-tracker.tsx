@@ -16,7 +16,16 @@ const fmtSek = (n: number) =>
 
 export function HoursTracker() {
   const [period, setPeriod] = useState<Period>("week");
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("hours-tracker-open") !== "false";
+  });
+  const toggleOpen = () =>
+    setOpen((o) => {
+      const next = !o;
+      try { localStorage.setItem("hours-tracker-open", String(next)); } catch { /* ignore */ }
+      return next;
+    });
   const [djOpen, setDjOpen] = useState(false);
   const [editingSet, setEditingSet] = useState<DjSet | null>(null);
 
