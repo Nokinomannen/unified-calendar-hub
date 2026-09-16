@@ -13,7 +13,7 @@ import { QuickAddBar } from "@/components/quick-add-bar";
 import { UpcomingPanel } from "@/components/upcoming-panel";
 import { NotionTasksPanel } from "@/components/notion-tasks-panel";
 
-import { useReminderSync, useReminderScheduler } from "@/hooks/use-reminders";
+// Påminnelser är avstängda — de skapade bara bakgrundstrafik utan att nå fram.
 import { EventContextMenu, LogDraftDialog, type LogDraft } from "@/components/event-context-menu";
 import { LogTimeDropZone } from "@/components/log-time-dropzone";
 import { useWeatherMap } from "@/hooks/use-weather";
@@ -44,8 +44,6 @@ function CalendarPage() {
   useEffect(() => { if (!loading && !user) router.navigate({ to: "/auth" }); }, [user, loading, router]);
 
   // Queue upcoming reminders and fire due notifications while the app is open.
-  useReminderSync();
-  useReminderScheduler();
 
   const { settings } = useSettings();
   const updateSettings = useUpdateSettings();
