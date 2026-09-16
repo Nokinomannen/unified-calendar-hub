@@ -83,7 +83,7 @@ export function HoursTracker() {
   return (
     <div className="rounded-2xl border border-border bg-card/60 backdrop-blur">
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
