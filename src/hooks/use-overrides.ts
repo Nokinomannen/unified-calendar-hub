@@ -50,7 +50,7 @@ export function useToggleSkip() {
         if (error) throw error;
       }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["overrides"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["overrides"] }) && qc.invalidateQueries({ queryKey: ["event_overrides"] }),
   });
 }
 
@@ -89,7 +89,7 @@ export function useSaveOccurrence() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["overrides"] });
+      qc.invalidateQueries({ queryKey: ["overrides"] }) && qc.invalidateQueries({ queryKey: ["event_overrides"] });
       qc.invalidateQueries({ queryKey: ["events"] });
     },
   });
