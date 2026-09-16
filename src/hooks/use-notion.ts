@@ -89,10 +89,13 @@ export function useNotionTasks(opts?: { hideDone?: boolean }) {
   const hideDone = opts?.hideDone ?? cfg?.hideDone ?? true;
   const { categories, fallbackKey } = useTaskCategories();
 
+  const cacheKey = `${dbs.map((d) => d.databaseId).join(",")}|${hideDone}`;
+  const cached = useMemo(() => readTaskCache(cacheKey), [cacheKey]);
+
   const query = useQuery({
     queryKey: ["notion", "tasks", dbs.map((d) => d.databaseId).join(","), hideDone],
-    queryFn: () =>
-      fn({
+    queryFn: async () => {
+      const result = (await fn({
         data: {
           databases: dbs.map((d) => ({
             databaseId: d.databaseId,
@@ -103,13 +106,19 @@ export function useNotionTasks(opts?: { hideDone?: boolean }) {
           })),
           hideDone,
         },
-      }) as Promise<NotionTasksResult>,
+      })) as NotionTasksResult;
+      writeTaskCache(cacheKey, result);
+      return result;
+    },
     enabled: dbs.length > 0,
     refetchInterval: liveInterval,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     refetchOnMount: true,
-    staleTime: 60 * 60_000,
+    staleTime: DAY,
+    gcTime: DAY,
+    initialData: cached?.data,
+    initialDataUpdatedAt: cached?.at,
     structuralSharing: true,
   });
 
