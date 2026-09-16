@@ -15,7 +15,6 @@ import { RecentlyDeleted } from "@/components/recently-deleted";
 import { CalendarColorSettings } from "@/components/calendar-colors";
 import { ReminderSettings } from "@/components/reminder-settings";
 import { NotionSettings } from "@/components/notion-settings";
-import { OutlookSources } from "@/components/outlook-sources";
 
 
 export const Route = createFileRoute("/sources")({
@@ -125,7 +124,6 @@ function SourcesPage() {
         </div>
 
         <CalendarColorSettings />
-        <OutlookSources />
         <ReminderSettings />
         <NotionSettings />
 
