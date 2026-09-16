@@ -16,8 +16,11 @@ export type Override = {
 export function useOverrides() {
   return useQuery({
     queryKey: ["overrides"],
+    staleTime: 30 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("event_overrides").select("*");
+      const { data, error } = await supabase
+        .from("event_overrides")
+        .select("id,event_id,occurrence_date,status,title,start_at,end_at,location");
       if (error) throw error;
       return data as Override[];
     },
