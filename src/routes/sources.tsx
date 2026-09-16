@@ -219,7 +219,7 @@ function SourcesPage() {
           <h2 className="mb-2 font-medium text-foreground">Coming next</h2>
           <ul className="list-disc space-y-1 pl-5">
             <li>Push reminders on your phone (after installing as PWA)</li>
-            <li>Two-way sync — edits in One pushed back to Outlook</li>
+            <li>Snabbare import från skärmbilder</li>
           </ul>
         </section>
       </div>
