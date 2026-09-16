@@ -29,8 +29,38 @@ export type NotionTasksResult = {
   tasks: NotionTask[];
 };
 
-/** No background polling at all: tasks refresh on app start and on manual refresh. */
+/** No background polling at all: tasks refresh once a day and on manual refresh. */
 const liveInterval = () => false as const;
+
+const DAY = 24 * 60 * 60_000;
+const CACHE_PREFIX = "notion-tasks-cache:";
+
+/**
+ * Tasks are cached in localStorage so a page reload doesn't re-hit Notion.
+ * Anything fetched less than a day ago is reused as-is — the user rarely
+ * needs fresher data and every fetch costs egress.
+ */
+function readTaskCache(key: string): { data: NotionTasksResult; at: number } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(CACHE_PREFIX + key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { data: NotionTasksResult; at: number };
+    if (!parsed?.data || typeof parsed.at !== "number") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeTaskCache(key: string, data: NotionTasksResult) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ data, at: Date.now() }));
+  } catch {
+    // storage full / disabled — caching is best effort
+  }
+}
 
 export function useNotionDatabases(enabled = true) {
   const fn = useServerFn(listNotionDatabases);
@@ -59,10 +89,13 @@ export function useNotionTasks(opts?: { hideDone?: boolean }) {
   const hideDone = opts?.hideDone ?? cfg?.hideDone ?? true;
   const { categories, fallbackKey } = useTaskCategories();
 
+  const cacheKey = `${dbs.map((d) => d.databaseId).join(",")}|${hideDone}`;
+  const cached = useMemo(() => readTaskCache(cacheKey), [cacheKey]);
+
   const query = useQuery({
     queryKey: ["notion", "tasks", dbs.map((d) => d.databaseId).join(","), hideDone],
-    queryFn: () =>
-      fn({
+    queryFn: async () => {
+      const result = (await fn({
         data: {
           databases: dbs.map((d) => ({
             databaseId: d.databaseId,
@@ -73,13 +106,19 @@ export function useNotionTasks(opts?: { hideDone?: boolean }) {
           })),
           hideDone,
         },
-      }) as Promise<NotionTasksResult>,
+      })) as NotionTasksResult;
+      writeTaskCache(cacheKey, result);
+      return result;
+    },
     enabled: dbs.length > 0,
     refetchInterval: liveInterval,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     refetchOnMount: true,
-    staleTime: 60 * 60_000,
+    staleTime: DAY,
+    gcTime: DAY,
+    initialData: cached?.data,
+    initialDataUpdatedAt: cached?.at,
     structuralSharing: true,
   });
 
