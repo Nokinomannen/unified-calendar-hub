@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790091169198,
+      "tag": "0000_deprecate_work_logs",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+COMMENT ON TABLE public.work_logs IS 'DEPRECATED: time logging removed from the app; table retained but unused.';
