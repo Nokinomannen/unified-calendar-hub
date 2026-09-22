@@ -181,7 +181,7 @@ function SettingsPage() {
         <CalendarSettings />
         <CalendarColorSettings />
 
-        <Section title="Tid & pengar">
+        <Section title="Pengar">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="rounded-xl border border-border bg-card px-4 py-3 text-sm">
               <div className="mb-1.5 font-medium">Skattesats för uppskattning (%)</div>
@@ -192,18 +192,6 @@ function SettingsPage() {
                 onBlur={(e) => {
                   const n = Number(e.target.value.replace(",", "."));
                   if (!Number.isNaN(n)) set("taxRate", Math.min(70, Math.max(0, n)));
-                }}
-              />
-            </label>
-            <label className="rounded-xl border border-border bg-card px-4 py-3 text-sm">
-              <div className="mb-1.5 font-medium">Målsatta timmar per vecka</div>
-              <Input
-                className="h-9"
-                inputMode="decimal"
-                defaultValue={String(settings.weeklyHoursGoal)}
-                onBlur={(e) => {
-                  const n = Number(e.target.value.replace(",", "."));
-                  if (!Number.isNaN(n)) set("weeklyHoursGoal", Math.max(0, n));
                 }}
               />
             </label>
