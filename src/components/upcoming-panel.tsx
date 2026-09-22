@@ -32,11 +32,19 @@ export function UpcomingPanel({ onEdit }: { onEdit?: (ev: ExpandedEvent) => void
 
   return (
     <section className="rounded-xl border border-border bg-card p-4">
-      <div className="mb-3 flex items-center gap-2">
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex w-full items-center gap-2 text-left hover:opacity-80"
+      >
         <CalendarClock className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold">Kommande 7 dagar</h2>
-      </div>
-      <ul className="divide-y divide-border/60">
+        {open
+          ? <ChevronUp className="ml-auto h-4 w-4 text-muted-foreground" />
+          : <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground" />}
+      </button>
+      {open && (
+      <ul className="mt-3 divide-y divide-border/60">
         {upcoming.map((ev) => {
           const rs = reminderTimes(ev);
           const hasNotify = rs.some((r) => r.channel === "notify");
