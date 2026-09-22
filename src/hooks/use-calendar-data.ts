@@ -35,92 +35,143 @@ export function useActiveCalendars() {
   return { ...q, data: (q.data ?? []).filter((c) => !c.archived) };
 }
 
-export function useEvents(rangeStart: Date, rangeEnd: Date) {
-  const qc = useQueryClient();
-  return useQuery({
-    queryKey: ["events", rangeStart.toISOString(), rangeEnd.toISOString()],
-    staleTime: 30 * 60_000,
+type BaseRow = Pick<
+  EventRow,
+  | "id" | "user_id" | "calendar_id" | "title" | "description" | "location"
+  | "start_at" | "end_at" | "all_day" | "rrule" | "external_id"
+  | "reminder_minutes" | "email_reminder" | "deleted_at"
+>;
+type OverrideRow = {
+  event_id: string;
+  occurrence_date: string;
+  title?: string | null;
+  start_at?: string | null;
+  end_at?: string | null;
+  location?: string | null;
+};
+type EventBase = { events: BaseRow[]; calendars: CalendarRow[]; overrides: OverrideRow[] };
+
+const BASE_CACHE_KEY = "one-events-base-v1";
+const DAY = 24 * 60 * 60_000;
+
+function readBaseCache(): { data: EventBase; at: number } | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(BASE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { data: EventBase; at: number };
+    if (!parsed?.data?.events) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeBaseCache(data: EventBase) {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(BASE_CACHE_KEY, JSON.stringify({ data, at: Date.now() }));
+  } catch { /* quota — ignore */ }
+}
+
+/**
+ * ONE shared fetch for all calendar data. Every view (month, week, upcoming,
+ * money, command palette …) expands from this cache client-side, so opening
+ * the app costs a single small request instead of six overlapping ones.
+ * Persisted to localStorage so reloads and app restarts cost nothing.
+ */
+function useEventBase() {
+  const cached = typeof window !== "undefined" ? readBaseCache() : null;
+  return useQuery<EventBase>({
+    queryKey: ["events", "base"],
+    staleTime: 6 * 60 * 60_000,
+    gcTime: DAY,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    initialData: cached?.data,
+    initialDataUpdatedAt: cached?.at,
     queryFn: async () => {
-      // Pull only events that can touch the range (recurring masters always),
-      // so we don't ship the whole history over the wire on every view change.
-      // NOTE: no `calendar:calendars(*)` embed — that duplicated the full
-      // calendar row on every single event and dominated egress. We join
-      // client-side against the cached calendars list instead.
-      const { data, error } = await supabase
-        .from("events")
-        .select(
-          "id,user_id,calendar_id,title,description,location,start_at,end_at,all_day,rrule,external_id,reminder_minutes,email_reminder,deleted_at",
-        )
-        .is("deleted_at", null)
-        .lte("start_at", rangeEnd.toISOString())
-        .or(`rrule.not.is.null,end_at.gte.${rangeStart.toISOString()}`);
-      if (error) throw error;
-      const calendars = await qc.ensureQueryData(calendarsQueryOptions);
-      const calById = new Map((calendars ?? []).map((c) => [c.id, c]));
-      // Per-occurrence edits ("bara detta tillfälle") live in event_overrides —
-      // cached separately so parallel calendar views share one fetch.
-      const ovr = await qc.ensureQueryData({
-        queryKey: ["event_overrides", "modified"] as const,
-        staleTime: 30 * 60_000,
-        queryFn: async () => {
-          const { data } = await supabase
-            .from("event_overrides")
-            .select("event_id,occurrence_date,title,start_at,end_at,location")
-            .eq("status", "modified");
-          return data ?? [];
-        },
-      });
-      const edits = new Map<string, { title?: string | null; start_at?: string | null; end_at?: string | null; location?: string | null }>();
-      for (const o of (ovr ?? []) as { event_id: string; occurrence_date: string }[]) {
-        edits.set(`${o.event_id}|${o.occurrence_date}`, o as never);
-      }
-      const applyEdit = (ev: ExpandedEvent): ExpandedEvent => {
-        const p = (n: number) => String(n).padStart(2, "0");
-        const d = ev.occurrence_start;
-        const key = `${ev.id}|${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-        const edit = edits.get(key);
-        if (!edit) return ev;
-        return {
-          ...ev,
-          title: edit.title ?? ev.title,
-          location: edit.location ?? ev.location,
-          occurrence_start: edit.start_at ? new Date(edit.start_at) : ev.occurrence_start,
-          occurrence_end: edit.end_at ? new Date(edit.end_at) : ev.occurrence_end,
-        };
+      const [ev, cal, ovr] = await Promise.all([
+        supabase
+          .from("events")
+          .select(
+            "id,user_id,calendar_id,title,description,location,start_at,end_at,all_day,rrule,external_id,reminder_minutes,email_reminder,deleted_at",
+          )
+          .is("deleted_at", null),
+        supabase.from("calendars").select("*").order("created_at"),
+        supabase
+          .from("event_overrides")
+          .select("event_id,occurrence_date,title,start_at,end_at,location")
+          .eq("status", "modified"),
+      ]);
+      if (ev.error) throw ev.error;
+      const data: EventBase = {
+        events: (ev.data ?? []) as BaseRow[],
+        calendars: (cal.data ?? []) as CalendarRow[],
+        overrides: (ovr.data ?? []) as OverrideRow[],
       };
-      const expanded: ExpandedEvent[] = [];
-      for (const row of (data ?? []) as EventRow[]) {
-        const ev = { ...row, calendar: calById.get(row.calendar_id) } as EventRow & { calendar?: CalendarRow };
-        const start = new Date(ev.start_at);
-        const end = new Date(ev.end_at);
-        const dur = end.getTime() - start.getTime();
-        if (ev.rrule) {
-          try {
-            const rule = RRule.fromString(
-              ev.rrule.startsWith("DTSTART") ? ev.rrule : `DTSTART:${toICSDate(start)}\nRRULE:${ev.rrule.replace(/^RRULE:/, "")}`,
-            );
-            const occs = rule.between(rangeStart, rangeEnd, true);
-            for (const occ of occs) {
-              expanded.push(applyEdit({
-                ...ev,
-                occurrence_start: occ,
-                occurrence_end: new Date(occ.getTime() + dur),
-              }));
-            }
-          } catch {
-            if (end >= rangeStart && start <= rangeEnd) {
-              expanded.push(applyEdit({ ...ev, occurrence_start: start, occurrence_end: end }));
-            }
-          }
-        } else if (end >= rangeStart && start <= rangeEnd) {
-          expanded.push(applyEdit({ ...ev, occurrence_start: start, occurrence_end: end }));
-        }
-      }
-      expanded.sort((a, b) => a.occurrence_start.getTime() - b.occurrence_start.getTime());
-      return expanded;
+      writeBaseCache(data);
+      return data;
     },
   });
 }
+
+export function useEvents(rangeStart: Date, rangeEnd: Date) {
+  const base = useEventBase();
+  const startMs = rangeStart.getTime();
+  const endMs = rangeEnd.getTime();
+  const data = useMemo(() => {
+    const b = base.data;
+    if (!b) return [] as ExpandedEvent[];
+    const from = new Date(startMs);
+    const to = new Date(endMs);
+    const calById = new Map(b.calendars.map((c) => [c.id, c]));
+    const edits = new Map<string, OverrideRow>();
+    for (const o of b.overrides) edits.set(`${o.event_id}|${o.occurrence_date}`, o);
+    const applyEdit = (ev: ExpandedEvent): ExpandedEvent => {
+      const p = (n: number) => String(n).padStart(2, "0");
+      const d = ev.occurrence_start;
+      const key = `${ev.id}|${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+      const edit = edits.get(key);
+      if (!edit) return ev;
+      return {
+        ...ev,
+        title: edit.title ?? ev.title,
+        location: edit.location ?? ev.location,
+        occurrence_start: edit.start_at ? new Date(edit.start_at) : ev.occurrence_start,
+        occurrence_end: edit.end_at ? new Date(edit.end_at) : ev.occurrence_end,
+      };
+    };
+    const expanded: ExpandedEvent[] = [];
+    for (const row of b.events) {
+      const ev = { ...row, calendar: calById.get(row.calendar_id) } as EventRow & { calendar?: CalendarRow };
+      const start = new Date(ev.start_at);
+      const end = new Date(ev.end_at);
+      const dur = end.getTime() - start.getTime();
+      if (ev.rrule) {
+        try {
+          const rule = RRule.fromString(
+            ev.rrule.startsWith("DTSTART") ? ev.rrule : `DTSTART:${toICSDate(start)}\nRRULE:${ev.rrule.replace(/^RRULE:/, "")}`,
+          );
+          for (const occ of rule.between(from, to, true)) {
+            expanded.push(applyEdit({ ...ev, occurrence_start: occ, occurrence_end: new Date(occ.getTime() + dur) }));
+          }
+        } catch {
+          if (end >= from && start <= to) {
+            expanded.push(applyEdit({ ...ev, occurrence_start: start, occurrence_end: end }));
+          }
+        }
+      } else if (end >= from && start <= to) {
+        expanded.push(applyEdit({ ...ev, occurrence_start: start, occurrence_end: end }));
+      }
+    }
+    expanded.sort((a, b2) => a.occurrence_start.getTime() - b2.occurrence_start.getTime());
+    return expanded;
+  }, [base.data, startMs, endMs]);
+
+  return { ...base, data } as typeof base & { data: ExpandedEvent[] };
+}
+
 
 function toICSDate(d: Date) {
   const p = (n: number) => String(n).padStart(2, "0");
