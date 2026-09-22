@@ -26,8 +26,10 @@ export const calendarsQueryOptions = {
   },
 };
 
+/** Calendars come along with the shared base fetch — no extra request. */
 export function useCalendars() {
-  return useQuery(calendarsQueryOptions);
+  const base = useEventBase();
+  return { ...base, data: base.data?.calendars ?? [] };
 }
 
 /** Calendars you can still pick for new events / hours (archived ones excluded). */
