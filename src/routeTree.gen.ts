@@ -9,13 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WeeklyRouteImport } from './routes/weekly'
 import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
-import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MiniTimerRouteImport } from './routes/mini-timer'
-import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as BackendAccessRouteImport } from './routes/backend-access'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -27,19 +24,9 @@ import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/l
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicHooksSendRemindersRouteImport } from './routes/api/public/hooks/send-reminders'
 
-const WeeklyRoute = WeeklyRouteImport.update({
-  id: '/weekly',
-  path: '/weekly',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const UnsubscribeRoute = UnsubscribeRouteImport.update({
   id: '/unsubscribe',
   path: '/unsubscribe',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TasksRoute = TasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SourcesRoute = SourcesRouteImport.update({
@@ -55,11 +42,6 @@ const SettingsRoute = SettingsRouteImport.update({
 const MiniTimerRoute = MiniTimerRouteImport.update({
   id: '/mini-timer',
   path: '/mini-timer',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalendarRoute = CalendarRouteImport.update({
@@ -122,13 +104,10 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
-  '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
-  '/tasks': typeof TasksRoute
   '/unsubscribe': typeof UnsubscribeRoute
-  '/weekly': typeof WeeklyRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
@@ -141,13 +120,10 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
-  '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
-  '/tasks': typeof TasksRoute
   '/unsubscribe': typeof UnsubscribeRoute
-  '/weekly': typeof WeeklyRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
@@ -161,13 +137,10 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
-  '/dashboard': typeof DashboardRoute
   '/mini-timer': typeof MiniTimerRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
-  '/tasks': typeof TasksRoute
   '/unsubscribe': typeof UnsubscribeRoute
-  '/weekly': typeof WeeklyRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
@@ -182,13 +155,10 @@ export interface FileRouteTypes {
     | '/auth'
     | '/backend-access'
     | '/calendar'
-    | '/dashboard'
     | '/mini-timer'
     | '/settings'
     | '/sources'
-    | '/tasks'
     | '/unsubscribe'
-    | '/weekly'
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/send-reminders'
@@ -201,13 +171,10 @@ export interface FileRouteTypes {
     | '/auth'
     | '/backend-access'
     | '/calendar'
-    | '/dashboard'
     | '/mini-timer'
     | '/settings'
     | '/sources'
-    | '/tasks'
     | '/unsubscribe'
-    | '/weekly'
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/send-reminders'
@@ -220,13 +187,10 @@ export interface FileRouteTypes {
     | '/auth'
     | '/backend-access'
     | '/calendar'
-    | '/dashboard'
     | '/mini-timer'
     | '/settings'
     | '/sources'
-    | '/tasks'
     | '/unsubscribe'
-    | '/weekly'
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/send-reminders'
@@ -240,13 +204,10 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   BackendAccessRoute: typeof BackendAccessRoute
   CalendarRoute: typeof CalendarRoute
-  DashboardRoute: typeof DashboardRoute
   MiniTimerRoute: typeof MiniTimerRoute
   SettingsRoute: typeof SettingsRoute
   SourcesRoute: typeof SourcesRoute
-  TasksRoute: typeof TasksRoute
   UnsubscribeRoute: typeof UnsubscribeRoute
-  WeeklyRoute: typeof WeeklyRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicHooksSendRemindersRoute: typeof ApiPublicHooksSendRemindersRoute
@@ -257,25 +218,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/weekly': {
-      id: '/weekly'
-      path: '/weekly'
-      fullPath: '/weekly'
-      preLoaderRoute: typeof WeeklyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/unsubscribe': {
       id: '/unsubscribe'
       path: '/unsubscribe'
       fullPath: '/unsubscribe'
       preLoaderRoute: typeof UnsubscribeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tasks': {
-      id: '/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof TasksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sources': {
@@ -297,13 +244,6 @@ declare module '@tanstack/react-router' {
       path: '/mini-timer'
       fullPath: '/mini-timer'
       preLoaderRoute: typeof MiniTimerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calendar': {
@@ -384,13 +324,10 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   BackendAccessRoute: BackendAccessRoute,
   CalendarRoute: CalendarRoute,
-  DashboardRoute: DashboardRoute,
   MiniTimerRoute: MiniTimerRoute,
   SettingsRoute: SettingsRoute,
   SourcesRoute: SourcesRoute,
-  TasksRoute: TasksRoute,
   UnsubscribeRoute: UnsubscribeRoute,
-  WeeklyRoute: WeeklyRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicHooksSendRemindersRoute: ApiPublicHooksSendRemindersRoute,
