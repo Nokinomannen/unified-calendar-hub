@@ -14,6 +14,14 @@ function dayLabel(d: Date) {
 export function UpcomingPanel({ onEdit }: { onEdit?: (ev: ExpandedEvent) => void }) {
   const now = new Date();
   const { data: events = [] } = useEvents(startOfDay(now), addDays(now, 7));
+  // Dold från start; valet sparas så att användaren själv bestämmer.
+  const [open, setOpen] = useState(() => localStorage.getItem("upcoming-panel-open") === "1");
+  const toggle = () => {
+    setOpen((v) => {
+      localStorage.setItem("upcoming-panel-open", v ? "0" : "1");
+      return !v;
+    });
+  };
 
   const upcoming = useMemo(
     () => events.filter((e) => e.occurrence_end >= now).slice(0, 8),
