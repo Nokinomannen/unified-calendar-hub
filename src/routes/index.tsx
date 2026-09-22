@@ -8,16 +8,14 @@ import { useCalendars, useUpdateCalendar, useEvents, type ExpandedEvent, type Ev
 import { useOverrides, dateKey } from "@/hooks/use-overrides";
 import { DayDrawer } from "@/components/day-drawer";
 import { WeekView } from "@/components/week-view";
-import { HoursTracker } from "@/components/hours-tracker";
+import { TimerWidget } from "@/components/timer-widget";
 import { QuickAddBar } from "@/components/quick-add-bar";
 import { UpcomingPanel } from "@/components/upcoming-panel";
-import { NotionTasksPanel } from "@/components/notion-tasks-panel";
 
 // Påminnelser är avstängda — de skapade bara bakgrundstrafik utan att nå fram.
-import { EventContextMenu, LogDraftDialog, type LogDraft } from "@/components/event-context-menu";
-import { LogTimeDropZone } from "@/components/log-time-dropzone";
+import { EventContextMenu } from "@/components/event-context-menu";
 import { useWeatherMap } from "@/hooks/use-weather";
-import { useSettings, useUpdateSettings, notionDatabases } from "@/hooks/use-settings";
+import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 
 import { WeatherBadge } from "@/components/weather-badge";
 import type { WeatherDay } from "@/hooks/use-weather";
@@ -74,7 +72,6 @@ function CalendarPage() {
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [editingOccurrence, setEditingOccurrence] = useState<{ start: Date; end: Date } | null>(null);
   const [drawerDate, setDrawerDate] = useState<Date | null>(null);
-  const [logDraft, setLogDraft] = useState<LogDraft | null>(null);
   const weatherAll = useWeatherMap("malmo");
   const weather = useMemo(
     () => (settings.showWeather ? weatherAll : new Map<string, WeatherDay>()),
@@ -268,7 +265,7 @@ function CalendarPage() {
 
         {settings.showQuickAdd && <QuickAddBar />}
 
-        {settings.showHours && <HoursTracker />}
+        {settings.showHours && <TimerWidget />}
 
         {settings.showUpcoming && (
           <UpcomingPanel
@@ -276,16 +273,6 @@ function CalendarPage() {
           />
         )}
 
-        {notionDatabases(settings).length > 0 && (
-          <div className="flex justify-end">
-            <button
-              onClick={() => updateSettings.mutate({ showTasks: !settings.showTasks })}
-              className="rounded-full border border-border px-3 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {settings.showTasks ? "Dölj tasks" : "Visa tasks"}
-            </button>
-          </div>
-        )}
 
 
 
@@ -305,13 +292,13 @@ function CalendarPage() {
                 onDayClick={(d) => setDrawerDate(d)}
                 onAdd={(d) => openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0))}
                 onEdit={openEdit}
-                onConvert={setLogDraft}
+               
               />
             )}
 
             {view === "week" && (
               <WeekView weekStart={cursor} events={visible} overrides={overrides}
-                onEdit={openEdit} onAdd={openAdd} onConvert={setLogDraft} weather={weather}
+                onEdit={openEdit} onAdd={openAdd} weather={weather}
                 weekStartsOn={wso}
               />
 
@@ -323,7 +310,7 @@ function CalendarPage() {
                 </button>
                 <div className="mt-2">
                   <WeekView weekStart={cursor} events={visible.filter((e) => isSameDay(e.occurrence_start, cursor))} overrides={overrides}
-                    onEdit={openEdit} onAdd={openAdd} onConvert={setLogDraft} weather={weather}
+                    onEdit={openEdit} onAdd={openAdd} weather={weather}
                   />
                 </div>
               </div>
@@ -331,26 +318,23 @@ function CalendarPage() {
           </motion.div>
         </AnimatePresence>
 
-        {settings.showTasks && notionDatabases(settings).length > 0 && <NotionTasksPanel />}
       </div>
 
 
       <FAB onClick={() => openAdd()} />
       <AddEventDialog open={open} onOpenChange={setOpen} defaultStart={defaultStart} event={editing} occurrence={editingOccurrence} />
       <DayDrawer date={drawerDate} events={drawerEvents} overrides={overrides} onClose={() => setDrawerDate(null)} onEdit={openEdit} onAdd={(d) => { setDrawerDate(null); openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0)); }} />
-      <LogTimeDropZone onDrop={setLogDraft} />
-      <LogDraftDialog draft={logDraft} onClose={() => setLogDraft(null)} />
     </AppShell>
   );
 }
 
 
-function MonthGrid({ cursor, events, skippedSet, weather, weekStartsOn, compact, showConflicts, onDayClick, onAdd, onEdit, onConvert }: {
+function MonthGrid({ cursor, events, skippedSet, weather, weekStartsOn, compact, showConflicts, onDayClick, onAdd, onEdit }: {
   cursor: Date; events: ExpandedEvent[]; skippedSet: Set<string>;
   weather: Map<string, WeatherDay>;
   weekStartsOn: 0 | 1; compact: boolean; showConflicts: boolean;
   onDayClick: (d: Date) => void; onAdd: (d: Date) => void;
-  onEdit: (e: ExpandedEvent) => void; onConvert: (d: LogDraft) => void;
+  onEdit: (e: ExpandedEvent) => void;
 }) {
   const monthStart = startOfMonth(cursor);
   const monthEnd = endOfMonth(cursor);
@@ -383,7 +367,6 @@ function MonthGrid({ cursor, events, skippedSet, weather, weekStartsOn, compact,
             onClick={() => onDayClick(d)}
             onAdd={() => onAdd(d)}
             onEdit={onEdit}
-            onConvert={onConvert}
           />
         ))}
       </div>
@@ -393,12 +376,12 @@ function MonthGrid({ cursor, events, skippedSet, weather, weekStartsOn, compact,
 
 
 function DayCell({
-  day, cursor, events, skippedSet, weather, compact, showConflicts, onClick, onAdd, onEdit, onConvert,
+  day, cursor, events, skippedSet, weather, compact, showConflicts, onClick, onAdd, onEdit,
 }: {
   day: Date; cursor: Date; events: ExpandedEvent[]; skippedSet: Set<string>;
   weather?: WeatherDay; compact: boolean; showConflicts: boolean;
   onClick: () => void; onAdd: () => void;
-  onEdit: (e: ExpandedEvent) => void; onConvert: (d: LogDraft) => void;
+  onEdit: (e: ExpandedEvent) => void;
 }) {
   const dk = dateKey(day);
   const inMonth = isSameMonth(day, cursor);
@@ -475,7 +458,7 @@ function DayCell({
           const skipped = skippedSet.has(`${e.id}|${dk}`);
           const conflict = conflictIds.has(e.id);
           return (
-            <EventContextMenu key={e.id} event={e} onEdit={onEdit} onConvert={onConvert}>
+            <EventContextMenu key={e.id} event={e} onEdit={onEdit}>
               <div
                 className={cn(
                   "flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1 pr-0.5 py-0.5 text-[9px] leading-tight transition-colors sm:pl-1.5 sm:pr-1 sm:text-[10px]",
@@ -498,7 +481,7 @@ function DayCell({
             const skipped = skippedSet.has(`${e.id}|${dk}`);
             const conflict = conflictIds.has(e.id);
             return (
-              <EventContextMenu key={e.id} event={e} onEdit={onEdit} onConvert={onConvert}>
+              <EventContextMenu key={e.id} event={e} onEdit={onEdit}>
                 <div
                   className={cn(
                     "mt-0.5 flex items-center gap-1 truncate rounded-sm border-l-[3px] bg-card/40 pl-1.5 pr-1 py-0.5 text-[10px] leading-tight transition-colors",
