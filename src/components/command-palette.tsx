@@ -8,7 +8,7 @@ import { useEvents } from "@/hooks/use-calendar-data";
 import { useTheme } from "@/hooks/use-theme";
 import { useActiveTimer, usePauseTimer, useResumeTimer } from "@/hooks/use-timer";
 import {
-  BarChart3, CalendarDays, Layers, Moon, Sun, Monitor, Play, Pause, CalendarClock, SlidersHorizontal,
+  CalendarDays, Layers, Moon, Sun, Monitor, Play, Pause, CalendarClock, SlidersHorizontal,
 } from "lucide-react";
 
 
@@ -60,7 +60,7 @@ export function CommandPalette() {
     setOpen(false);
     router.navigate({ to: "/", search: { d: format(d, "yyyy-MM-dd") } });
   }
-  function go(to: "/" | "/weekly" | "/dashboard" | "/sources" | "/settings") {
+  function go(to: "/" | "/sources" | "/settings") {
     setOpen(false);
     router.navigate({ to });
   }
@@ -104,8 +104,6 @@ export function CommandPalette() {
 
         <CommandGroup heading="Sidor">
           <CommandItem onSelect={() => go("/")}><CalendarDays className="mr-2 h-4 w-4" /> Kalender</CommandItem>
-          <CommandItem onSelect={() => go("/weekly")}><CalendarClock className="mr-2 h-4 w-4" /> Veckoplanering</CommandItem>
-          <CommandItem onSelect={() => go("/dashboard")}><BarChart3 className="mr-2 h-4 w-4" /> Insights</CommandItem>
           <CommandItem onSelect={() => go("/sources")}><Layers className="mr-2 h-4 w-4" /> Källor</CommandItem>
           <CommandItem onSelect={() => go("/settings")}><SlidersHorizontal className="mr-2 h-4 w-4" /> Inställningar</CommandItem>
 

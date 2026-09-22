@@ -14,7 +14,6 @@ import { format } from "date-fns";
 import { RecentlyDeleted } from "@/components/recently-deleted";
 import { CalendarColorSettings } from "@/components/calendar-colors";
 import { ReminderSettings } from "@/components/reminder-settings";
-import { NotionSettings } from "@/components/notion-settings";
 
 
 export const Route = createFileRoute("/sources")({
@@ -125,7 +124,6 @@ function SourcesPage() {
 
         <CalendarColorSettings />
         <ReminderSettings />
-        <NotionSettings />
 
 
 

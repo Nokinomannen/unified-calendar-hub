@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
-const TABLES = ["calendars", "events", "event_overrides", "work_logs", "dj_sets", "user_settings"] as const;
+const TABLES = ["calendars", "events", "event_overrides", "dj_sets", "user_settings"] as const;
 
 /** Full backup of everything the app owns, as one JSON file you can keep locally. */
 export function BackupExport() {

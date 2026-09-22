@@ -1,12 +1,11 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/app-shell";
 import { CalendarSettings, SettingToggle } from "@/components/calendar-settings";
 import { CalendarColorSettings } from "@/components/calendar-colors";
 import { ReminderSettings } from "@/components/reminder-settings";
 import { RecentlyDeleted } from "@/components/recently-deleted";
-import { ExportHoursDialog } from "@/components/export-hours";
 import { BackupExport } from "@/components/backup-export";
 import { useSettings, useUpdateSettings, type ViewMode } from "@/hooks/use-settings";
 import { useActiveCalendars } from "@/hooks/use-calendar-data";
@@ -15,7 +14,7 @@ import { useUiZoom } from "@/hooks/use-ui-zoom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Download, Keyboard, Minus, Plus } from "lucide-react";
+import { Keyboard, Minus, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -55,7 +54,6 @@ function SettingsPage() {
   const { data: calendars = [] } = useActiveCalendars();
   const { theme, setTheme } = useTheme();
   const { zoom, zoomIn, zoomOut, reset } = useUiZoom();
-  const [exportOpen, setExportOpen] = useState(false);
 
   if (loading || !user) return null;
 
@@ -140,7 +138,7 @@ function SettingsPage() {
             </label>
             <SettingToggle label="Visa väder" checked={settings.showWeather} onChange={(v) => set("showWeather", v)} />
             <SettingToggle label="Varna för krockar" checked={settings.showConflicts} onChange={(v) => set("showConflicts", v)} />
-            <SettingToggle label="Visa timpanelen" checked={settings.showHours} onChange={(v) => set("showHours", v)} />
+            <SettingToggle label="Visa timern" checked={settings.showHours} onChange={(v) => set("showHours", v)} />
             <SettingToggle label="Visa kommande-listan" checked={settings.showUpcoming} onChange={(v) => set("showUpcoming", v)} />
           </div>
         </Section>
@@ -183,7 +181,7 @@ function SettingsPage() {
         <CalendarSettings />
         <CalendarColorSettings />
 
-        <Section title="Tid & pengar">
+        <Section title="Pengar">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="rounded-xl border border-border bg-card px-4 py-3 text-sm">
               <div className="mb-1.5 font-medium">Skattesats för uppskattning (%)</div>
@@ -194,18 +192,6 @@ function SettingsPage() {
                 onBlur={(e) => {
                   const n = Number(e.target.value.replace(",", "."));
                   if (!Number.isNaN(n)) set("taxRate", Math.min(70, Math.max(0, n)));
-                }}
-              />
-            </label>
-            <label className="rounded-xl border border-border bg-card px-4 py-3 text-sm">
-              <div className="mb-1.5 font-medium">Målsatta timmar per vecka</div>
-              <Input
-                className="h-9"
-                inputMode="decimal"
-                defaultValue={String(settings.weeklyHoursGoal)}
-                onBlur={(e) => {
-                  const n = Number(e.target.value.replace(",", "."));
-                  if (!Number.isNaN(n)) set("weeklyHoursGoal", Math.max(0, n));
                 }}
               />
             </label>
@@ -220,9 +206,6 @@ function SettingsPage() {
         <ReminderSettings />
 
         <Section title="Data">
-          <Button variant="outline" onClick={() => setExportOpen(true)}>
-            <Download className="mr-2 h-4 w-4" /> Exportera timmar (CSV)
-          </Button>
           <BackupExport />
           <RecentlyDeleted />
         </Section>
@@ -249,7 +232,6 @@ function SettingsPage() {
         </Section>
       </div>
 
-      <ExportHoursDialog open={exportOpen} onOpenChange={setExportOpen} />
     </AppShell>
   );
 }

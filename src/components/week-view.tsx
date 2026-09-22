@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { addDays, format, isSameDay, isToday, startOfWeek } from "date-fns";
 import type { ExpandedEvent } from "@/hooks/use-calendar-data";
 import { dateKey, type Override } from "@/hooks/use-overrides";
-import { EventContextMenu, type LogDraft } from "@/components/event-context-menu";
+import { EventContextMenu } from "@/components/event-context-menu";
 import { WeatherBadge } from "@/components/weather-badge";
 import type { WeatherDay } from "@/hooks/use-weather";
 import { cn } from "@/lib/utils";
@@ -17,12 +17,11 @@ type Props = {
   overrides: Override[];
   onEdit: (e: ExpandedEvent) => void;
   onAdd: (when: Date) => void;
-  onConvert?: (d: LogDraft) => void;
   weather?: Map<string, WeatherDay>;
   weekStartsOn?: 0 | 1;
 };
 
-export function WeekView({ weekStart, events, overrides, onEdit, onAdd, onConvert, weather, weekStartsOn = 1 }: Props) {
+export function WeekView({ weekStart, events, overrides, onEdit, onAdd, weather, weekStartsOn = 1 }: Props) {
   const monday = startOfWeek(weekStart, { weekStartsOn });
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
@@ -96,7 +95,7 @@ export function WeekView({ weekStart, events, overrides, onEdit, onAdd, onConver
                 const isConflict = conflictIds.has(event.id);
                 const w = 100 / colCount;
                 return (
-                  <EventContextMenu key={`${event.id}-${col}`} event={event} onEdit={onEdit} onConvert={onConvert} asChild>
+                  <EventContextMenu key={`${event.id}-${col}`} event={event} onEdit={onEdit} asChild>
                     <div
                       onClick={() => onEdit(event)}
                       className={cn(
