@@ -74,6 +74,7 @@ export function UpcomingPanel({ onEdit }: { onEdit?: (ev: ExpandedEvent) => void
           );
         })}
       </ul>
+      )}
     </section>
   );
 }
