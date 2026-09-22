@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Bell, BellOff, CalendarClock, Mail } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Bell, BellOff, CalendarClock, ChevronDown, ChevronUp, Mail } from "lucide-react";
 import { format, isToday, isTomorrow, addDays, startOfDay } from "date-fns";
 import { useEvents, type ExpandedEvent } from "@/hooks/use-calendar-data";
 import { reminderTimes } from "@/hooks/use-reminders";
