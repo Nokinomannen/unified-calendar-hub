@@ -89,7 +89,7 @@ function useEventBase() {
     queryKey: ["events", "base"],
     staleTime: 6 * 60 * 60_000,
     gcTime: DAY,
-    refetchOnMount: false,
+    refetchOnMount: true,
     refetchOnWindowFocus: false,
     initialData: cached?.data,
     initialDataUpdatedAt: cached?.at,
