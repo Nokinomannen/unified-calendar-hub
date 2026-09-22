@@ -53,6 +53,7 @@ export function useToggleSkip() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["overrides"] });
       qc.invalidateQueries({ queryKey: ["event_overrides"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
     },
   });
 }
