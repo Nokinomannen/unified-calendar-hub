@@ -258,9 +258,9 @@ export function AddEventDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader><DialogTitle>{editing ? "Edit event" : "New event"}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
+      <DialogContent className="inset-0 left-0 top-0 h-[100dvh] max-h-none max-w-none translate-x-0 translate-y-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-x-0 p-0 sm:left-[50%] sm:top-[50%] sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:gap-4 sm:overflow-y-auto sm:border-x sm:p-6">
+        <DialogHeader className="border-b border-border px-4 py-4 text-left sm:border-0 sm:p-0"><DialogTitle>{editing ? "Edit event" : "New event"}</DialogTitle></DialogHeader>
+        <div className="space-y-3 overflow-y-auto px-4 py-4 sm:overflow-visible sm:p-0">
           {isSeries && (
             <div className="rounded-lg border border-border bg-muted/30 p-2.5">
               <div className="mb-1.5 text-xs font-medium">Återkommande event — vad ska ändras?</div>
@@ -297,7 +297,7 @@ export function AddEventDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2">
             <div><Label>Start</Label><Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></div>
             <div><Label>End</Label><Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
           </div>
@@ -387,15 +387,15 @@ export function AddEventDialog({
             </div>
           </div>
         </div>
-        <DialogFooter className="gap-2 sm:justify-between">
+        <DialogFooter className="gap-2 border-t border-border bg-background px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:border-0 sm:p-0 sm:justify-between">
           {editing ? (
             <Button variant="ghost" onClick={handleDelete} className="text-destructive hover:text-destructive">
               <Trash2 className="mr-1 h-4 w-4" /> Delete
             </Button>
           ) : <span />}
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={submit} disabled={create.isPending || update.isPending}>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <Button variant="ghost" className="min-h-11 sm:min-h-0" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button className="min-h-11 sm:min-h-0" onClick={submit} disabled={create.isPending || update.isPending}>
               {(create.isPending || update.isPending) ? "Saving…" : (editing ? "Save changes" : "Save")}
             </Button>
           </div>

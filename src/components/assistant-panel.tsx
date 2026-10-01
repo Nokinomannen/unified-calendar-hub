@@ -141,7 +141,7 @@ export function AssistantPanel() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 left-4 z-40 grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background md:bottom-8 md:left-8"
+        className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-4 z-40 grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background md:bottom-8 md:left-8"
         aria-label="Open assistant"
       >
         <Sparkles className="h-6 w-6" />
@@ -149,8 +149,8 @@ export function AssistantPanel() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm md:items-center md:p-6">
-          <div className="flex h-[80vh] w-full max-w-lg flex-col rounded-t-2xl border border-border bg-card shadow-[var(--shadow-elegant)] md:h-[70vh] md:rounded-2xl">
-            <header className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+          <div className="flex h-[100dvh] w-full max-w-lg flex-col border border-border bg-card shadow-[var(--shadow-elegant)] md:h-[70vh] md:rounded-2xl">
+            <header className="flex items-center justify-between border-b border-border/60 px-4 pb-3 pt-[calc(.75rem+env(safe-area-inset-top))] md:py-3">
               <div className="flex items-center gap-2">
                 <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground">
                   <Sparkles className="h-3.5 w-3.5" />
@@ -188,7 +188,7 @@ export function AssistantPanel() {
             </div>
 
             <div
-              className={`relative border-t border-border p-3 ${dragOver ? "bg-primary/5" : ""}`}
+              className={`relative border-t border-border px-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] pt-3 ${dragOver ? "bg-primary/5" : ""}`}
               onDragEnter={onDragEnter}
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}
@@ -248,7 +248,7 @@ export function AssistantPanel() {
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Enter to send · Shift+Enter newline · 📎 drag, drop, or paste (⌘V) screenshots</p>
+              <p className="mt-2 hidden text-xs text-muted-foreground md:block">Enter to send · Shift+Enter newline · 📎 drag, drop, or paste (⌘V) screenshots</p>
             </div>
           </div>
         </div>

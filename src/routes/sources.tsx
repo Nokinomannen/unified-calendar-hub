@@ -191,9 +191,9 @@ function SourcesPage() {
                       checked={!!p._picked}
                       onChange={(e) => setParsed((arr) => arr.map((x, j) => j === i ? { ...x, _picked: e.target.checked } : x))}
                     />
-                    <div className="flex-1">
-                      <div className="font-medium">{p.title}</div>
-                      <div className="text-xs text-muted-foreground">
+                    <div className="min-w-0 flex-1">
+                      <div className="break-words font-medium">{p.title}</div>
+                      <div className="break-words text-xs text-muted-foreground">
                         {safeFormat(p.start)} → {safeFormat(p.end)}
                         {p.location && ` · ${p.location}`}
                       </div>
