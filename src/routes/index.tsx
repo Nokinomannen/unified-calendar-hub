@@ -22,7 +22,7 @@ import { WeatherBadge } from "@/components/weather-badge";
 import type { WeatherDay } from "@/hooks/use-weather";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths,
-  addWeeks, subWeeks, format, isSameMonth, isSameDay, isToday, isWeekend,
+  addWeeks, subWeeks, format, isSameMonth, isSameDay, isToday, isWeekend, startOfDay, endOfDay,
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -98,7 +98,7 @@ function CalendarPage() {
       const s = startOfWeek(cursor, { weekStartsOn: wso });
       return { start: s, end: addDays(s, 6) };
     }
-    return { start: cursor, end: cursor };
+    return { start: startOfDay(cursor), end: endOfDay(cursor) };
   }, [view, cursor, wso]);
 
 
