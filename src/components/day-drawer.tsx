@@ -42,17 +42,17 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: P
     <Sheet open={!!date} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-md">
         <SheetHeader className="sticky top-0 z-10 border-b border-border bg-background px-5 py-4">
-          <SheetTitle className="flex items-baseline justify-between">
-            <span>{format(date, "EEEE d MMM")}</span>
+          <SheetTitle className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 pr-7 sm:flex sm:items-baseline sm:justify-between sm:pr-0">
+            <span className="min-w-0 truncate">{format(date, "EEEE d MMM")}</span>
             <span className="text-xs font-normal text-muted-foreground">
               {totalHours.toFixed(1)}h booked · {events.length} events
             </span>
           </SheetTitle>
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <p className="text-[11px] text-muted-foreground">Tip: click any event to edit.</p>
+          <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <p className="min-w-0 text-[11px] text-muted-foreground">Tap an event to edit.</p>
             <div className="flex items-center gap-1.5">
               {onAdd && (
-                <Button size="sm" onClick={() => onAdd(date)} className="h-7 gap-1 text-xs">
+                <Button size="sm" onClick={() => onAdd(date)} className="h-11 gap-1 text-xs sm:h-7">
                   <Plus className="h-3.5 w-3.5" /> Add event
                 </Button>
               )}
@@ -92,7 +92,27 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: P
           {timed.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">No timed events.</div>
           ) : (
-            <div className="relative mt-2" style={{ height: (END_HOUR - START_HOUR) * HOUR_PX + 8 }}>
+            <>
+              <div className="space-y-2 py-3 sm:hidden">
+                {timed.map((event) => {
+                  const isSkip = skipped.has(event.id);
+                  return (
+                    <button
+                      key={`${event.id}-${event.occurrence_start.toISOString()}`}
+                      onClick={() => onEdit?.(event)}
+                      className={cn("grid min-h-14 w-full grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left", isSkip && "opacity-45")}
+                      style={{ borderLeftWidth: 3, borderLeftColor: event.calendar?.color ?? "var(--primary)" }}
+                    >
+                      <span className="text-xs tabular-nums text-muted-foreground">{format(event.occurrence_start, "HH:mm")}</span>
+                      <span className="min-w-0">
+                        <span className={cn("block truncate text-sm font-medium", isSkip && "line-through")}>{event.title}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{format(event.occurrence_end, "HH:mm")} · {event.calendar?.name ?? "Calendar"}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="relative mt-2 hidden sm:block" style={{ height: (END_HOUR - START_HOUR) * HOUR_PX + 8 }}>
               {/* hour grid */}
               {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => {
                 const h = START_HOUR + i;
@@ -151,7 +171,8 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: P
                   </div>
                 );
               })}
-            </div>
+              </div>
+            </>
           )}
         </div>
       </SheetContent>

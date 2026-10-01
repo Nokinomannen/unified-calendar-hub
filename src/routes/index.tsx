@@ -8,6 +8,7 @@ import { useCalendars, useUpdateCalendar, useEvents, type ExpandedEvent, type Ev
 import { useOverrides, dateKey } from "@/hooks/use-overrides";
 import { DayDrawer } from "@/components/day-drawer";
 import { WeekView } from "@/components/week-view";
+import { MobileDayView, MobileWeekView } from "@/components/mobile-agenda-view";
 import { TimerWidget } from "@/components/timer-widget";
 import { QuickAddBar } from "@/components/quick-add-bar";
 import { UpcomingPanel } from "@/components/upcoming-panel";
@@ -33,6 +34,16 @@ export const Route = createFileRoute("/")({
   // `?d=YYYY-MM-DD` lets the command palette and links jump to a specific day.
   validateSearch: (search: Record<string, unknown>): { d?: string } =>
     typeof search.d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.d) ? { d: search.d } : {},
+  head: () => ({
+    meta: [
+      { title: "Calendar — One" },
+      { name: "description", content: "Your private unified calendar, quick event entry and work timer." },
+      { property: "og:title", content: "Calendar — One" },
+      { property: "og:description", content: "Your private unified calendar, quick event entry and work timer." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: CalendarPage,
 });
 
@@ -201,17 +212,17 @@ function CalendarPage() {
   return (
     <AppShell>
       <div className="space-y-4 sm:space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Calendar</p>
             <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{headerLabel}</h1>
           </div>
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <div className="inline-flex rounded-lg border border-border bg-card/60 p-0.5 backdrop-blur">
+          <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:w-auto">
+            <div className="inline-flex min-w-0 rounded-lg border border-border bg-card/60 p-0.5 backdrop-blur">
               {(["month", "week", "day"] as ViewMode[]).map((v) => (
                 <button key={v} onClick={() => setView(v)}
                   className={cn(
-                    "rounded-md px-2.5 py-1.5 text-xs font-medium capitalize transition-all sm:px-3",
+                    "min-h-11 flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium capitalize transition-all sm:min-h-0 sm:flex-none sm:px-3",
                     view === v
                       ? "bg-primary text-primary-foreground shadow-[var(--shadow-glow)]"
                       : "text-muted-foreground hover:text-foreground",
@@ -219,10 +230,10 @@ function CalendarPage() {
                 >{v}</button>
               ))}
             </div>
-            <div className="ml-auto flex items-center gap-1.5 sm:ml-0 sm:gap-2">
-              <Button size="icon" variant="outline" onClick={navPrev}><ChevronLeft className="h-4 w-4" /></Button>
-              <Button size="sm" variant="outline" onClick={() => setCursor(new Date())}>Today</Button>
-              <Button size="icon" variant="outline" onClick={navNext}><ChevronRight className="h-4 w-4" /></Button>
+            <div className="flex shrink-0 items-center gap-1.5 sm:ml-0 sm:gap-2">
+              <Button size="icon" variant="outline" className="h-11 w-11 sm:h-9 sm:w-9" onClick={navPrev}><ChevronLeft className="h-4 w-4" /></Button>
+              <Button size="sm" variant="outline" className="h-11 sm:h-9" onClick={() => setCursor(new Date())}>Today</Button>
+              <Button size="icon" variant="outline" className="h-11 w-11 sm:h-9 sm:w-9" onClick={navNext}><ChevronRight className="h-4 w-4" /></Button>
             </div>
           </div>
         </div>
@@ -235,7 +246,7 @@ function CalendarPage() {
                 onClick={() => toggleCalendar(c.id)}
                 title={`Visa/dölj ${c.name} i ${filterKey === "compact" ? "kompakt läge" : filterKey === "month" ? "månadsvyn" : filterKey === "week" ? "veckovyn" : "dagsvyn"}`}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all",
+                  "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all sm:min-h-0",
                   on ? "bg-card/60 hover:bg-card" : "opacity-40 hover:opacity-70",
                 )}
                 style={{ borderColor: c.color }}
@@ -246,8 +257,8 @@ function CalendarPage() {
             );
           })}
           <div className="flex items-center gap-1">
-            <button onClick={() => setAll(true)} className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground">Alla</button>
-            <button onClick={() => setAll(false)} className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground">Inga</button>
+            <button onClick={() => setAll(true)} className="min-h-11 rounded-full border border-border px-3 text-[11px] text-muted-foreground hover:text-foreground sm:min-h-0 sm:px-2.5 sm:py-1">Alla</button>
+            <button onClick={() => setAll(false)} className="min-h-11 rounded-full border border-border px-3 text-[11px] text-muted-foreground hover:text-foreground sm:min-h-0 sm:px-2.5 sm:py-1">Inga</button>
           </div>
           <span className="ml-auto inline-flex items-center gap-2 text-[11px] text-muted-foreground">
             <span className="hidden sm:inline">
@@ -297,23 +308,37 @@ function CalendarPage() {
             )}
 
             {view === "week" && (
-              <WeekView weekStart={cursor} events={visible} overrides={overrides}
-                onEdit={openEdit} onAdd={openAdd} weather={weather}
-                weekStartsOn={wso}
-              />
+              <>
+                <div className="md:hidden">
+                  <MobileWeekView weekStart={cursor} events={visible} overrides={overrides}
+                    onEdit={openEdit} onAdd={openAdd} weekStartsOn={wso} />
+                </div>
+                <div className="hidden md:block">
+                  <WeekView weekStart={cursor} events={visible} overrides={overrides}
+                    onEdit={openEdit} onAdd={openAdd} weather={weather}
+                    weekStartsOn={wso}
+                  />
+                </div>
+              </>
 
             )}
             {view === "day" && (
-              <div className="rounded-2xl border border-border bg-card p-2">
-                <button onClick={() => setDrawerDate(cursor)} className="w-full rounded-md bg-muted/40 p-3 text-sm text-muted-foreground hover:bg-muted">
-                  Open day details for {format(cursor, "EEE d MMM")}
-                </button>
-                <div className="mt-2">
-                  <WeekView weekStart={cursor} events={visible.filter((e) => isSameDay(e.occurrence_start, cursor))} overrides={overrides}
-                    onEdit={openEdit} onAdd={openAdd} weather={weather}
-                  />
+              <>
+                <div className="md:hidden">
+                  <MobileDayView date={cursor} events={visible.filter((e) => isSameDay(e.occurrence_start, cursor))}
+                    overrides={overrides} onEdit={openEdit} onAdd={openAdd} />
                 </div>
-              </div>
+                <div className="hidden rounded-2xl border border-border bg-card p-2 md:block">
+                  <button onClick={() => setDrawerDate(cursor)} className="w-full rounded-md bg-muted/40 p-3 text-sm text-muted-foreground hover:bg-muted">
+                    Open day details for {format(cursor, "EEE d MMM")}
+                  </button>
+                  <div className="mt-2">
+                    <WeekView weekStart={cursor} events={visible.filter((e) => isSameDay(e.occurrence_start, cursor))} overrides={overrides}
+                      onEdit={openEdit} onAdd={openAdd} weather={weather}
+                    />
+                  </div>
+                </div>
+              </>
             )}
           </motion.div>
         </AnimatePresence>
@@ -454,6 +479,15 @@ function DayCell({
       </div>
 
       <div className="space-y-0.5">
+        <div className="sm:hidden">
+          {events.length > 0 && (
+            <div className="flex items-center gap-1 px-0.5 text-[9px] text-muted-foreground">
+              <span>{events.length}</span>
+              <span className="truncate">{events.length === 1 ? "event" : "events"}</span>
+            </div>
+          )}
+        </div>
+        <div className="hidden sm:block">
         {events.slice(0, 2).map((e) => {
           const skipped = skippedSet.has(`${e.id}|${dk}`);
           const conflict = conflictIds.has(e.id);
@@ -475,6 +509,7 @@ function DayCell({
             </EventContextMenu>
           );
         })}
+        </div>
         {/* Desktop: show up to 4 */}
         <div className="hidden sm:block">
           {events.slice(2, 4).map((e) => {
@@ -499,9 +534,6 @@ function DayCell({
             );
           })}
         </div>
-        {events.length > 2 && (
-          <div className="px-0.5 text-[9px] text-muted-foreground sm:hidden">+{events.length - 2}</div>
-        )}
         {events.length > 4 && (
           <div className="hidden px-1 text-[9px] text-muted-foreground sm:block">+{events.length - 4} more</div>
         )}

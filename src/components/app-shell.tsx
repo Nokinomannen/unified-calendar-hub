@@ -70,7 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 pb-3 pt-[calc(.75rem+env(safe-area-inset-top))] md:py-3">
           <Link to="/" className="flex items-center gap-2.5 font-semibold">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
               <CalendarDays className="h-4 w-4" />
@@ -101,7 +101,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-3 py-4 pb-24 sm:px-4 sm:py-6">
+      <main className="mx-auto max-w-6xl px-3 py-4 pb-[calc(7rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-6 sm:pb-24">
         <motion.div
           key={pathname}
           initial={{ opacity: 0, y: 6 }}
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* mobile nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/60 bg-background/90 backdrop-blur-xl md:hidden">
-        <div className="mx-auto flex max-w-6xl items-center justify-around px-2 py-2">
+        <div className="mx-auto flex max-w-6xl items-center justify-around px-2 pb-[calc(.5rem+env(safe-area-inset-bottom))] pt-2">
           {items.map((it) => (
             <Link
               key={it.to}
@@ -140,7 +140,7 @@ export function FAB({ onClick }: { onClick: () => void }) {
     <button
       onClick={onClick}
       className={cn(
-        "fixed bottom-20 right-4 z-40 grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background md:bottom-8 md:right-8",
+         "fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-4 z-40 grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background md:bottom-8 md:right-8",
       )}
       aria-label="Add event"
     >

@@ -100,7 +100,7 @@ function CalendarColorRow({ calendar }: { calendar: CalendarRow }) {
               aria-label={`Välj färg ${hex}`}
               aria-pressed={active}
               className={cn(
-                "grid h-7 w-7 place-items-center rounded-full ring-offset-2 ring-offset-background transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring",
+                "grid h-11 w-11 place-items-center rounded-full ring-offset-2 ring-offset-background transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring sm:h-7 sm:w-7",
                 active && "ring-2 ring-foreground",
               )}
               style={{ background: hex }}
@@ -117,7 +117,7 @@ function CalendarColorRow({ calendar }: { calendar: CalendarRow }) {
             type="color"
             value={HEX.test(value) ? value : "#6b7280"}
             onChange={(e) => pick(e.target.value)}
-            className="h-7 w-9 cursor-pointer rounded-md border border-input bg-background p-0.5"
+            className="h-11 w-11 cursor-pointer rounded-md border border-input bg-background p-0.5 sm:h-7 sm:w-9"
             aria-label={`Egen färg för ${calendar.name}`}
           />
           <input
@@ -131,7 +131,7 @@ function CalendarColorRow({ calendar }: { calendar: CalendarRow }) {
             spellCheck={false}
             maxLength={7}
             placeholder="#2f9e63"
-            className="h-7 w-24 rounded-md border border-input bg-background px-2 font-mono text-xs uppercase"
+            className="h-11 w-24 rounded-md border border-input bg-background px-2 font-mono text-xs uppercase sm:h-7"
             aria-label={`Färgkod för ${calendar.name}`}
           />
         </label>
