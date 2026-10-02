@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 // `rrule` is CommonJS; a namespace import works in both SSR and the browser.
 import * as rrulePkg from "rrule";
@@ -84,9 +85,13 @@ function writeBaseCache(data: EventBase) {
  * Persisted to localStorage so reloads and app restarts cost nothing.
  */
 function useEventBase() {
-  const cached = typeof window !== "undefined" ? readBaseCache() : null;
+  const { user } = useAuth();
+  const raw = typeof window !== "undefined" ? readBaseCache() : null;
+  // Ignore a stale empty cache (written while signed out) so real data loads.
+  const cached = raw && raw.data.events.length > 0 ? raw : null;
   return useQuery<EventBase>({
-    queryKey: ["events", "base"],
+    queryKey: ["events", "base", user?.id ?? "anon"],
+    enabled: !!user,
     staleTime: 6 * 60 * 60_000,
     gcTime: DAY,
     refetchOnMount: true,
@@ -108,6 +113,7 @@ function useEventBase() {
           .eq("status", "modified"),
       ]);
       if (ev.error) throw ev.error;
+      if (cal.error) throw cal.error;
       const data: EventBase = {
         events: (ev.data ?? []) as BaseRow[],
         calendars: (cal.data ?? []) as CalendarRow[],
