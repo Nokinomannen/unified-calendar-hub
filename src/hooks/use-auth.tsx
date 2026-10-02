@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { saveSessionCookie, clearSessionCookie, restoreSessionFromCookie } from "@/lib/session-cookie.functions";
 
 type AuthCtx = {
   user: User | null;
@@ -51,8 +52,15 @@ export function readAutoCreds(): { email: string; password: string } | null {
   } catch { return null; }
 }
 
-/** Signs back in with the remembered credentials. Returns true on success. */
+/** Signs back in: first via the server-kept login cookie, then remembered credentials. */
 export async function tryAutoSignIn(): Promise<boolean> {
+  try {
+    const s = await restoreSessionFromCookie();
+    if (s) {
+      const { data } = await supabase.auth.setSession(s);
+      if (data.session) return true;
+    }
+  } catch {}
   const creds = readAutoCreds();
   if (!creds) return false;
   const { data } = await supabase.auth.signInWithPassword(creds);
@@ -62,6 +70,7 @@ export async function tryAutoSignIn(): Promise<boolean> {
 function clearAutoCreds() {
   try { localStorage.removeItem(CRED_KEY); } catch {}
   try { document.cookie = `${CRED_KEY}=; path=/; max-age=0; SameSite=Lax; Secure`; } catch {}
+  clearSessionCookie().catch(() => {});
 }
 
 
@@ -71,8 +80,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let ready = false;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((e, s) => {
       setSession(s);
+      // Keep the server login cookie in step with the rotating refresh token.
+      if (s?.refresh_token && (e === "SIGNED_IN" || e === "TOKEN_REFRESHED" || e === "INITIAL_SESSION")) {
+        saveSessionCookie({ data: { refresh_token: s.refresh_token } }).catch(() => {});
+      }
       // Don't unblock the app before the initial auto sign-in attempt has run,
       // otherwise guarded routes bounce to the login page for a moment.
       if (ready || s) setLoading(false);
