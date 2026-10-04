@@ -267,11 +267,7 @@ function refreshTray() {
       { type: "separator" },
       { label: "Öppna kalendern", click: () => createMainWindow() },
       { label: "Hämta senaste versionen", click: () => checkForUpdates(true) },
-      {
-        label: miniWindow ? "Dölj mini-timer" : "Visa mini-timer",
-        accelerator: "CommandOrControl+Shift+M",
-        click: () => toggleMiniWindow(),
-      },
+      { label: miniWindow ? "Dölj mini-timer" : "Visa mini-timer", click: () => toggleMiniWindow() },
       { type: "separator" },
       {
         label: "Starta vid inloggning",
@@ -323,11 +319,7 @@ function buildAppMenu() {
       label: "Arkiv",
       submenu: [
         { label: "Öppna kalendern", accelerator: "CmdOrCtrl+N", click: () => createMainWindow() },
-        {
-          label: "Visa/dölj mini-timer",
-          accelerator: "CmdOrCtrl+Shift+M",
-          click: () => toggleMiniWindow(),
-        },
+        { label: "Visa/dölj mini-timer", click: () => toggleMiniWindow() },
         { type: "separator" },
         { role: isMac ? "close" : "quit", label: isMac ? "Stäng fönster" : "Avsluta" },
       ],
@@ -413,7 +405,8 @@ if (!app.requestSingleInstanceLock()) {
     if (state.miniOpen !== false) createMiniWindow();
     createTray();
 
-    globalShortcut.register("CommandOrControl+Shift+M", () => toggleMiniWindow());
+    // Inget globalt kortkommando — mini-timern öppnas via menyraden så att
+    // t.ex. Chromes Cmd+Shift+T (återöppna flik) aldrig störs.
 
     // Background freshness check: pull a new build a few times a day even if
     // the window is never refocused.
