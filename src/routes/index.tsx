@@ -22,7 +22,7 @@ import { WeatherBadge } from "@/components/weather-badge";
 import type { WeatherDay } from "@/hooks/use-weather";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths,
-  addWeeks, subWeeks, format, isSameMonth, isSameDay, isToday, isWeekend, startOfDay, endOfDay,
+  addWeeks, subWeeks, format, isSameMonth, isSameDay, isToday, isWeekend, startOfDay, endOfDay, getISOWeek,
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -207,6 +207,8 @@ function CalendarPage() {
     : view === "week"
       ? `Week of ${format(startOfWeek(cursor, { weekStartsOn: wso }), "d MMM")}`
       : format(cursor, "EEEE d MMM yyyy");
+  // ISO week number (Swedish "vecka"). In month view, show this week if we're looking at the current month.
+  const weekNumber = getISOWeek(view === "month" && isSameMonth(cursor, new Date()) ? new Date() : cursor);
 
 
   return (
@@ -215,7 +217,12 @@ function CalendarPage() {
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Calendar</p>
-            <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{headerLabel}</h1>
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{headerLabel}</h1>
+              <span className="shrink-0 rounded-md border border-border bg-card/60 px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
+                v. {weekNumber}
+              </span>
+            </div>
           </div>
           <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:w-auto">
             <div className="inline-flex min-w-0 rounded-lg border border-border bg-card/60 p-0.5 backdrop-blur">
