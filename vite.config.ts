@@ -20,6 +20,11 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    // Pre-bundle these up front: discovering them lazily triggers a mid-session
+    // re-optimization that mixes stale chunks (duplicate React -> blank screen).
+    optimizeDeps: {
+      include: ["@tanstack/router-core", "@tanstack/router-core/isServer", "@tanstack/router-core/ssr/client", "seroval"],
+    },
     resolve: {
       alias: {
         // React Email needs entities v4.5.0; pin every import to the hoisted copy.
