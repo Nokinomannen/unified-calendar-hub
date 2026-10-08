@@ -21,13 +21,13 @@ export const clearSessionCookie = createServerFn({ method: "POST" }).handler(asy
 
 export const restoreSessionFromCookie = createServerFn({ method: "POST" }).handler(async () => {
   const rt = getCookie(NAME);
-  if (!rt) { console.warn("[restore] no cookie"); return null; }
+  if (!rt) { return { dbg: "nocookie" } as never; }
   const res = await fetch(`${process.env.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: process.env.SUPABASE_PUBLISHABLE_KEY! },
     body: JSON.stringify({ refresh_token: rt }),
   });
-  if (!res.ok) { console.warn("[restore] refresh failed", res.status, (await res.text()).slice(0, 200)); return null; }
+  if (!res.ok) { return { dbg: "fail " + res.status + " " + (await res.text()).slice(0, 150) } as never; }
   const s = (await res.json()) as { access_token: string; refresh_token: string };
   setCookie(NAME, s.refresh_token, opts);
   return { access_token: s.access_token, refresh_token: s.refresh_token };
