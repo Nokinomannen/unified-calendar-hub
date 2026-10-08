@@ -9,49 +9,24 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
-import { Route as SourcesRouteImport } from './routes/sources'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as MiniTimerRouteImport } from './routes/mini-timer'
-import { Route as CalendarRouteImport } from './routes/calendar'
-import { Route as BackendAccessRouteImport } from './routes/backend-access'
-import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BackendAccessRouteImport } from './routes/backend-access'
+import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as MiniTimerRouteImport } from './routes/mini-timer'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SourcesRouteImport } from './routes/sources'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
-import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
-import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
-import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicHooksSendRemindersRouteImport } from './routes/api/public/hooks/send-reminders'
+import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
+import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
+import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 
-const UnsubscribeRoute = UnsubscribeRouteImport.update({
-  id: '/unsubscribe',
-  path: '/unsubscribe',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SourcesRoute = SourcesRouteImport.update({
-  id: '/sources',
-  path: '/sources',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MiniTimerRoute = MiniTimerRouteImport.update({
-  id: '/mini-timer',
-  path: '/mini-timer',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CalendarRoute = CalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BackendAccessRoute = BackendAccessRouteImport.update({
-  id: '/backend-access',
-  path: '/backend-access',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -59,9 +34,34 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const BackendAccessRoute = BackendAccessRouteImport.update({
+  id: '/backend-access',
+  path: '/backend-access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MiniTimerRoute = MiniTimerRouteImport.update({
+  id: '/mini-timer',
+  path: '/mini-timer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SourcesRoute = SourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
@@ -74,16 +74,10 @@ const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   path: '/lovable/email/suppression',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LovableEmailTransactionalSendRoute =
-  LovableEmailTransactionalSendRouteImport.update({
-    id: '/lovable/email/transactional/send',
-    path: '/lovable/email/transactional/send',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const LovableEmailTransactionalPreviewRoute =
-  LovableEmailTransactionalPreviewRouteImport.update({
-    id: '/lovable/email/transactional/preview',
-    path: '/lovable/email/transactional/preview',
+const ApiPublicHooksSendRemindersRoute =
+  ApiPublicHooksSendRemindersRouteImport.update({
+    id: '/api/public/hooks/send-reminders',
+    path: '/api/public/hooks/send-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
 const LovableEmailQueueProcessRoute =
@@ -92,10 +86,16 @@ const LovableEmailQueueProcessRoute =
     path: '/lovable/email/queue/process',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksSendRemindersRoute =
-  ApiPublicHooksSendRemindersRouteImport.update({
-    id: '/api/public/hooks/send-reminders',
-    path: '/api/public/hooks/send-reminders',
+const LovableEmailTransactionalPreviewRoute =
+  LovableEmailTransactionalPreviewRouteImport.update({
+    id: '/lovable/email/transactional/preview',
+    path: '/lovable/email/transactional/preview',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const LovableEmailTransactionalSendRoute =
+  LovableEmailTransactionalSendRouteImport.update({
+    id: '/lovable/email/transactional/send',
+    path: '/lovable/email/transactional/send',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -218,46 +218,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/unsubscribe': {
-      id: '/unsubscribe'
-      path: '/unsubscribe'
-      fullPath: '/unsubscribe'
-      preLoaderRoute: typeof UnsubscribeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sources': {
-      id: '/sources'
-      path: '/sources'
-      fullPath: '/sources'
-      preLoaderRoute: typeof SourcesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mini-timer': {
-      id: '/mini-timer'
-      path: '/mini-timer'
-      fullPath: '/mini-timer'
-      preLoaderRoute: typeof MiniTimerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/calendar': {
-      id: '/calendar'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof CalendarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/backend-access': {
-      id: '/backend-access'
-      path: '/backend-access'
-      fullPath: '/backend-access'
-      preLoaderRoute: typeof BackendAccessRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -267,11 +232,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/backend-access': {
+      id: '/backend-access'
+      path: '/backend-access'
+      fullPath: '/backend-access'
+      preLoaderRoute: typeof BackendAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mini-timer': {
+      id: '/mini-timer'
+      path: '/mini-timer'
+      fullPath: '/mini-timer'
+      preLoaderRoute: typeof MiniTimerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sources': {
+      id: '/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof SourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/email/unsubscribe': {
@@ -288,18 +288,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/lovable/email/transactional/send': {
-      id: '/lovable/email/transactional/send'
-      path: '/lovable/email/transactional/send'
-      fullPath: '/lovable/email/transactional/send'
-      preLoaderRoute: typeof LovableEmailTransactionalSendRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lovable/email/transactional/preview': {
-      id: '/lovable/email/transactional/preview'
-      path: '/lovable/email/transactional/preview'
-      fullPath: '/lovable/email/transactional/preview'
-      preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
+    '/api/public/hooks/send-reminders': {
+      id: '/api/public/hooks/send-reminders'
+      path: '/api/public/hooks/send-reminders'
+      fullPath: '/api/public/hooks/send-reminders'
+      preLoaderRoute: typeof ApiPublicHooksSendRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lovable/email/queue/process': {
@@ -309,11 +302,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/send-reminders': {
-      id: '/api/public/hooks/send-reminders'
-      path: '/api/public/hooks/send-reminders'
-      fullPath: '/api/public/hooks/send-reminders'
-      preLoaderRoute: typeof ApiPublicHooksSendRemindersRouteImport
+    '/lovable/email/transactional/preview': {
+      id: '/lovable/email/transactional/preview'
+      path: '/lovable/email/transactional/preview'
+      fullPath: '/lovable/email/transactional/preview'
+      preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/transactional/send': {
+      id: '/lovable/email/transactional/send'
+      path: '/lovable/email/transactional/send'
+      fullPath: '/lovable/email/transactional/send'
+      preLoaderRoute: typeof LovableEmailTransactionalSendRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
