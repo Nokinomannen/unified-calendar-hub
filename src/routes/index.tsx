@@ -223,7 +223,7 @@ function CalendarPage() {
                 v. {weekNumber}
               </span>
               <button
-                onClick={() => router.navigate({ to: "/sources", search: { notion: "1" } as never })}
+                onClick={() => router.navigate({ to: "/sources", search: { notion: "1" } })}
                 className="shrink-0 rounded-md border border-border bg-card/60 px-2 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground"
                 title="Synka från Notion"
               >📥 Notion</button>
