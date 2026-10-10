@@ -83,6 +83,10 @@ function SourcesPage() {
         if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
         all.push(...((data as { events: ParsedEvent[] }).events ?? []));
       }
+      if (all.length === 0) {
+        toast.warning("Notion-innehållet hämtades, men inga händelser kunde läsas. Kontrollera att skärmdumpen visar datum och tid. Ingenting har sparats eller tagits bort från Notion.", { duration: 10000 });
+        return;
+      }
       setParsed(all.map((e) => ({ ...e, _picked: true })));
       setNotionBlockIds(inbox.blockIds);
       toast.success(`Hittade ${all.length} händelser i Notion`);
