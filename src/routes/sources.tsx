@@ -14,9 +14,23 @@ import { format } from "date-fns";
 import { RecentlyDeleted } from "@/components/recently-deleted";
 import { CalendarColorSettings } from "@/components/calendar-colors";
 import { ReminderSettings } from "@/components/reminder-settings";
+import { useServerFn } from "@tanstack/react-start";
+import { readNotionInbox, clearNotionInbox } from "@/lib/notion-inbox.functions";
 
 
 export const Route = createFileRoute("/sources")({
+  validateSearch: (s: Record<string, unknown>): { notion?: string } =>
+    s.notion ? { notion: String(s.notion) } : {},
+  head: () => ({
+    meta: [
+      { title: "Sources – One" },
+      { name: "description", content: "Import events from screenshots, text and your Notion inbox." },
+      { property: "og:title", content: "Sources – One" },
+      { property: "og:description", content: "Import events from screenshots, text and your Notion inbox." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: SourcesPage,
 });
 
@@ -38,8 +52,56 @@ function SourcesPage() {
   const [parsing, setParsing] = useState(false);
   const [parsed, setParsed] = useState<ParsedEvent[]>([]);
   const [importing, setImporting] = useState(false);
+  const [notionBlockIds, setNotionBlockIds] = useState<string[]>([]);
+  const readInbox = useServerFn(readNotionInbox);
+  const clearInbox = useServerFn(clearNotionInbox);
+  const search = Route.useSearch();
 
   const targetCal = calId || calendars[0]?.id || "";
+
+  async function syncFromNotion() {
+    setParsing(true); setParsed([]); setNotionBlockIds([]);
+    try {
+      const inbox = await readInbox();
+      if (!inbox.text.trim() && inbox.images.length === 0) {
+        toast("Notion-inkorgen är tom");
+        return;
+      }
+      const all: ParsedEvent[] = [];
+      const ref = new Date().toISOString();
+      if (inbox.text.trim()) {
+        const { data, error } = await supabase.functions.invoke("parse-schedule", { body: { text: inbox.text, referenceDate: ref } });
+        if (error) throw error;
+        if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+        all.push(...((data as { events: ParsedEvent[] }).events ?? []));
+      }
+      for (const img of inbox.images) {
+        const { data, error } = await supabase.functions.invoke("parse-schedule", {
+          body: { imageBase64: img.base64, imageMime: img.mime, referenceDate: ref },
+        });
+        if (error) throw error;
+        if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+        all.push(...((data as { events: ParsedEvent[] }).events ?? []));
+      }
+      setParsed(all.map((e) => ({ ...e, _picked: true })));
+      setNotionBlockIds(inbox.blockIds);
+      toast.success(`Hittade ${all.length} händelser i Notion`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Notion-synk misslyckades");
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  const [autoSynced, setAutoSynced] = useState(false);
+  useEffect(() => {
+    if (search.notion && user && !autoSynced) {
+      setAutoSynced(true);
+      router.navigate({ to: "/sources", search: {}, replace: true });
+      void syncFromNotion();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.notion, user, autoSynced]);
 
   async function parseSchedule(payload: { text?: string; imageBase64?: string; imageMime?: string }) {
     setParsing(true); setParsed([]);
@@ -104,6 +166,15 @@ function SourcesPage() {
         });
       }
       toast.success(`Imported ${picks.length} events`);
+      if (notionBlockIds.length) {
+        try {
+          const r = await clearInbox({ data: { blockIds: notionBlockIds } });
+          toast.success(`Notion-inkorgen tömd (${r.deleted} block) – inga dubletter`);
+        } catch (e) {
+          toast.error(e instanceof Error ? `Kunde inte tömma Notion: ${e.message}` : "Kunde inte tömma Notion");
+        }
+        setNotionBlockIds([]);
+      }
       setParsed([]); setText("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Import failed");
@@ -165,6 +236,9 @@ function SourcesPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Button onClick={() => parseSchedule({ text })} disabled={parsing || !text.trim()}>
                 {parsing ? "Parsing…" : "Parse text with AI"}
+              </Button>
+              <Button variant="outline" onClick={syncFromNotion} disabled={parsing}>
+                📥 Synka från Notion
               </Button>
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-accent">
                 <input
