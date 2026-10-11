@@ -9,6 +9,7 @@ import { useOverrides, dateKey } from "@/hooks/use-overrides";
 import { DayDrawer } from "@/components/day-drawer";
 import { WeekView } from "@/components/week-view";
 import { MobileDayView, MobileWeekView } from "@/components/mobile-agenda-view";
+import { MobileMonthView } from "@/components/mobile-month-view";
 import { TimerWidget } from "@/components/timer-widget";
 import { QuickAddBar } from "@/components/quick-add-bar";
 import { UpcomingPanel } from "@/components/upcoming-panel";
@@ -308,6 +309,12 @@ function CalendarPage() {
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           >
             {view === "month" && (
+              <>
+              <div className="md:hidden">
+                <MobileMonthView cursor={cursor} events={visible} skippedSet={skippedSet}
+                  weekStartsOn={wso} onSelect={setCursor} onAdd={openAdd} onEdit={openEdit} />
+              </div>
+              <div className="hidden md:block">
               <MonthGrid cursor={cursor} events={visible} skippedSet={skippedSet} weather={weather}
                 weekStartsOn={wso}
                 compact={settings.density === "compact"}
@@ -317,6 +324,8 @@ function CalendarPage() {
                 onEdit={openEdit}
                
               />
+              </div>
+              </>
             )}
 
             {view === "week" && (
