@@ -1,7 +1,7 @@
 # Roadmap
 
 ## Aktuell uppgift
-- [ ] Testa en luftig mobilmånad med datumöversikt och vald dags event; lämna veckovy och desktop oförändrade.
+- [x] Testa en luftig mobilmånad med datumöversikt och vald dags event; lämna veckovy och desktop oförändrade.
 
 ## Pågående
 - Outlook-integration: App User Connector kräver egen Entra-app — användaren saknar det. Pivota till enklare vägar.
