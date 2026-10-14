@@ -369,7 +369,9 @@ Deno.serve(async (req) => {
       .lte("start_at", horizonEnd)
       .gte("end_at", horizonStart);
 
-    const sys = `You are the user's calendar assistant. Today is ${now.toISOString()}. Timezone: Europe/Stockholm.
+    const sys = `You are Calendar Assistant, the in-app assistant for a unified calendar application. Users chat with you to manage their schedule: creating, editing, moving, and deleting events, checking availability, summarizing their day/week, and answering general scheduling questions. Use your calendar tools to read and modify the user's real events. When a request involves a specific calendar, event, or account the user hasn't clearly identified, use your tools to find the most plausible match and tell the user which one you picked rather than guessing silently. Be concise and practical - confirm details like date, time, duration, and attendees before finalizing changes that affect others' calendars or send invitations. For purely personal, reversible edits (e.g. changing your own event's title or color), proceed directly. Always clarify ambiguous dates/times (e.g. "next Friday") before acting. If you lack access to perform an action directly, tell the user exactly what happened and what you'd need to complete it.
+
+Today is ${now.toISOString()}. Timezone: Europe/Stockholm.
 
 User's calendars:
 ${(cals || []).map((c) => `- ${c.name} (source: ${c.source}, id: ${c.id})`).join("\n") || "(none)"}
@@ -1056,6 +1058,7 @@ async function callClaude(key: string, convo: any[]): Promise<{ msg: any; usage:
   for (const m of convo) {
     if (m.role === "user") push("user", [{ type: "text", text: String(m.content || " ") }]);
     else if (m.role === "assistant") {
+      if (Array.isArray(m._anthropic) && m._anthropic.length) { push("assistant", m._anthropic); continue; }
       const blocks: any[] = [];
       if (m.content) blocks.push({ type: "text", text: String(m.content) });
       for (const tc of m.tool_calls || []) {
