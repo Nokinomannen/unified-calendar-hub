@@ -13,11 +13,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BackendAccessRouteImport } from './routes/backend-access'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MiniTimerRouteImport } from './routes/mini-timer'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicHooksSendRemindersRouteImport } from './routes/api/public/hooks/send-reminders'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -44,6 +47,11 @@ const CalendarRoute = CalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MiniTimerRoute = MiniTimerRouteImport.update({
   id: '/mini-timer',
   path: '/mini-timer',
@@ -64,9 +72,20 @@ const UnsubscribeRoute = UnsubscribeRouteImport.update({
   path: '/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
@@ -104,11 +123,14 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
+  '/mcp': typeof McpRoute
   '/mini-timer': typeof MiniTimerRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
   '/unsubscribe': typeof UnsubscribeRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -120,11 +142,14 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
+  '/mcp': typeof McpRoute
   '/mini-timer': typeof MiniTimerRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
   '/unsubscribe': typeof UnsubscribeRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -137,11 +162,14 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/backend-access': typeof BackendAccessRoute
   '/calendar': typeof CalendarRoute
+  '/mcp': typeof McpRoute
   '/mini-timer': typeof MiniTimerRoute
   '/settings': typeof SettingsRoute
   '/sources': typeof SourcesRoute
   '/unsubscribe': typeof UnsubscribeRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/send-reminders': typeof ApiPublicHooksSendRemindersRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -155,11 +183,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/backend-access'
     | '/calendar'
+    | '/mcp'
     | '/mini-timer'
     | '/settings'
     | '/sources'
     | '/unsubscribe'
+    | '/.well-known/oauth-protected-resource'
     | '/email/unsubscribe'
+    | '/.lovable/oauth/consent'
     | '/lovable/email/suppression'
     | '/api/public/hooks/send-reminders'
     | '/lovable/email/queue/process'
@@ -171,11 +202,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/backend-access'
     | '/calendar'
+    | '/mcp'
     | '/mini-timer'
     | '/settings'
     | '/sources'
     | '/unsubscribe'
+    | '/.well-known/oauth-protected-resource'
     | '/email/unsubscribe'
+    | '/.lovable/oauth/consent'
     | '/lovable/email/suppression'
     | '/api/public/hooks/send-reminders'
     | '/lovable/email/queue/process'
@@ -187,11 +221,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/backend-access'
     | '/calendar'
+    | '/mcp'
     | '/mini-timer'
     | '/settings'
     | '/sources'
     | '/unsubscribe'
+    | '/.well-known/oauth-protected-resource'
     | '/email/unsubscribe'
+    | '/.lovable/oauth/consent'
     | '/lovable/email/suppression'
     | '/api/public/hooks/send-reminders'
     | '/lovable/email/queue/process'
@@ -204,11 +241,14 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   BackendAccessRoute: typeof BackendAccessRoute
   CalendarRoute: typeof CalendarRoute
+  McpRoute: typeof McpRoute
   MiniTimerRoute: typeof MiniTimerRoute
   SettingsRoute: typeof SettingsRoute
   SourcesRoute: typeof SourcesRoute
   UnsubscribeRoute: typeof UnsubscribeRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicHooksSendRemindersRoute: typeof ApiPublicHooksSendRemindersRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
@@ -246,6 +286,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mini-timer': {
       id: '/mini-timer'
       path: '/mini-timer'
@@ -274,11 +321,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/email/unsubscribe': {
       id: '/email/unsubscribe'
       path: '/email/unsubscribe'
       fullPath: '/email/unsubscribe'
       preLoaderRoute: typeof EmailUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lovable/email/suppression': {
@@ -324,11 +385,15 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   BackendAccessRoute: BackendAccessRoute,
   CalendarRoute: CalendarRoute,
+  McpRoute: McpRoute,
   MiniTimerRoute: MiniTimerRoute,
   SettingsRoute: SettingsRoute,
   SourcesRoute: SourcesRoute,
   UnsubscribeRoute: UnsubscribeRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicHooksSendRemindersRoute: ApiPublicHooksSendRemindersRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
