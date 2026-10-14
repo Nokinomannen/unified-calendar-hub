@@ -1082,7 +1082,10 @@ async function callClaude(key: string, convo: any[]): Promise<{ msg: any; usage:
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 4096, system, messages: out, tools }),
+    body: JSON.stringify({
+      model: "claude-opus-5-5", max_tokens: 16000, system, messages: out, tools,
+      thinking: { type: "adaptive" }, output_config: { effort: "low" },
+    }),
   });
   if (!resp.ok) {
     const t = await resp.text();
@@ -1099,7 +1102,11 @@ async function callClaude(key: string, convo: any[]): Promise<{ msg: any; usage:
     id: b.id, type: "function", function: { name: b.name, arguments: JSON.stringify(b.input || {}) },
   }));
   const msg: any = { role: "assistant", content: text };
-  if (tool_calls.length) msg.tool_calls = tool_calls;
+  if (tool_calls.length) {
+    msg.tool_calls = tool_calls;
+    // Replay thinking signatures verbatim within the tool loop (required by adaptive thinking).
+    msg._anthropic = data.content;
+  }
   return { msg, usage: data.usage };
 }
 
