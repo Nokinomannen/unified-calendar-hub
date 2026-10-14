@@ -396,8 +396,18 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
 
     const tokensIssuedThisRequest = new Set<string>();
 
+    const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+
     for (let i = 0; i < 8; i++) {
       const t0 = Date.now();
+      let msg: any;
+      if (ANTHROPIC_KEY) {
+        // Claude directly on the user's own Anthropic account.
+        const r = await callClaude(ANTHROPIC_KEY, convo);
+        if ("error" in r) return json({ error: r.error, reply: r.error, convo }, 200);
+        msg = r.msg;
+        console.log("[chat:claude] turn", i, JSON.stringify({ ms: Date.now() - t0, usage: r.usage }));
+      } else {
       let resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
@@ -422,7 +432,8 @@ ${attachedImages.length ? `- The user attached ${attachedImages.length} screensh
       }
       const data = await resp.json();
       console.log("[chat] turn", i, JSON.stringify({ ms: Date.now() - t0, usage: data.usage }));
-      const msg = data.choices?.[0]?.message;
+      msg = data.choices?.[0]?.message;
+      }
       if (!msg) return json({ error: "empty response" }, 500);
 
       const toolCalls = msg.tool_calls || [];
@@ -1031,6 +1042,63 @@ async function runTool(
 }
 
 // ── helpers ──
+
+// Convert the OpenAI-style convo to Anthropic Messages, call Claude, return an OpenAI-shaped message.
+async function callClaude(key: string, convo: any[]): Promise<{ msg: any; usage: any } | { error: string }> {
+  const system = convo.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+  const out: any[] = [];
+  const push = (role: string, blocks: any[]) => {
+    if (!blocks.length) return;
+    const last = out[out.length - 1];
+    if (last && last.role === role) last.content.push(...blocks);
+    else out.push({ role, content: [...blocks] });
+  };
+  for (const m of convo) {
+    if (m.role === "user") push("user", [{ type: "text", text: String(m.content || " ") }]);
+    else if (m.role === "assistant") {
+      const blocks: any[] = [];
+      if (m.content) blocks.push({ type: "text", text: String(m.content) });
+      for (const tc of m.tool_calls || []) {
+        let input: any = {};
+        try { input = JSON.parse(tc.function?.arguments || "{}"); } catch {}
+        blocks.push({ type: "tool_use", id: tc.id, name: tc.function?.name, input });
+      }
+      push("assistant", blocks);
+    } else if (m.role === "tool") {
+      push("user", [{ type: "tool_result", tool_use_id: m.tool_call_id, content: String(m.content ?? "") }]);
+    }
+  }
+  if (!out.length || out[0].role !== "user") out.unshift({ role: "user", content: [{ type: "text", text: "Hi" }] });
+
+  const tools = TOOLS.map((t: any) => ({
+    name: t.function.name,
+    description: t.function.description,
+    input_schema: t.function.parameters || { type: "object", properties: {} },
+  }));
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 4096, system, messages: out, tools }),
+  });
+  if (!resp.ok) {
+    const t = await resp.text();
+    console.error("anthropic error", resp.status, t);
+    if (resp.status === 401) return { error: "Your Anthropic API key was rejected. Check it in project secrets." };
+    if (resp.status === 429) return { error: "Claude is rate limited — try again in a moment." };
+    if (resp.status === 400 && /credit/i.test(t)) return { error: "Your Anthropic account is out of credits." };
+    return { error: `Claude error (${resp.status}). Try again.` };
+  }
+  const data = await resp.json();
+  if (data.stop_reason === "refusal") return { error: "Claude declined that request." };
+  const text = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n");
+  const tool_calls = (data.content || []).filter((b: any) => b.type === "tool_use").map((b: any) => ({
+    id: b.id, type: "function", function: { name: b.name, arguments: JSON.stringify(b.input || {}) },
+  }));
+  const msg: any = { role: "assistant", content: text };
+  if (tool_calls.length) msg.tool_calls = tool_calls;
+  return { msg, usage: data.usage };
+}
 
 function newToken(): string {
   // 12 chars from a base32-ish alphabet (no I/O/0/1)
