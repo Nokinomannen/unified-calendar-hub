@@ -7,24 +7,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CalendarDays } from "lucide-react";
 import { toast } from "sonner";
+import { oauthReturnPath } from "@/lib/oauth-return-path";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" ? s.next : undefined,
+  }),
   component: AuthPage,
 });
 
 function AuthPage() {
   const router = useRouter();
+  const { next } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const go = () => {
+      const target = oauthReturnPath(next);
+      if (target !== "/") router.history.push(target);
+      else router.navigate({ to: "/" });
+    };
     supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session) { router.navigate({ to: "/" }); return; }
+      if (data.session) { go(); return; }
       // Remembered login (mobile browsers often drop the session) — sign in silently.
-      try { if (await tryAutoSignIn()) router.navigate({ to: "/" }); } catch {}
+      try { if (await tryAutoSignIn()) go(); } catch {}
     });
-  }, [router]);
+  }, [router, next]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,7 +44,9 @@ function AuthPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       saveAutoCreds(email, password);
-      router.navigate({ to: "/" });
+      const target = oauthReturnPath(next);
+      if (target !== "/") router.history.push(target);
+      else router.navigate({ to: "/" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
