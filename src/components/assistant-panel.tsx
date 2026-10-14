@@ -155,7 +155,7 @@ export function AssistantPanel() {
                 <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground">
                   <Sparkles className="h-3.5 w-3.5" />
                 </span>
-                <h2 className="font-semibold tracking-tight">Claude</h2>
+                <h2 className="font-semibold tracking-tight">Calendar Assistant</h2>
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={resetChat} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Reset chat" title="Reset chat">
