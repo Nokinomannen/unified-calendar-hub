@@ -178,7 +178,7 @@ function CalendarPage() {
 
   // Hooks must run before the early return below, otherwise hook order changes after sign-in.
   const swipeRef = useRef<HTMLDivElement>(null);
-  useSwipeNav(swipeRef, navPrev, navNext, !loading && !!user);
+  const swipeGo = useSwipeNav(swipeRef, navPrev, navNext, !loading && !!user);
 
   if (loading || !user) return null;
 
@@ -248,9 +248,9 @@ function CalendarPage() {
               ))}
             </div>
             <div className="flex shrink-0 items-center gap-1.5 sm:ml-0 sm:gap-2">
-              <Button size="icon" variant="outline" className="h-11 w-11 sm:h-9 sm:w-9" onClick={navPrev}><ChevronLeft className="h-4 w-4" /></Button>
+              <Button size="icon" variant="outline" className="h-11 w-11 sm:h-9 sm:w-9" onClick={() => swipeGo(-1)}><ChevronLeft className="h-4 w-4" /></Button>
               <Button size="sm" variant="outline" className="h-11 sm:h-9" onClick={() => setCursor(new Date())}>Today</Button>
-              <Button size="icon" variant="outline" className="h-11 w-11 sm:h-9 sm:w-9" onClick={navNext}><ChevronRight className="h-4 w-4" /></Button>
+              <Button size="icon" variant="outline" className="h-11 w-11 sm:h-9 sm:w-9" onClick={() => swipeGo(1)}><ChevronRight className="h-4 w-4" /></Button>
             </div>
           </div>
         </div>
