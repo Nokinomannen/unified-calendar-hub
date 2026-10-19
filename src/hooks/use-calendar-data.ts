@@ -3,6 +3,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+import { pushOutlookEvent } from "@/lib/outlook-sync.functions";
+import { toast } from "sonner";
+
+/** Mirror a change to Outlook when the event lives in the Outlook calendar. */
+function mirrorToOutlook(id: string, op: "upsert" | "delete", qc?: ReturnType<typeof useQueryClient>) {
+  pushOutlookEvent({ data: { id, op } })
+    .then((r) => { if (r.pushed && op === "upsert") qc?.invalidateQueries({ queryKey: ["events"] }); })
+    .catch((e) => { console.error(e); toast.error("Kunde inte synka till Outlook"); });
+}
 // `rrule` is CommonJS; a namespace import works in both SSR and the browser.
 import * as rrulePkg from "rrule";
 const RRule = (rrulePkg as { RRule?: typeof import("rrule").RRule; default?: { RRule: typeof import("rrule").RRule } })
@@ -201,7 +210,10 @@ export function useCreateEvent() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      mirrorToOutlook(data.id, "upsert", qc);
+    },
   });
 }
 
@@ -213,7 +225,10 @@ export function useUpdateEvent() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      mirrorToOutlook(data.id, "upsert");
+    },
   });
 }
 
@@ -245,7 +260,8 @@ export function useDeleteEvent() {
       });
       if (ae) console.error("audit insert failed", ae.message);
     },
-    onSuccess: () => {
+    onSuccess: (_d, id) => {
+      mirrorToOutlook(id, "delete");
       qc.invalidateQueries({ queryKey: ["events"] });
       qc.invalidateQueries({ queryKey: ["dj_sets"] });
     },
