@@ -1,5 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSwipeNav } from "@/hooks/use-swipe-nav";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell, FAB } from "@/components/app-shell";
@@ -203,6 +204,8 @@ function CalendarPage() {
     else if (view === "week") setCursor(addWeeks(cursor, 1));
     else setCursor(addDays(cursor, 1));
   }
+  const swipeRef = useRef<HTMLDivElement>(null);
+  useSwipeNav(swipeRef, navPrev, navNext);
   const headerLabel = view === "month"
     ? format(cursor, "MMMM yyyy")
     : view === "week"
@@ -300,6 +303,7 @@ function CalendarPage() {
 
 
 
+        <div ref={swipeRef} className="touch-pan-y">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={view}
@@ -363,6 +367,7 @@ function CalendarPage() {
             )}
           </motion.div>
         </AnimatePresence>
+        </div>
 
       </div>
 
