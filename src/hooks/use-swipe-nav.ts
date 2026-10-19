@@ -98,22 +98,24 @@ export function useSwipeNav(
     };
 
     // Trackpad / Shift+wheel
-    let acc = 0, lockUntil = 0, idle: ReturnType<typeof setTimeout> | undefined;
+    let acc = 0, gestureLocked = false, idle: ReturnType<typeof setTimeout> | undefined;
     const onWheel = (e: WheelEvent) => {
       const wx = e.shiftKey && Math.abs(e.deltaX) < 1 ? e.deltaY : e.deltaX;
       if (Math.abs(wx) <= Math.abs(e.deltaY) && !e.shiftKey) return;
       if (blocked(e.target) || scrollableX(e.target)) return;
       e.preventDefault();
       clearTimeout(idle);
-      if (busy.current || performance.now() < lockUntil) {
-        // swallow trailing momentum from the same gesture
-        lockUntil = performance.now() + 150;
+      if (busy.current || gestureLocked) {
+        // swallow trailing momentum: unlock only after a pause in wheel events
+        gestureLocked = true;
+        idle = setTimeout(() => { gestureLocked = false; }, 220);
         return;
       }
       acc += wx;
       if (Math.abs(acc) > 110) {
         const dir: 1 | -1 = acc > 0 ? 1 : -1;
-        acc = 0; lockUntil = performance.now() + 500;
+        acc = 0; gestureLocked = true;
+        idle = setTimeout(() => { gestureLocked = false; }, 220);
         cancelAnimationFrame(raf);
         go(dir);
         return;
