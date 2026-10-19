@@ -1,6 +1,8 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSwipeNav } from "@/hooks/use-swipe-nav";
+import { syncOutlook } from "@/lib/outlook-sync.functions";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell, FAB } from "@/components/app-shell";
@@ -53,6 +55,15 @@ function CalendarPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   useEffect(() => { if (!loading && !user) router.navigate({ to: "/auth" }); }, [user, loading, router]);
+  // Pull Outlook once per app session — no background polling.
+  const qcOutlook = useQueryClient();
+  useEffect(() => {
+    if (!user || sessionStorage.getItem("outlook-synced")) return;
+    sessionStorage.setItem("outlook-synced", "1");
+    syncOutlook()
+      .then((r) => { if (r.added || r.updated || r.removed || r.pushed) qcOutlook.invalidateQueries({ queryKey: ["events"] }); })
+      .catch((e) => console.error("Outlook sync failed", e));
+  }, [user, qcOutlook]);
 
   // Queue upcoming reminders and fire due notifications while the app is open.
 
