@@ -16,6 +16,8 @@ import { CalendarColorSettings } from "@/components/calendar-colors";
 import { ReminderSettings } from "@/components/reminder-settings";
 import { useServerFn } from "@tanstack/react-start";
 import { readNotionInbox, clearNotionInbox } from "@/lib/notion-inbox.functions";
+import { syncOutlook } from "@/lib/outlook-sync.functions";
+import { useQueryClient } from "@tanstack/react-query";
 
 
 export const Route = createFileRoute("/sources")({
@@ -56,6 +58,21 @@ function SourcesPage() {
   const readInbox = useServerFn(readNotionInbox);
   const clearInbox = useServerFn(clearNotionInbox);
   const search = Route.useSearch();
+  const runOutlook = useServerFn(syncOutlook);
+  const qc = useQueryClient();
+  const [outlookBusy, setOutlookBusy] = useState(false);
+  async function syncFromOutlook() {
+    setOutlookBusy(true);
+    try {
+      const r = await runOutlook();
+      qc.invalidateQueries({ queryKey: ["events"] });
+      toast.success(`Outlook synkad: ${r.added} nya, ${r.updated} ändrade, ${r.removed} borttagna, ${r.pushed} skickade`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Outlook-synk misslyckades");
+    } finally {
+      setOutlookBusy(false);
+    }
+  }
 
   const targetCal = calId || calendars[0]?.id || "";
 
@@ -243,6 +260,9 @@ function SourcesPage() {
               </Button>
               <Button variant="outline" onClick={syncFromNotion} disabled={parsing}>
                 📥 Synka från Notion
+              </Button>
+              <Button variant="outline" onClick={syncFromOutlook} disabled={outlookBusy}>
+                {outlookBusy ? "Synkar…" : "🔄 Synka Outlook"}
               </Button>
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-accent">
                 <input
