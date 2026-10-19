@@ -1,7 +1,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 
 /** Horizontal swipe (touch) and horizontal trackpad / Shift+wheel scroll to move prev/next. */
-export function useSwipeNav(ref: RefObject<HTMLElement | null>, onPrev: () => void, onNext: () => void) {
+export function useSwipeNav(ref: RefObject<HTMLElement | null>, onPrev: () => void, onNext: () => void, enabled = true) {
   const cb = useRef({ onPrev, onNext });
   cb.current = { onPrev, onNext };
 
@@ -59,5 +59,5 @@ export function useSwipeNav(ref: RefObject<HTMLElement | null>, onPrev: () => vo
       el.removeEventListener("wheel", onWheel);
       clearTimeout(resetTimer);
     };
-  }, [ref]);
+  }, [ref, enabled]);
 }

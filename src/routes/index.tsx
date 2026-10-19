@@ -176,8 +176,11 @@ function CalendarPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [view]);
 
-  if (loading || !user) return null;
+  // Hooks must run before the early return below, otherwise hook order changes after sign-in.
+  const swipeRef = useRef<HTMLDivElement>(null);
+  useSwipeNav(swipeRef, navPrev, navNext, !loading && !!user);
 
+  if (loading || !user) return null;
 
   const drawerEvents = drawerDate ? visible.filter((e) => isSameDay(e.occurrence_start, drawerDate)) : [];
 
@@ -204,8 +207,6 @@ function CalendarPage() {
     else if (view === "week") setCursor(addWeeks(cursor, 1));
     else setCursor(addDays(cursor, 1));
   }
-  const swipeRef = useRef<HTMLDivElement>(null);
-  useSwipeNav(swipeRef, navPrev, navNext);
   const headerLabel = view === "month"
     ? format(cursor, "MMMM yyyy")
     : view === "week"
