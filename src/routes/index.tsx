@@ -203,6 +203,8 @@ function CalendarPage() {
     else if (view === "week") setCursor(addWeeks(cursor, 1));
     else setCursor(addDays(cursor, 1));
   }
+  const swipeRef = useRef<HTMLDivElement>(null);
+  useSwipeNav(swipeRef, navPrev, navNext);
   const headerLabel = view === "month"
     ? format(cursor, "MMMM yyyy")
     : view === "week"
@@ -300,6 +302,7 @@ function CalendarPage() {
 
 
 
+        <div ref={swipeRef} className="touch-pan-y">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={view}
@@ -363,6 +366,7 @@ function CalendarPage() {
             )}
           </motion.div>
         </AnimatePresence>
+        </div>
 
       </div>
 
