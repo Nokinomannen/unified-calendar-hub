@@ -13,8 +13,8 @@ När du klickar på en dag öppnas en mer överskådlig dagsvy, i den här ordni
 
 Fungerar på både dator och mobil. Inget hämtas i bakgrunden: Notion anropas bara när du trycker på en knapp, så det kostar inga extra credits.
 
-## En sak du behöver göra
-Din Work-sida och Reflektioner-sida är inte delade med Lovable-kopplingen i Notion ännu. Öppna varje sida i Notion → "..." → **Connections** → lägg till **Lovable**. Annars kan knapparna inte nå sidorna.
+## En sak att lösa först
+Lovable syns som kopplad i din Notion, men kopplingen appen använder ser fortfarande inte Work eller Reflektioner (den hittar andra sidor, t.ex. Workshop-sidan). Troligen är Lovable delad med en annan sida i trädet än just dessa. Första steget i bygget: jag testar igen, och om sidorna fortfarande saknas ber jag dig öppna Work och Reflektioner direkt → "..." → **Connections** och bekräfta att **Lovable** står där (inte bara på en sida ovanför). Allt annat i dagsvyn byggs oavsett.
 
 ## Tekniska detaljer
 - Ny tabell `day_focus` (id, user_id, date, text, done, position, notion_block_id, created_at) och `day_notes` (user_id, date, content, notion_block_id, updated_at), med RLS per användare och grants.
