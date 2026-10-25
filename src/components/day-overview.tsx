@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { addDays, format } from "date-fns";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowRight, Download, Send, Trash2, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Download, Send, Trash2, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,7 +62,16 @@ export function DayFocus({ date }: { date: Date }) {
     finally { setBusy(null); }
   };
 
-  const open = items.filter((i) => !i.done);
+  const open = items.filter((i) => !i.done && !i.id.startsWith("tmp-"));
+
+  const moveOpen = (days: number) => {
+    const ids = open.map((i) => i.id);
+    const target = ymd(addDays(date, days));
+    ids.forEach((id) => update.mutate({ id, patch: { focus_date: target } }));
+    toast.success(days > 0 ? "Flyttat till imorgon" : "Flyttat till dagen innan", {
+      action: { label: "Ångra", onClick: () => ids.forEach((id) => update.mutate({ id, patch: { focus_date: dk } })) },
+    });
+  };
 
   return (
     <section className="space-y-2 border-t border-border py-3">
@@ -74,10 +83,16 @@ export function DayFocus({ date }: { date: Date }) {
             {busy === "pull" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Notion
           </Button>
           {open.length > 0 && (
-            <Button variant="ghost" size="sm" className="h-9 gap-1 px-2 text-xs sm:h-7" title="Flytta ofärdigt till imorgon"
-              onClick={() => { const t = ymd(addDays(date, 1)); open.forEach((i) => update.mutate({ id: i.id, patch: { focus_date: t } })); toast.success("Flyttat till imorgon"); }}>
-              <ArrowRight className="h-3.5 w-3.5" /> Imorgon
-            </Button>
+            <>
+              <Button variant="ghost" size="sm" className="h-9 gap-1 px-2 text-xs sm:h-7" title="Flytta ofärdigt till dagen innan"
+                onClick={() => moveOpen(-1)}>
+                <ArrowLeft className="h-3.5 w-3.5" /> Igår
+              </Button>
+              <Button variant="ghost" size="sm" className="h-9 gap-1 px-2 text-xs sm:h-7" title="Flytta ofärdigt till imorgon"
+                onClick={() => moveOpen(1)}>
+                <ArrowRight className="h-3.5 w-3.5" /> Imorgon
+              </Button>
+            </>
           )}
         </div>
       </div>
