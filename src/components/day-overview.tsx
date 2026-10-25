@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { freeGaps } from "@/lib/day-gaps";
 import { useDayFocus, useDayNote } from "@/hooks/use-day-focus";
-import { pullFocusFromNotion, sendFocusToNotion, sendNoteToReflections, setNotionTodoChecked } from "@/lib/day-focus.functions";
+import { syncFocusWithNotion, sendFocusToNotion, sendNoteToReflections, setNotionTodoChecked } from "@/lib/day-focus.functions";
 import type { ExpandedEvent } from "@/hooks/use-calendar-data";
 
 const ymd = (d: Date) => format(d, "yyyy-MM-dd");
@@ -53,7 +53,7 @@ export function DayFocus({ date }: { date: Date }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const send = useServerFn(sendFocusToNotion);
-  const pull = useServerFn(pullFocusFromNotion);
+  const sync = useServerFn(syncFocusWithNotion);
   const check = useServerFn(setNotionTodoChecked);
 
   const run = async (k: string, fn: () => Promise<unknown>, ok?: string) => {
@@ -78,9 +78,13 @@ export function DayFocus({ date }: { date: Date }) {
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Dagens fokus</h3>
         <div className="flex gap-1">
-          <Button variant="ghost" size="sm" className="h-9 gap-1 px-2 text-xs sm:h-7" disabled={!!busy}
-            onClick={() => run("pull", async () => { const r = await pull({ data: { date: dk } }); invalidate(); toast.success(r.added ? `${r.added} hämtade från Notion` : "Inget nytt i Notion"); })}>
-            {busy === "pull" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Notion
+          <Button variant="ghost" size="sm" className="h-9 gap-1 px-2 text-xs sm:h-7" disabled={!!busy} title="Synka fokus båda hållen med Work i Notion"
+            onClick={() => run("sync", async () => {
+              const r = await sync({ data: { date: dk } });
+              invalidate();
+              toast.success(r.added ? `Synkat – ${r.added} nya från Notion` : "Synkat med Notion");
+            })}>
+            {busy === "sync" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Synka
           </Button>
           {items.some((i) => !i.notion_block_id && !i.id.startsWith("tmp-")) && (
             <Button variant="ghost" size="sm" className="h-9 gap-1 px-2 text-xs sm:h-7" disabled={!!busy} title="Skicka alla till Work i Notion"
