@@ -69,32 +69,60 @@ export const setNotionTodoChecked = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const pullFocusFromNotion = createServerFn({ method: "POST" })
+// Two-way sync: One's done-state wins for linked items (pushed to Notion),
+// new Notion to-dos are pulled in with their checked state.
+export const syncFocusWithNotion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { date: string }) => d)
   .handler(async ({ data, context }) => {
-    const todos: { id: string; text: string }[] = [];
+    const { data: linked } = await context.supabase
+      .from("day_focus")
+      .select("id, done, notion_block_id")
+      .not("notion_block_id", "is", null);
+
+    // Push local done-state to Notion for every linked item.
+    let pushed = 0;
+    for (const row of linked ?? []) {
+      try {
+        await notion(`/blocks/${row.notion_block_id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ to_do: { checked: row.done } }),
+        });
+        pushed++;
+      } catch (e) {
+        console.error(`Failed to push done-state for block ${row.notion_block_id}:`, e);
+      }
+    }
+
+    // Pull all to-dos (checked and unchecked) from the Work page.
+    const todos: { id: string; text: string; checked: boolean }[] = [];
     let cursor: string | undefined;
     do {
       const res = await notion(`/blocks/${WORK_PAGE_ID}/children?page_size=100${cursor ? `&start_cursor=${cursor}` : ""}`);
       for (const b of res.results ?? []) {
-        if (b.type !== "to_do" || b.to_do?.checked) continue;
+        if (b.type !== "to_do") continue;
         const text = (b.to_do?.rich_text ?? []).map((r: { plain_text?: string }) => r.plain_text ?? "").join("").trim();
-        if (text) todos.push({ id: b.id, text });
+        if (text) todos.push({ id: b.id, text, checked: !!b.to_do?.checked });
       }
       cursor = res.has_more ? res.next_cursor : undefined;
     } while (cursor);
 
-    const { data: existing } = await context.supabase.from("day_focus").select("notion_block_id").not("notion_block_id", "is", null);
-    const known = new Set((existing ?? []).map((r) => r.notion_block_id));
+    const known = new Set((linked ?? []).map((r) => r.notion_block_id));
     const fresh = todos.filter((t) => !known.has(t.id));
     if (fresh.length) {
       const { error } = await context.supabase.from("day_focus").insert(
-        fresh.map((t, i) => ({ user_id: context.userId, focus_date: data.date, text: t.text, notion_block_id: t.id, position: 1000 + i })),
+        fresh.map((t, i) => ({
+          user_id: context.userId,
+          focus_date: data.date,
+          text: t.text,
+          done: t.checked,
+          notion_block_id: t.id,
+          position: 1000 + i,
+        })),
       );
       if (error) throw new Error(error.message);
     }
-    return { added: fresh.length };
+    return { added: fresh.length, pushed };
   });
 
 export const sendNoteToReflections = createServerFn({ method: "POST" })
