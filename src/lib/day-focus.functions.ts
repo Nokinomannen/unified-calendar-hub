@@ -24,7 +24,7 @@ async function notion(path: string, init: RequestInit = {}) {
     const body = await res.text();
     console.error(`Notion ${path} failed [${res.status}]: ${body}`);
     if (res.status === 404) {
-      throw new Error("Notion-sidan hittas inte. Dela sidan med Lovable under ... → Connections i Notion.");
+      throw new Error("Appen har inte tillgång till Notion-sidan. Koppla om Notion och bocka i sidan (Work/Reflektioner).");
     }
     throw new Error(`Notion svarade ${res.status}: ${body.slice(0, 200)}`);
   }
@@ -40,9 +40,21 @@ export const sendFocusToNotion = createServerFn({ method: "POST" })
     const { data: row, error } = await context.supabase.from("day_focus").select("*").eq("id", data.id).single();
     if (error || !row) throw new Error("Fokuspunkten hittades inte");
     if (row.notion_block_id) return { blockId: row.notion_block_id };
+    // Place the to-do right under the "Idag" checklist instead of at the bottom of the page.
+    const page = await notion(`/blocks/${WORK_PAGE_ID}/children?page_size=100`);
+    const blocks: { id: string; type: string; [k: string]: any }[] = page.results ?? [];
+    const headingIdx = blocks.findIndex((b) => b.type?.startsWith("heading_") && (b[b.type]?.rich_text ?? []).map((r: any) => r.plain_text).join("").trim().toLowerCase() === "idag");
+    let after: string | undefined;
+    if (headingIdx >= 0) {
+      after = blocks[headingIdx].id;
+      for (let i = headingIdx + 1; i < blocks.length && blocks[i].type === "to_do"; i++) {
+        const empty = !(blocks[i].to_do?.rich_text ?? []).length;
+        if (!empty) after = blocks[i].id;
+      }
+    }
     const res = await notion(`/blocks/${WORK_PAGE_ID}/children`, {
       method: "PATCH",
-      body: JSON.stringify({ children: [{ object: "block", type: "to_do", to_do: { rich_text: rt(row.text), checked: row.done } }] }),
+      body: JSON.stringify({ ...(after ? { after } : {}), children: [{ object: "block", type: "to_do", to_do: { rich_text: rt(row.text), checked: row.done } }] }),
     });
     const blockId = res.results?.[0]?.id as string;
     await context.supabase.from("day_focus").update({ notion_block_id: blockId }).eq("id", row.id);
