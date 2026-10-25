@@ -1,0 +1,1 @@
+ALTER TABLE public.day_focus ADD COLUMN done_changed_at TIMESTAMPTZ NOT NULL DEFAULT now();

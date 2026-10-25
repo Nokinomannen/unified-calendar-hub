@@ -69,46 +69,60 @@ export const setNotionTodoChecked = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// Two-way sync: One's done-state wins for linked items (pushed to Notion),
-// new Notion to-dos are pulled in with their checked state.
+// Two-way sync with per-item conflict resolution: the side edited most
+// recently wins (Notion's last_edited_time vs One's done_changed_at).
+// New Notion to-dos are pulled in with their checked state.
 export const syncFocusWithNotion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { date: string }) => d)
   .handler(async ({ data, context }) => {
-    const { data: linked } = await context.supabase
-      .from("day_focus")
-      .select("id, done, notion_block_id")
-      .not("notion_block_id", "is", null);
-
-    // Push local done-state to Notion for every linked item.
-    let pushed = 0;
-    for (const row of linked ?? []) {
-      try {
-        await notion(`/blocks/${row.notion_block_id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ to_do: { checked: row.done } }),
-        });
-        pushed++;
-      } catch (e) {
-        console.error(`Failed to push done-state for block ${row.notion_block_id}:`, e);
-      }
-    }
-
-    // Pull all to-dos (checked and unchecked) from the Work page.
-    const todos: { id: string; text: string; checked: boolean }[] = [];
+    // Pull all to-dos (checked and unchecked) from the Work page first.
+    const todos: { id: string; text: string; checked: boolean; edited: string }[] = [];
     let cursor: string | undefined;
     do {
       const res = await notion(`/blocks/${WORK_PAGE_ID}/children?page_size=100${cursor ? `&start_cursor=${cursor}` : ""}`);
       for (const b of res.results ?? []) {
         if (b.type !== "to_do") continue;
         const text = (b.to_do?.rich_text ?? []).map((r: { plain_text?: string }) => r.plain_text ?? "").join("").trim();
-        if (text) todos.push({ id: b.id, text, checked: !!b.to_do?.checked });
+        if (text) todos.push({ id: b.id, text, checked: !!b.to_do?.checked, edited: b.last_edited_time ?? "" });
       }
       cursor = res.has_more ? res.next_cursor : undefined;
     } while (cursor);
 
-    const known = new Set((linked ?? []).map((r) => r.notion_block_id));
-    const fresh = todos.filter((t) => !known.has(t.id));
+    const { data: linked } = await context.supabase
+      .from("day_focus")
+      .select("id, done, notion_block_id, done_changed_at")
+      .not("notion_block_id", "is", null);
+    const byBlock = new Map((linked ?? []).map((r) => [r.notion_block_id as string, r]));
+
+    let pushed = 0;
+    let pulledState = 0;
+    for (const t of todos) {
+      const row = byBlock.get(t.id);
+      if (!row || row.done === t.checked) continue;
+      const notionNewer = new Date(t.edited).getTime() > new Date(row.done_changed_at ?? 0).getTime();
+      if (notionNewer) {
+        // Notion was edited more recently → update One.
+        const { error } = await context.supabase
+          .from("day_focus")
+          .update({ done: t.checked, done_changed_at: t.edited })
+          .eq("id", row.id);
+        if (!error) pulledState++;
+      } else {
+        // One was edited more recently → update Notion.
+        try {
+          await notion(`/blocks/${t.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ to_do: { checked: row.done } }),
+          });
+          pushed++;
+        } catch (e) {
+          console.error(`Failed to push done-state for block ${t.id}:`, e);
+        }
+      }
+    }
+
+    const fresh = todos.filter((t) => !byBlock.has(t.id));
     if (fresh.length) {
       const { error } = await context.supabase.from("day_focus").insert(
         fresh.map((t, i) => ({
@@ -116,13 +130,14 @@ export const syncFocusWithNotion = createServerFn({ method: "POST" })
           focus_date: data.date,
           text: t.text,
           done: t.checked,
+          done_changed_at: t.edited || new Date().toISOString(),
           notion_block_id: t.id,
           position: 1000 + i,
         })),
       );
       if (error) throw new Error(error.message);
     }
-    return { added: fresh.length, pushed };
+    return { added: fresh.length, pushed, pulled: pulledState };
   });
 
 export const sendNoteToReflections = createServerFn({ method: "POST" })
