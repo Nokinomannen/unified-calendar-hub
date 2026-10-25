@@ -5,6 +5,7 @@ import { useToggleSkip, dateKey, type Override } from "@/hooks/use-overrides";
 import { CheckCircle2, Circle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { DayFocus, DayNote, DaySummary } from "@/components/day-overview";
 
 
 type Props = {
@@ -62,6 +63,10 @@ export function DayDrawer({ date, events, overrides, onClose, onEdit, onAdd }: P
         </SheetHeader>
 
         <div className="px-5 pb-12">
+          <DaySummary date={date} timed={timed} skipped={skipped} />
+          <DayFocus date={date} />
+          <DayNote date={date} />
+          <h3 className="border-t border-border pt-3 text-sm font-semibold">Events</h3>
           {allDay.length > 0 && (
             <div className="space-y-1.5 py-3">
               {allDay.map((e) => {
