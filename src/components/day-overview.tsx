@@ -121,7 +121,10 @@ export function DayFocus({ date }: { date: Date }) {
             <Checkbox checked={i.done} className="h-5 w-5"
               onCheckedChange={(c) => {
                 update.mutate({ id: i.id, patch: { done: !!c } });
-                if (i.notion_block_id) check({ data: { blockId: i.notion_block_id, checked: !!c } }).catch(() => {});
+                if (i.notion_block_id) {
+                  check({ data: { blockId: i.notion_block_id, checked: !!c } })
+                    .catch(() => toast.error("Kunde inte uppdatera i Notion – tryck Synka"));
+                }
               }} />
             <span className={cn("min-w-0 flex-1 text-sm", i.done && "text-muted-foreground line-through")}>{i.text}</span>
             {i.notion_block_id ? (
