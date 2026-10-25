@@ -178,6 +178,63 @@ export type Database = {
         }
         Relationships: []
       }
+      day_focus: {
+        Row: {
+          created_at: string
+          done: boolean
+          focus_date: string
+          id: string
+          notion_block_id: string | null
+          position: number
+          text: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          focus_date: string
+          id?: string
+          notion_block_id?: string | null
+          position?: number
+          text: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          focus_date?: string
+          id?: string
+          notion_block_id?: string | null
+          position?: number
+          text?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      day_notes: {
+        Row: {
+          content: string
+          note_date: string
+          sent_to_notion_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          note_date: string
+          sent_to_notion_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          note_date?: string
+          sent_to_notion_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       dj_sets: {
         Row: {
           amount_sek: number
