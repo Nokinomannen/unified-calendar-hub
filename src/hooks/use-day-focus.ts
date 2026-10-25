@@ -42,8 +42,7 @@ export function useDayFocus(date: string | null) {
 
   const update = useMutation({
     mutationFn: async (v: { id: string; patch: Partial<Pick<FocusItem, "done" | "text" | "focus_date">> }) => {
-      const patch = { ...v.patch } as Record<string, unknown>;
-      if ("done" in patch) patch.done_changed_at = new Date().toISOString();
+      const patch = { ...v.patch, ...("done" in v.patch ? { done_changed_at: new Date().toISOString() } : {}) };
       const { error } = await supabase.from("day_focus").update(patch).eq("id", v.id);
       if (error) throw error;
     },
