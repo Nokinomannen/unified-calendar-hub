@@ -82,6 +82,18 @@ export function DayFocus({ date }: { date: Date }) {
             onClick={() => run("pull", async () => { const r = await pull({ data: { date: dk } }); invalidate(); toast.success(r.added ? `${r.added} hämtade från Notion` : "Inget nytt i Notion"); })}>
             {busy === "pull" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Notion
           </Button>
+          {items.some((i) => !i.notion_block_id && !i.id.startsWith("tmp-")) && (
+            <Button variant="ghost" size="sm" className="h-9 gap-1 px-2 text-xs sm:h-7" disabled={!!busy} title="Skicka alla till Work i Notion"
+              onClick={() => run("sendAll", async () => {
+                const todo = items.filter((i) => !i.notion_block_id && !i.id.startsWith("tmp-"));
+                for (const i of todo) await send({ data: { id: i.id } });
+                invalidate();
+                toast.success(`${todo.length} skickade till Notion`);
+              })}>
+              {busy === "sendAll" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Skicka alla
+            </Button>
+          )}
+
           {open.length > 0 && (
             <>
               <Button variant="ghost" size="sm" className="h-9 gap-1 px-2 text-xs sm:h-7" title="Flytta ofärdigt till dagen innan"
