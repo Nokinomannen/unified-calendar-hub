@@ -15,7 +15,7 @@ export function useDayFocus(date: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase.from("day_focus")
         .select("id, focus_date, text, done, position, notion_block_id")
-        .eq("focus_date", date!).order("position").order("created_at");
+        .eq("focus_date", date!).is("deleted_at", null).order("position").order("created_at");
       if (error) throw error;
       return data as FocusItem[];
     },
@@ -43,7 +43,7 @@ export function useDayFocus(date: string | null) {
   const update = useMutation({
     mutationFn: async (v: { id: string; patch: Partial<Pick<FocusItem, "done" | "text" | "focus_date">> }) => {
       const patch = { ...v.patch, ...("done" in v.patch ? { done_changed_at: new Date().toISOString() } : {}) };
-      const { error } = await supabase.from("day_focus").update(patch).eq("id", v.id);
+      const { error } = await supabase.from("day_focus").update(patch).eq("id", v.id).is("deleted_at", null);
       if (error) throw error;
     },
     onMutate: (v) => optimistic((l) => l.map((i) => (i.id === v.id ? { ...i, ...v.patch } : i)).filter((i) => !v.patch.focus_date || i.focus_date === date)),
@@ -53,7 +53,8 @@ export function useDayFocus(date: string | null) {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("day_focus").delete().eq("id", id);
+      // Keep the Notion link as a tombstone so Sync cannot import it again.
+      const { error } = await supabase.from("day_focus").update({ deleted_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
     },
     onMutate: (id) => optimistic((l) => l.filter((i) => i.id !== id)),
