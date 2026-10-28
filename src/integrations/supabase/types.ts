@@ -181,6 +181,7 @@ export type Database = {
       day_focus: {
         Row: {
           created_at: string
+          deleted_at: string | null
           done: boolean
           done_changed_at: string
           focus_date: string
@@ -192,6 +193,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           done?: boolean
           done_changed_at?: string
           focus_date: string
@@ -203,6 +205,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           done?: boolean
           done_changed_at?: string
           focus_date?: string

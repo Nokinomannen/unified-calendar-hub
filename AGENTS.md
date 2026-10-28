@@ -5,3 +5,4 @@
 - MCP server for external agents lives in src/lib/mcp (one tool per file, OAuth via managed auth); tools use the caller token so RLS applies.
 - Outlook (Hotmail) two-way sync lives in src/lib/outlook-sync.functions.ts: pull on demand (once per session + Sources button), push after each event mutation; no polling, to keep background cost near zero.
 - Day focus/notes live in day_focus/day_notes; Notion (Work to-dos, Reflektioner) is touched only on explicit button presses in src/lib/day-focus.functions.ts, never on load, to keep background cost zero.
+- Soft-delete day_focus rows with deleted_at; hide them from active reads and mutations but retain their Notion links in sync's index to prevent re-import without deleting the user's Notion content.

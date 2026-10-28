@@ -1,0 +1,2 @@
+ALTER TABLE public.day_focus ADD COLUMN deleted_at timestamptz;
+COMMENT ON COLUMN public.day_focus.deleted_at IS 'Soft deletion marker retained to prevent linked Notion tasks from being imported again.';

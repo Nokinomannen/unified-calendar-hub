@@ -37,7 +37,7 @@ export const sendFocusToNotion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
-    const { data: row, error } = await context.supabase.from("day_focus").select("*").eq("id", data.id).single();
+    const { data: row, error } = await context.supabase.from("day_focus").select("*").eq("id", data.id).is("deleted_at", null).single();
     if (error || !row) throw new Error("Fokuspunkten hittades inte");
     if (row.notion_block_id) return { blockId: row.notion_block_id };
     // Place the to-do right under the "Idag" checklist instead of at the bottom of the page.
@@ -89,24 +89,27 @@ export const syncFocusWithNotion = createServerFn({ method: "POST" })
       cursor = res.has_more ? res.next_cursor : undefined;
     } while (cursor);
 
-    const { data: linked } = await context.supabase
+    const { data: linked, error: linkedError } = await context.supabase
       .from("day_focus")
-      .select("id, done, notion_block_id, done_changed_at")
+      .select("id, done, notion_block_id, done_changed_at, deleted_at")
       .not("notion_block_id", "is", null);
+    if (linkedError) throw new Error(linkedError.message);
+    // Include deleted rows in the index to prevent re-import on any day.
     const byBlock = new Map((linked ?? []).map((r) => [r.notion_block_id as string, r]));
 
     let pushed = 0;
     let pulledState = 0;
     for (const t of todos) {
       const row = byBlock.get(t.id);
-      if (!row || row.done === t.checked) continue;
+      if (!row || row.deleted_at || row.done === t.checked) continue;
       const notionNewer = new Date(t.edited).getTime() > new Date(row.done_changed_at ?? 0).getTime();
       if (notionNewer) {
         // Notion was edited more recently → update One.
         const { error } = await context.supabase
           .from("day_focus")
           .update({ done: t.checked, done_changed_at: t.edited })
-          .eq("id", row.id);
+          .eq("id", row.id)
+          .is("deleted_at", null);
         if (!error) pulledState++;
       } else {
         // One was edited more recently → update Notion.
