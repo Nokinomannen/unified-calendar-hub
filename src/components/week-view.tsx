@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { slotRange, yToSlotMinutes } from "@/lib/drag-slot";
 import { addDays, format, isSameDay, isToday, startOfWeek } from "date-fns";
 import type { ExpandedEvent } from "@/hooks/use-calendar-data";
 import { dateKey, type Override } from "@/hooks/use-overrides";
@@ -17,11 +18,12 @@ type Props = {
   overrides: Override[];
   onEdit: (e: ExpandedEvent) => void;
   onAdd: (when: Date) => void;
+  onAddRange?: (start: Date, end: Date) => void;
   weather?: Map<string, WeatherDay>;
   weekStartsOn?: 0 | 1;
 };
 
-export function WeekView({ weekStart, events, overrides, onEdit, onAdd, weather, weekStartsOn = 1 }: Props) {
+export function WeekView({ weekStart, events, overrides, onEdit, onAdd, onAddRange, weather, weekStartsOn = 1 }: Props) {
   const monday = startOfWeek(weekStart, { weekStartsOn });
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
@@ -30,6 +32,16 @@ export function WeekView({ weekStart, events, overrides, onEdit, onAdd, weather,
     for (const o of overrides) if (o.status === "skipped") s.add(`${o.event_id}|${o.occurrence_date}`);
     return s;
   }, [overrides]);
+
+  const [drag, setDrag] = useState<{ day: string; a: number; b: number } | null>(null);
+  useEffect(() => {
+    if (!drag) return;
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setDrag(null); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [!!drag]);
+  const atMin = (day: Date, m: number) => { const d = new Date(day); d.setHours(Math.floor(m / 60), m % 60, 0, 0); return d; };
+  const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card">
@@ -74,7 +86,32 @@ export function WeekView({ weekStart, events, overrides, onEdit, onAdd, weather,
               }
             }
           return (
-            <div key={day.toISOString()} className="relative border-l border-border" style={{ height: (END_HOUR - START_HOUR) * HOUR_PX }}
+            <div key={day.toISOString()} className={cn("relative border-l border-border", onAddRange && "cursor-crosshair select-none")}
+              style={{ height: (END_HOUR - START_HOUR) * HOUR_PX, touchAction: onAddRange ? "none" : undefined }}
+              onPointerDown={(e) => {
+                if (!onAddRange || e.button !== 0 || e.pointerType === "touch") return;
+                if ((e.target as HTMLElement).closest("[data-event]")) return;
+                e.stopPropagation(); e.preventDefault();
+                const r = e.currentTarget.getBoundingClientRect();
+                const m = yToSlotMinutes(e.clientY - r.top, HOUR_PX, START_HOUR, END_HOUR);
+                e.currentTarget.setPointerCapture(e.pointerId);
+                setDrag({ day: dk, a: m, b: m });
+              }}
+              onPointerMove={(e) => {
+                if (!drag || drag.day !== dk) return;
+                e.stopPropagation();
+                const r = e.currentTarget.getBoundingClientRect();
+                const m = yToSlotMinutes(e.clientY - r.top, HOUR_PX, START_HOUR, END_HOUR);
+                if (m !== drag.b) setDrag({ ...drag, b: m });
+              }}
+              onPointerUp={(e) => {
+                if (!drag || drag.day !== dk) return;
+                e.stopPropagation();
+                const { start, end } = slotRange(drag.a, drag.b);
+                setDrag(null);
+                onAddRange?.(atMin(day, start), atMin(day, end));
+              }}
+              onPointerCancel={() => setDrag(null)}
               onDoubleClick={(e) => {
                 const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                 const y = e.clientY - r.top;
@@ -86,6 +123,15 @@ export function WeekView({ weekStart, events, overrides, onEdit, onAdd, weather,
               {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
                 <div key={i} className="absolute left-0 right-0 border-t border-border/30" style={{ top: i * HOUR_PX }} />
               ))}
+              {drag?.day === dk && (() => {
+                const { start, end } = slotRange(drag.a, drag.b);
+                return (
+                  <div className="pointer-events-none absolute left-0.5 right-0.5 z-10 rounded-sm border border-primary bg-primary/20 px-1 py-0.5 text-[10px] font-medium tabular-nums text-primary"
+                    style={{ top: (start / 60 - START_HOUR) * HOUR_PX, height: ((end - start) / 60) * HOUR_PX }}>
+                    {fmtMin(start)}–{fmtMin(end)}
+                  </div>
+                );
+              })()}
               {cols.map(({ event, col }) => {
                 const sH = event.occurrence_start.getHours() + event.occurrence_start.getMinutes() / 60;
                 const eH = event.occurrence_end.getHours() + event.occurrence_end.getMinutes() / 60;
@@ -97,6 +143,7 @@ export function WeekView({ weekStart, events, overrides, onEdit, onAdd, weather,
                 return (
                   <EventContextMenu key={`${event.id}-${col}`} event={event} onEdit={onEdit} asChild>
                     <div
+                      data-event
                       onClick={() => onEdit(event)}
                       className={cn(
                         "absolute cursor-pointer overflow-hidden rounded-sm border-l-[3px] bg-card/95 px-1 py-0.5 text-[10px] leading-tight shadow-sm hover:bg-accent",

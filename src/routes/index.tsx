@@ -93,6 +93,7 @@ function CalendarPage() {
   }, [searchDay]);
   const [open, setOpen] = useState(false);
   const [defaultStart, setDefaultStart] = useState<Date | undefined>();
+  const [defaultEnd, setDefaultEnd] = useState<Date | undefined>();
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [editingOccurrence, setEditingOccurrence] = useState<{ start: Date; end: Date } | null>(null);
   const [drawerDate, setDrawerDate] = useState<Date | null>(null);
@@ -173,7 +174,7 @@ function CalendarPage() {
           document.getElementById("quick-add-input")?.focus();
           break;
         }
-        case "n": e.preventDefault(); setEditing(null); setDefaultStart(undefined); setOpen(true); break;
+        case "n": e.preventDefault(); setEditing(null); setDefaultStart(undefined); setDefaultEnd(undefined); setOpen(true); break;
         case "t": e.preventDefault(); setCursor(new Date()); break;
         case "1": setView("month"); break;
         case "2": setView("week"); break;
@@ -201,8 +202,9 @@ function CalendarPage() {
     setEditingOccurrence(e.rrule ? { start: e.occurrence_start, end: e.occurrence_end } : null);
     setOpen(true);
   }
-  function openAdd(when?: Date) {
+  function openAdd(when?: Date, until?: Date) {
     setEditing(null);
+    setDefaultEnd(until);
     setEditingOccurrence(null);
     setDefaultStart(when);
     setOpen(true);
@@ -352,7 +354,7 @@ function CalendarPage() {
                 </div>
                 <div className="hidden md:block">
                   <WeekView weekStart={cursor} events={visible} overrides={overrides}
-                    onEdit={openEdit} onAdd={openAdd} weather={weather}
+                    onEdit={openEdit} onAdd={openAdd} onAddRange={openAdd} weather={weather}
                     weekStartsOn={wso}
                   />
                 </div>
@@ -371,7 +373,7 @@ function CalendarPage() {
                   </button>
                   <div className="mt-2">
                     <WeekView weekStart={cursor} events={visible.filter((e) => isSameDay(e.occurrence_start, cursor))} overrides={overrides}
-                      onEdit={openEdit} onAdd={openAdd} weather={weather}
+                      onEdit={openEdit} onAdd={openAdd} onAddRange={openAdd} weather={weather}
                     />
                   </div>
                 </div>
@@ -385,7 +387,7 @@ function CalendarPage() {
 
 
       <FAB onClick={() => openAdd()} />
-      <AddEventDialog open={open} onOpenChange={setOpen} defaultStart={defaultStart} event={editing} occurrence={editingOccurrence} />
+      <AddEventDialog open={open} onOpenChange={setOpen} defaultStart={defaultStart} defaultEnd={defaultEnd} event={editing} occurrence={editingOccurrence} />
       <DayDrawer date={drawerDate} events={drawerEvents} overrides={overrides} onClose={() => setDrawerDate(null)} onEdit={openEdit} onAdd={(d) => { setDrawerDate(null); openAdd(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0)); }} />
     </AppShell>
   );

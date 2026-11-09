@@ -33,11 +33,12 @@ function localDateTimeValue(d: Date) {
 }
 
 export function AddEventDialog({
-  open, onOpenChange, defaultStart, event, occurrence,
+  open, onOpenChange, defaultStart, defaultEnd, event, occurrence,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   defaultStart?: Date;
+  defaultEnd?: Date;
   event?: EventRow | null;
   /** The clicked occurrence of a recurring event, so edits can be scoped to it. */
   occurrence?: { start: Date; end: Date } | null;
@@ -91,12 +92,12 @@ export function AddEventDialog({
       setEmailRem(event.email_reminder ?? "default");
     } else {
       const s0 = defaultStart ?? new Date(Math.ceil(Date.now() / 1800000) * 1800000);
-      const e0 = new Date(s0.getTime() + 60 * 60 * 1000);
+      const e0 = defaultEnd && defaultEnd > s0 ? defaultEnd : new Date(s0.getTime() + 60 * 60 * 1000);
       setTitle(""); setCalId(""); setStart(localDateTimeValue(s0)); setEnd(localDateTimeValue(e0));
       setLocation(""); setDescription(""); setAllDay(false); setRepeat("none"); setByDays([]); setUntil("");
       setReminder("default"); setEmailRem("default"); setScope("one");
     }
-  }, [open, event, defaultStart, occurrence]);
+  }, [open, event, defaultStart, defaultEnd, occurrence]);
 
   const cal = calId || calendars?.[0]?.id || "";
   const isDj = allCalendars.find((c) => c.id === cal)?.kind === "dj";
